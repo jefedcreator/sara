@@ -2556,7 +2556,6 @@ export namespace Prisma {
     members: number
     staff: number
     services: number
-    clients: number
     bookings: number
     invoices: number
     payments: number
@@ -2568,7 +2567,6 @@ export namespace Prisma {
     members?: boolean | BusinessCountOutputTypeCountMembersArgs
     staff?: boolean | BusinessCountOutputTypeCountStaffArgs
     services?: boolean | BusinessCountOutputTypeCountServicesArgs
-    clients?: boolean | BusinessCountOutputTypeCountClientsArgs
     bookings?: boolean | BusinessCountOutputTypeCountBookingsArgs
     invoices?: boolean | BusinessCountOutputTypeCountInvoicesArgs
     payments?: boolean | BusinessCountOutputTypeCountPaymentsArgs
@@ -2606,13 +2604,6 @@ export namespace Prisma {
    */
   export type BusinessCountOutputTypeCountServicesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: ServiceWhereInput
-  }
-
-  /**
-   * BusinessCountOutputType without action
-   */
-  export type BusinessCountOutputTypeCountClientsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: ClientWhereInput
   }
 
   /**
@@ -2778,14 +2769,12 @@ export namespace Prisma {
   export type ClientCountOutputType = {
     locations: number
     bookings: number
-    invoices: number
     payments: number
   }
 
   export type ClientCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     locations?: boolean | ClientCountOutputTypeCountLocationsArgs
     bookings?: boolean | ClientCountOutputTypeCountBookingsArgs
-    invoices?: boolean | ClientCountOutputTypeCountInvoicesArgs
     payments?: boolean | ClientCountOutputTypeCountPaymentsArgs
   }
 
@@ -2812,13 +2801,6 @@ export namespace Prisma {
    */
   export type ClientCountOutputTypeCountBookingsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: BookingWhereInput
-  }
-
-  /**
-   * ClientCountOutputType without action
-   */
-  export type ClientCountOutputTypeCountInvoicesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: InvoiceWhereInput
   }
 
   /**
@@ -3269,7 +3251,6 @@ export namespace Prisma {
     members?: boolean | Business$membersArgs<ExtArgs>
     staff?: boolean | Business$staffArgs<ExtArgs>
     services?: boolean | Business$servicesArgs<ExtArgs>
-    clients?: boolean | Business$clientsArgs<ExtArgs>
     bookings?: boolean | Business$bookingsArgs<ExtArgs>
     invoices?: boolean | Business$invoicesArgs<ExtArgs>
     payments?: boolean | Business$paymentsArgs<ExtArgs>
@@ -3360,7 +3341,6 @@ export namespace Prisma {
     members?: boolean | Business$membersArgs<ExtArgs>
     staff?: boolean | Business$staffArgs<ExtArgs>
     services?: boolean | Business$servicesArgs<ExtArgs>
-    clients?: boolean | Business$clientsArgs<ExtArgs>
     bookings?: boolean | Business$bookingsArgs<ExtArgs>
     invoices?: boolean | Business$invoicesArgs<ExtArgs>
     payments?: boolean | Business$paymentsArgs<ExtArgs>
@@ -3384,7 +3364,6 @@ export namespace Prisma {
       members: Prisma.$BusinessMemberPayload<ExtArgs>[]
       staff: Prisma.$StaffMemberPayload<ExtArgs>[]
       services: Prisma.$ServicePayload<ExtArgs>[]
-      clients: Prisma.$ClientPayload<ExtArgs>[]
       bookings: Prisma.$BookingPayload<ExtArgs>[]
       invoices: Prisma.$InvoicePayload<ExtArgs>[]
       payments: Prisma.$PaymentPayload<ExtArgs>[]
@@ -3813,7 +3792,6 @@ export namespace Prisma {
     members<T extends Business$membersArgs<ExtArgs> = {}>(args?: Subset<T, Business$membersArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BusinessMemberPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     staff<T extends Business$staffArgs<ExtArgs> = {}>(args?: Subset<T, Business$staffArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StaffMemberPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     services<T extends Business$servicesArgs<ExtArgs> = {}>(args?: Subset<T, Business$servicesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ServicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-    clients<T extends Business$clientsArgs<ExtArgs> = {}>(args?: Subset<T, Business$clientsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ClientPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     bookings<T extends Business$bookingsArgs<ExtArgs> = {}>(args?: Subset<T, Business$bookingsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BookingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     invoices<T extends Business$invoicesArgs<ExtArgs> = {}>(args?: Subset<T, Business$invoicesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InvoicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     payments<T extends Business$paymentsArgs<ExtArgs> = {}>(args?: Subset<T, Business$paymentsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -4372,30 +4350,6 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: ServiceScalarFieldEnum | ServiceScalarFieldEnum[]
-  }
-
-  /**
-   * Business.clients
-   */
-  export type Business$clientsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the Client
-     */
-    select?: ClientSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the Client
-     */
-    omit?: ClientOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: ClientInclude<ExtArgs> | null
-    where?: ClientWhereInput
-    orderBy?: ClientOrderByWithRelationInput | ClientOrderByWithRelationInput[]
-    cursor?: ClientWhereUniqueInput
-    take?: number
-    skip?: number
-    distinct?: ClientScalarFieldEnum | ClientScalarFieldEnum[]
   }
 
   /**
@@ -13109,10 +13063,8 @@ export namespace Prisma {
     notes?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    business?: boolean | BusinessDefaultArgs<ExtArgs>
     locations?: boolean | Client$locationsArgs<ExtArgs>
     bookings?: boolean | Client$bookingsArgs<ExtArgs>
-    invoices?: boolean | Client$invoicesArgs<ExtArgs>
     payments?: boolean | Client$paymentsArgs<ExtArgs>
     _count?: boolean | ClientCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["client"]>
@@ -13126,7 +13078,6 @@ export namespace Prisma {
     notes?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    business?: boolean | BusinessDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["client"]>
 
   export type ClientSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -13138,7 +13089,6 @@ export namespace Prisma {
     notes?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    business?: boolean | BusinessDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["client"]>
 
   export type ClientSelectScalar = {
@@ -13154,27 +13104,19 @@ export namespace Prisma {
 
   export type ClientOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "businessId" | "name" | "email" | "phone" | "notes" | "createdAt" | "updatedAt", ExtArgs["result"]["client"]>
   export type ClientInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    business?: boolean | BusinessDefaultArgs<ExtArgs>
     locations?: boolean | Client$locationsArgs<ExtArgs>
     bookings?: boolean | Client$bookingsArgs<ExtArgs>
-    invoices?: boolean | Client$invoicesArgs<ExtArgs>
     payments?: boolean | Client$paymentsArgs<ExtArgs>
     _count?: boolean | ClientCountOutputTypeDefaultArgs<ExtArgs>
   }
-  export type ClientIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    business?: boolean | BusinessDefaultArgs<ExtArgs>
-  }
-  export type ClientIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    business?: boolean | BusinessDefaultArgs<ExtArgs>
-  }
+  export type ClientIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
+  export type ClientIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
 
   export type $ClientPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Client"
     objects: {
-      business: Prisma.$BusinessPayload<ExtArgs>
       locations: Prisma.$LocationPayload<ExtArgs>[]
       bookings: Prisma.$BookingPayload<ExtArgs>[]
-      invoices: Prisma.$InvoicePayload<ExtArgs>[]
       payments: Prisma.$PaymentPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
@@ -13580,10 +13522,8 @@ export namespace Prisma {
    */
   export interface Prisma__ClientClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
-    business<T extends BusinessDefaultArgs<ExtArgs> = {}>(args?: Subset<T, BusinessDefaultArgs<ExtArgs>>): Prisma__BusinessClient<$Result.GetResult<Prisma.$BusinessPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     locations<T extends Client$locationsArgs<ExtArgs> = {}>(args?: Subset<T, Client$locationsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$LocationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     bookings<T extends Client$bookingsArgs<ExtArgs> = {}>(args?: Subset<T, Client$bookingsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$BookingPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
-    invoices<T extends Client$invoicesArgs<ExtArgs> = {}>(args?: Subset<T, Client$invoicesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InvoicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     payments<T extends Client$paymentsArgs<ExtArgs> = {}>(args?: Subset<T, Client$paymentsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -13871,10 +13811,6 @@ export namespace Prisma {
      */
     data: ClientCreateManyInput | ClientCreateManyInput[]
     skipDuplicates?: boolean
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: ClientIncludeCreateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -13945,10 +13881,6 @@ export namespace Prisma {
      * Limit how many Clients to update.
      */
     limit?: number
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: ClientIncludeUpdateManyAndReturn<ExtArgs> | null
   }
 
   /**
@@ -14063,30 +13995,6 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: BookingScalarFieldEnum | BookingScalarFieldEnum[]
-  }
-
-  /**
-   * Client.invoices
-   */
-  export type Client$invoicesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the Invoice
-     */
-    select?: InvoiceSelect<ExtArgs> | null
-    /**
-     * Omit specific fields from the Invoice
-     */
-    omit?: InvoiceOmit<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: InvoiceInclude<ExtArgs> | null
-    where?: InvoiceWhereInput
-    orderBy?: InvoiceOrderByWithRelationInput | InvoiceOrderByWithRelationInput[]
-    cursor?: InvoiceWhereUniqueInput
-    take?: number
-    skip?: number
-    distinct?: InvoiceScalarFieldEnum | InvoiceScalarFieldEnum[]
   }
 
   /**
@@ -16648,7 +16556,9 @@ export namespace Prisma {
   export type InvoiceMinAggregateOutputType = {
     id: string | null
     businessId: string | null
-    clientId: string | null
+    clientName: string | null
+    clientEmail: string | null
+    clientPhone: string | null
     bookingId: string | null
     invoiceNumber: string | null
     status: $Enums.InvoiceStatus | null
@@ -16669,7 +16579,9 @@ export namespace Prisma {
   export type InvoiceMaxAggregateOutputType = {
     id: string | null
     businessId: string | null
-    clientId: string | null
+    clientName: string | null
+    clientEmail: string | null
+    clientPhone: string | null
     bookingId: string | null
     invoiceNumber: string | null
     status: $Enums.InvoiceStatus | null
@@ -16690,7 +16602,9 @@ export namespace Prisma {
   export type InvoiceCountAggregateOutputType = {
     id: number
     businessId: number
-    clientId: number
+    clientName: number
+    clientEmail: number
+    clientPhone: number
     bookingId: number
     invoiceNumber: number
     status: number
@@ -16729,7 +16643,9 @@ export namespace Prisma {
   export type InvoiceMinAggregateInputType = {
     id?: true
     businessId?: true
-    clientId?: true
+    clientName?: true
+    clientEmail?: true
+    clientPhone?: true
     bookingId?: true
     invoiceNumber?: true
     status?: true
@@ -16750,7 +16666,9 @@ export namespace Prisma {
   export type InvoiceMaxAggregateInputType = {
     id?: true
     businessId?: true
-    clientId?: true
+    clientName?: true
+    clientEmail?: true
+    clientPhone?: true
     bookingId?: true
     invoiceNumber?: true
     status?: true
@@ -16771,7 +16689,9 @@ export namespace Prisma {
   export type InvoiceCountAggregateInputType = {
     id?: true
     businessId?: true
-    clientId?: true
+    clientName?: true
+    clientEmail?: true
+    clientPhone?: true
     bookingId?: true
     invoiceNumber?: true
     status?: true
@@ -16879,7 +16799,9 @@ export namespace Prisma {
   export type InvoiceGroupByOutputType = {
     id: string
     businessId: string
-    clientId: string
+    clientName: string
+    clientEmail: string | null
+    clientPhone: string | null
     bookingId: string | null
     invoiceNumber: string
     status: $Enums.InvoiceStatus
@@ -16919,7 +16841,9 @@ export namespace Prisma {
   export type InvoiceSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     businessId?: boolean
-    clientId?: boolean
+    clientName?: boolean
+    clientEmail?: boolean
+    clientPhone?: boolean
     bookingId?: boolean
     invoiceNumber?: boolean
     status?: boolean
@@ -16936,7 +16860,6 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     business?: boolean | BusinessDefaultArgs<ExtArgs>
-    client?: boolean | ClientDefaultArgs<ExtArgs>
     booking?: boolean | Invoice$bookingArgs<ExtArgs>
     items?: boolean | Invoice$itemsArgs<ExtArgs>
     payments?: boolean | Invoice$paymentsArgs<ExtArgs>
@@ -16946,7 +16869,9 @@ export namespace Prisma {
   export type InvoiceSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     businessId?: boolean
-    clientId?: boolean
+    clientName?: boolean
+    clientEmail?: boolean
+    clientPhone?: boolean
     bookingId?: boolean
     invoiceNumber?: boolean
     status?: boolean
@@ -16963,14 +16888,15 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     business?: boolean | BusinessDefaultArgs<ExtArgs>
-    client?: boolean | ClientDefaultArgs<ExtArgs>
     booking?: boolean | Invoice$bookingArgs<ExtArgs>
   }, ExtArgs["result"]["invoice"]>
 
   export type InvoiceSelectUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     businessId?: boolean
-    clientId?: boolean
+    clientName?: boolean
+    clientEmail?: boolean
+    clientPhone?: boolean
     bookingId?: boolean
     invoiceNumber?: boolean
     status?: boolean
@@ -16987,14 +16913,15 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     business?: boolean | BusinessDefaultArgs<ExtArgs>
-    client?: boolean | ClientDefaultArgs<ExtArgs>
     booking?: boolean | Invoice$bookingArgs<ExtArgs>
   }, ExtArgs["result"]["invoice"]>
 
   export type InvoiceSelectScalar = {
     id?: boolean
     businessId?: boolean
-    clientId?: boolean
+    clientName?: boolean
+    clientEmail?: boolean
+    clientPhone?: boolean
     bookingId?: boolean
     invoiceNumber?: boolean
     status?: boolean
@@ -17012,10 +16939,9 @@ export namespace Prisma {
     updatedAt?: boolean
   }
 
-  export type InvoiceOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "businessId" | "clientId" | "bookingId" | "invoiceNumber" | "status" | "currency" | "subtotal" | "taxAmount" | "discount" | "total" | "amountPaid" | "dueAt" | "sentAt" | "paidAt" | "notes" | "createdAt" | "updatedAt", ExtArgs["result"]["invoice"]>
+  export type InvoiceOmit<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetOmit<"id" | "businessId" | "clientName" | "clientEmail" | "clientPhone" | "bookingId" | "invoiceNumber" | "status" | "currency" | "subtotal" | "taxAmount" | "discount" | "total" | "amountPaid" | "dueAt" | "sentAt" | "paidAt" | "notes" | "createdAt" | "updatedAt", ExtArgs["result"]["invoice"]>
   export type InvoiceInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     business?: boolean | BusinessDefaultArgs<ExtArgs>
-    client?: boolean | ClientDefaultArgs<ExtArgs>
     booking?: boolean | Invoice$bookingArgs<ExtArgs>
     items?: boolean | Invoice$itemsArgs<ExtArgs>
     payments?: boolean | Invoice$paymentsArgs<ExtArgs>
@@ -17023,12 +16949,10 @@ export namespace Prisma {
   }
   export type InvoiceIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     business?: boolean | BusinessDefaultArgs<ExtArgs>
-    client?: boolean | ClientDefaultArgs<ExtArgs>
     booking?: boolean | Invoice$bookingArgs<ExtArgs>
   }
   export type InvoiceIncludeUpdateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     business?: boolean | BusinessDefaultArgs<ExtArgs>
-    client?: boolean | ClientDefaultArgs<ExtArgs>
     booking?: boolean | Invoice$bookingArgs<ExtArgs>
   }
 
@@ -17036,7 +16960,6 @@ export namespace Prisma {
     name: "Invoice"
     objects: {
       business: Prisma.$BusinessPayload<ExtArgs>
-      client: Prisma.$ClientPayload<ExtArgs>
       booking: Prisma.$BookingPayload<ExtArgs> | null
       items: Prisma.$InvoiceItemPayload<ExtArgs>[]
       payments: Prisma.$PaymentPayload<ExtArgs>[]
@@ -17044,7 +16967,9 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       businessId: string
-      clientId: string
+      clientName: string
+      clientEmail: string | null
+      clientPhone: string | null
       bookingId: string | null
       invoiceNumber: string
       status: $Enums.InvoiceStatus
@@ -17455,7 +17380,6 @@ export namespace Prisma {
   export interface Prisma__InvoiceClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     business<T extends BusinessDefaultArgs<ExtArgs> = {}>(args?: Subset<T, BusinessDefaultArgs<ExtArgs>>): Prisma__BusinessClient<$Result.GetResult<Prisma.$BusinessPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
-    client<T extends ClientDefaultArgs<ExtArgs> = {}>(args?: Subset<T, ClientDefaultArgs<ExtArgs>>): Prisma__ClientClient<$Result.GetResult<Prisma.$ClientPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
     booking<T extends Invoice$bookingArgs<ExtArgs> = {}>(args?: Subset<T, Invoice$bookingArgs<ExtArgs>>): Prisma__BookingClient<$Result.GetResult<Prisma.$BookingPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
     items<T extends Invoice$itemsArgs<ExtArgs> = {}>(args?: Subset<T, Invoice$itemsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$InvoiceItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
     payments<T extends Invoice$paymentsArgs<ExtArgs> = {}>(args?: Subset<T, Invoice$paymentsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$PaymentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -17490,7 +17414,9 @@ export namespace Prisma {
   interface InvoiceFieldRefs {
     readonly id: FieldRef<"Invoice", 'String'>
     readonly businessId: FieldRef<"Invoice", 'String'>
-    readonly clientId: FieldRef<"Invoice", 'String'>
+    readonly clientName: FieldRef<"Invoice", 'String'>
+    readonly clientEmail: FieldRef<"Invoice", 'String'>
+    readonly clientPhone: FieldRef<"Invoice", 'String'>
     readonly bookingId: FieldRef<"Invoice", 'String'>
     readonly invoiceNumber: FieldRef<"Invoice", 'String'>
     readonly status: FieldRef<"Invoice", 'InvoiceStatus'>
@@ -25051,7 +24977,9 @@ export namespace Prisma {
   export const InvoiceScalarFieldEnum: {
     id: 'id',
     businessId: 'businessId',
-    clientId: 'clientId',
+    clientName: 'clientName',
+    clientEmail: 'clientEmail',
+    clientPhone: 'clientPhone',
     bookingId: 'bookingId',
     invoiceNumber: 'invoiceNumber',
     status: 'status',
@@ -25422,7 +25350,6 @@ export namespace Prisma {
     members?: BusinessMemberListRelationFilter
     staff?: StaffMemberListRelationFilter
     services?: ServiceListRelationFilter
-    clients?: ClientListRelationFilter
     bookings?: BookingListRelationFilter
     invoices?: InvoiceListRelationFilter
     payments?: PaymentListRelationFilter
@@ -25458,7 +25385,6 @@ export namespace Prisma {
     members?: BusinessMemberOrderByRelationAggregateInput
     staff?: StaffMemberOrderByRelationAggregateInput
     services?: ServiceOrderByRelationAggregateInput
-    clients?: ClientOrderByRelationAggregateInput
     bookings?: BookingOrderByRelationAggregateInput
     invoices?: InvoiceOrderByRelationAggregateInput
     payments?: PaymentOrderByRelationAggregateInput
@@ -25497,7 +25423,6 @@ export namespace Prisma {
     members?: BusinessMemberListRelationFilter
     staff?: StaffMemberListRelationFilter
     services?: ServiceListRelationFilter
-    clients?: ClientListRelationFilter
     bookings?: BookingListRelationFilter
     invoices?: InvoiceListRelationFilter
     payments?: PaymentListRelationFilter
@@ -26220,10 +26145,8 @@ export namespace Prisma {
     notes?: StringNullableFilter<"Client"> | string | null
     createdAt?: DateTimeFilter<"Client"> | Date | string
     updatedAt?: DateTimeFilter<"Client"> | Date | string
-    business?: XOR<BusinessScalarRelationFilter, BusinessWhereInput>
     locations?: LocationListRelationFilter
     bookings?: BookingListRelationFilter
-    invoices?: InvoiceListRelationFilter
     payments?: PaymentListRelationFilter
   }
 
@@ -26236,10 +26159,8 @@ export namespace Prisma {
     notes?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    business?: BusinessOrderByWithRelationInput
     locations?: LocationOrderByRelationAggregateInput
     bookings?: BookingOrderByRelationAggregateInput
-    invoices?: InvoiceOrderByRelationAggregateInput
     payments?: PaymentOrderByRelationAggregateInput
   }
 
@@ -26256,10 +26177,8 @@ export namespace Prisma {
     notes?: StringNullableFilter<"Client"> | string | null
     createdAt?: DateTimeFilter<"Client"> | Date | string
     updatedAt?: DateTimeFilter<"Client"> | Date | string
-    business?: XOR<BusinessScalarRelationFilter, BusinessWhereInput>
     locations?: LocationListRelationFilter
     bookings?: BookingListRelationFilter
-    invoices?: InvoiceListRelationFilter
     payments?: PaymentListRelationFilter
   }, "id" | "businessId_email">
 
@@ -26507,7 +26426,9 @@ export namespace Prisma {
     NOT?: InvoiceWhereInput | InvoiceWhereInput[]
     id?: StringFilter<"Invoice"> | string
     businessId?: StringFilter<"Invoice"> | string
-    clientId?: StringFilter<"Invoice"> | string
+    clientName?: StringFilter<"Invoice"> | string
+    clientEmail?: StringNullableFilter<"Invoice"> | string | null
+    clientPhone?: StringNullableFilter<"Invoice"> | string | null
     bookingId?: StringNullableFilter<"Invoice"> | string | null
     invoiceNumber?: StringFilter<"Invoice"> | string
     status?: EnumInvoiceStatusFilter<"Invoice"> | $Enums.InvoiceStatus
@@ -26524,7 +26445,6 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Invoice"> | Date | string
     updatedAt?: DateTimeFilter<"Invoice"> | Date | string
     business?: XOR<BusinessScalarRelationFilter, BusinessWhereInput>
-    client?: XOR<ClientScalarRelationFilter, ClientWhereInput>
     booking?: XOR<BookingNullableScalarRelationFilter, BookingWhereInput> | null
     items?: InvoiceItemListRelationFilter
     payments?: PaymentListRelationFilter
@@ -26533,7 +26453,9 @@ export namespace Prisma {
   export type InvoiceOrderByWithRelationInput = {
     id?: SortOrder
     businessId?: SortOrder
-    clientId?: SortOrder
+    clientName?: SortOrder
+    clientEmail?: SortOrderInput | SortOrder
+    clientPhone?: SortOrderInput | SortOrder
     bookingId?: SortOrderInput | SortOrder
     invoiceNumber?: SortOrder
     status?: SortOrder
@@ -26550,7 +26472,6 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     business?: BusinessOrderByWithRelationInput
-    client?: ClientOrderByWithRelationInput
     booking?: BookingOrderByWithRelationInput
     items?: InvoiceItemOrderByRelationAggregateInput
     payments?: PaymentOrderByRelationAggregateInput
@@ -26564,7 +26485,9 @@ export namespace Prisma {
     OR?: InvoiceWhereInput[]
     NOT?: InvoiceWhereInput | InvoiceWhereInput[]
     businessId?: StringFilter<"Invoice"> | string
-    clientId?: StringFilter<"Invoice"> | string
+    clientName?: StringFilter<"Invoice"> | string
+    clientEmail?: StringNullableFilter<"Invoice"> | string | null
+    clientPhone?: StringNullableFilter<"Invoice"> | string | null
     invoiceNumber?: StringFilter<"Invoice"> | string
     status?: EnumInvoiceStatusFilter<"Invoice"> | $Enums.InvoiceStatus
     currency?: StringFilter<"Invoice"> | string
@@ -26580,7 +26503,6 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"Invoice"> | Date | string
     updatedAt?: DateTimeFilter<"Invoice"> | Date | string
     business?: XOR<BusinessScalarRelationFilter, BusinessWhereInput>
-    client?: XOR<ClientScalarRelationFilter, ClientWhereInput>
     booking?: XOR<BookingNullableScalarRelationFilter, BookingWhereInput> | null
     items?: InvoiceItemListRelationFilter
     payments?: PaymentListRelationFilter
@@ -26589,7 +26511,9 @@ export namespace Prisma {
   export type InvoiceOrderByWithAggregationInput = {
     id?: SortOrder
     businessId?: SortOrder
-    clientId?: SortOrder
+    clientName?: SortOrder
+    clientEmail?: SortOrderInput | SortOrder
+    clientPhone?: SortOrderInput | SortOrder
     bookingId?: SortOrderInput | SortOrder
     invoiceNumber?: SortOrder
     status?: SortOrder
@@ -26618,7 +26542,9 @@ export namespace Prisma {
     NOT?: InvoiceScalarWhereWithAggregatesInput | InvoiceScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Invoice"> | string
     businessId?: StringWithAggregatesFilter<"Invoice"> | string
-    clientId?: StringWithAggregatesFilter<"Invoice"> | string
+    clientName?: StringWithAggregatesFilter<"Invoice"> | string
+    clientEmail?: StringNullableWithAggregatesFilter<"Invoice"> | string | null
+    clientPhone?: StringNullableWithAggregatesFilter<"Invoice"> | string | null
     bookingId?: StringNullableWithAggregatesFilter<"Invoice"> | string | null
     invoiceNumber?: StringWithAggregatesFilter<"Invoice"> | string
     status?: EnumInvoiceStatusWithAggregatesFilter<"Invoice"> | $Enums.InvoiceStatus
@@ -27112,7 +27038,6 @@ export namespace Prisma {
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
@@ -27147,7 +27072,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
@@ -27182,7 +27106,6 @@ export namespace Prisma {
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
@@ -27217,7 +27140,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
@@ -28019,16 +27941,15 @@ export namespace Prisma {
 
   export type ClientCreateInput = {
     id?: string
+    businessId: string
     name: string
     email?: string | null
     phone?: string | null
     notes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    business: BusinessCreateNestedOneWithoutClientsInput
     locations?: LocationCreateNestedManyWithoutClientInput
     bookings?: BookingCreateNestedManyWithoutClientInput
-    invoices?: InvoiceCreateNestedManyWithoutClientInput
     payments?: PaymentCreateNestedManyWithoutClientInput
   }
 
@@ -28043,22 +27964,20 @@ export namespace Prisma {
     updatedAt?: Date | string
     locations?: LocationUncheckedCreateNestedManyWithoutClientInput
     bookings?: BookingUncheckedCreateNestedManyWithoutClientInput
-    invoices?: InvoiceUncheckedCreateNestedManyWithoutClientInput
     payments?: PaymentUncheckedCreateNestedManyWithoutClientInput
   }
 
   export type ClientUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
+    businessId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    business?: BusinessUpdateOneRequiredWithoutClientsNestedInput
     locations?: LocationUpdateManyWithoutClientNestedInput
     bookings?: BookingUpdateManyWithoutClientNestedInput
-    invoices?: InvoiceUpdateManyWithoutClientNestedInput
     payments?: PaymentUpdateManyWithoutClientNestedInput
   }
 
@@ -28073,7 +27992,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     locations?: LocationUncheckedUpdateManyWithoutClientNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutClientNestedInput
-    invoices?: InvoiceUncheckedUpdateManyWithoutClientNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutClientNestedInput
   }
 
@@ -28090,6 +28008,7 @@ export namespace Prisma {
 
   export type ClientUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
+    businessId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
@@ -28337,6 +28256,9 @@ export namespace Prisma {
 
   export type InvoiceCreateInput = {
     id?: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
     currency?: string
@@ -28352,7 +28274,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     business: BusinessCreateNestedOneWithoutInvoicesInput
-    client: ClientCreateNestedOneWithoutInvoicesInput
     booking?: BookingCreateNestedOneWithoutInvoiceInput
     items?: InvoiceItemCreateNestedManyWithoutInvoiceInput
     payments?: PaymentCreateNestedManyWithoutInvoiceInput
@@ -28361,7 +28282,9 @@ export namespace Prisma {
   export type InvoiceUncheckedCreateInput = {
     id?: string
     businessId: string
-    clientId: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     bookingId?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
@@ -28383,6 +28306,9 @@ export namespace Prisma {
 
   export type InvoiceUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
     currency?: StringFieldUpdateOperationsInput | string
@@ -28398,7 +28324,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     business?: BusinessUpdateOneRequiredWithoutInvoicesNestedInput
-    client?: ClientUpdateOneRequiredWithoutInvoicesNestedInput
     booking?: BookingUpdateOneWithoutInvoiceNestedInput
     items?: InvoiceItemUpdateManyWithoutInvoiceNestedInput
     payments?: PaymentUpdateManyWithoutInvoiceNestedInput
@@ -28407,7 +28332,9 @@ export namespace Prisma {
   export type InvoiceUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     businessId?: StringFieldUpdateOperationsInput | string
-    clientId?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     bookingId?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
@@ -28430,7 +28357,9 @@ export namespace Prisma {
   export type InvoiceCreateManyInput = {
     id?: string
     businessId: string
-    clientId: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     bookingId?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
@@ -28450,6 +28379,9 @@ export namespace Prisma {
 
   export type InvoiceUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
     currency?: StringFieldUpdateOperationsInput | string
@@ -28469,7 +28401,9 @@ export namespace Prisma {
   export type InvoiceUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     businessId?: StringFieldUpdateOperationsInput | string
-    clientId?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     bookingId?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
@@ -29047,12 +28981,6 @@ export namespace Prisma {
     none?: ServiceWhereInput
   }
 
-  export type ClientListRelationFilter = {
-    every?: ClientWhereInput
-    some?: ClientWhereInput
-    none?: ClientWhereInput
-  }
-
   export type BookingListRelationFilter = {
     every?: BookingWhereInput
     some?: BookingWhereInput
@@ -29097,10 +29025,6 @@ export namespace Prisma {
   }
 
   export type ServiceOrderByRelationAggregateInput = {
-    _count?: SortOrder
-  }
-
-  export type ClientOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -30085,7 +30009,9 @@ export namespace Prisma {
   export type InvoiceCountOrderByAggregateInput = {
     id?: SortOrder
     businessId?: SortOrder
-    clientId?: SortOrder
+    clientName?: SortOrder
+    clientEmail?: SortOrder
+    clientPhone?: SortOrder
     bookingId?: SortOrder
     invoiceNumber?: SortOrder
     status?: SortOrder
@@ -30114,7 +30040,9 @@ export namespace Prisma {
   export type InvoiceMaxOrderByAggregateInput = {
     id?: SortOrder
     businessId?: SortOrder
-    clientId?: SortOrder
+    clientName?: SortOrder
+    clientEmail?: SortOrder
+    clientPhone?: SortOrder
     bookingId?: SortOrder
     invoiceNumber?: SortOrder
     status?: SortOrder
@@ -30135,7 +30063,9 @@ export namespace Prisma {
   export type InvoiceMinOrderByAggregateInput = {
     id?: SortOrder
     businessId?: SortOrder
-    clientId?: SortOrder
+    clientName?: SortOrder
+    clientEmail?: SortOrder
+    clientPhone?: SortOrder
     bookingId?: SortOrder
     invoiceNumber?: SortOrder
     status?: SortOrder
@@ -30522,13 +30452,6 @@ export namespace Prisma {
     connect?: ServiceWhereUniqueInput | ServiceWhereUniqueInput[]
   }
 
-  export type ClientCreateNestedManyWithoutBusinessInput = {
-    create?: XOR<ClientCreateWithoutBusinessInput, ClientUncheckedCreateWithoutBusinessInput> | ClientCreateWithoutBusinessInput[] | ClientUncheckedCreateWithoutBusinessInput[]
-    connectOrCreate?: ClientCreateOrConnectWithoutBusinessInput | ClientCreateOrConnectWithoutBusinessInput[]
-    createMany?: ClientCreateManyBusinessInputEnvelope
-    connect?: ClientWhereUniqueInput | ClientWhereUniqueInput[]
-  }
-
   export type BookingCreateNestedManyWithoutBusinessInput = {
     create?: XOR<BookingCreateWithoutBusinessInput, BookingUncheckedCreateWithoutBusinessInput> | BookingCreateWithoutBusinessInput[] | BookingUncheckedCreateWithoutBusinessInput[]
     connectOrCreate?: BookingCreateOrConnectWithoutBusinessInput | BookingCreateOrConnectWithoutBusinessInput[]
@@ -30595,13 +30518,6 @@ export namespace Prisma {
     connectOrCreate?: ServiceCreateOrConnectWithoutBusinessInput | ServiceCreateOrConnectWithoutBusinessInput[]
     createMany?: ServiceCreateManyBusinessInputEnvelope
     connect?: ServiceWhereUniqueInput | ServiceWhereUniqueInput[]
-  }
-
-  export type ClientUncheckedCreateNestedManyWithoutBusinessInput = {
-    create?: XOR<ClientCreateWithoutBusinessInput, ClientUncheckedCreateWithoutBusinessInput> | ClientCreateWithoutBusinessInput[] | ClientUncheckedCreateWithoutBusinessInput[]
-    connectOrCreate?: ClientCreateOrConnectWithoutBusinessInput | ClientCreateOrConnectWithoutBusinessInput[]
-    createMany?: ClientCreateManyBusinessInputEnvelope
-    connect?: ClientWhereUniqueInput | ClientWhereUniqueInput[]
   }
 
   export type BookingUncheckedCreateNestedManyWithoutBusinessInput = {
@@ -30727,20 +30643,6 @@ export namespace Prisma {
     update?: ServiceUpdateWithWhereUniqueWithoutBusinessInput | ServiceUpdateWithWhereUniqueWithoutBusinessInput[]
     updateMany?: ServiceUpdateManyWithWhereWithoutBusinessInput | ServiceUpdateManyWithWhereWithoutBusinessInput[]
     deleteMany?: ServiceScalarWhereInput | ServiceScalarWhereInput[]
-  }
-
-  export type ClientUpdateManyWithoutBusinessNestedInput = {
-    create?: XOR<ClientCreateWithoutBusinessInput, ClientUncheckedCreateWithoutBusinessInput> | ClientCreateWithoutBusinessInput[] | ClientUncheckedCreateWithoutBusinessInput[]
-    connectOrCreate?: ClientCreateOrConnectWithoutBusinessInput | ClientCreateOrConnectWithoutBusinessInput[]
-    upsert?: ClientUpsertWithWhereUniqueWithoutBusinessInput | ClientUpsertWithWhereUniqueWithoutBusinessInput[]
-    createMany?: ClientCreateManyBusinessInputEnvelope
-    set?: ClientWhereUniqueInput | ClientWhereUniqueInput[]
-    disconnect?: ClientWhereUniqueInput | ClientWhereUniqueInput[]
-    delete?: ClientWhereUniqueInput | ClientWhereUniqueInput[]
-    connect?: ClientWhereUniqueInput | ClientWhereUniqueInput[]
-    update?: ClientUpdateWithWhereUniqueWithoutBusinessInput | ClientUpdateWithWhereUniqueWithoutBusinessInput[]
-    updateMany?: ClientUpdateManyWithWhereWithoutBusinessInput | ClientUpdateManyWithWhereWithoutBusinessInput[]
-    deleteMany?: ClientScalarWhereInput | ClientScalarWhereInput[]
   }
 
   export type BookingUpdateManyWithoutBusinessNestedInput = {
@@ -30873,20 +30775,6 @@ export namespace Prisma {
     update?: ServiceUpdateWithWhereUniqueWithoutBusinessInput | ServiceUpdateWithWhereUniqueWithoutBusinessInput[]
     updateMany?: ServiceUpdateManyWithWhereWithoutBusinessInput | ServiceUpdateManyWithWhereWithoutBusinessInput[]
     deleteMany?: ServiceScalarWhereInput | ServiceScalarWhereInput[]
-  }
-
-  export type ClientUncheckedUpdateManyWithoutBusinessNestedInput = {
-    create?: XOR<ClientCreateWithoutBusinessInput, ClientUncheckedCreateWithoutBusinessInput> | ClientCreateWithoutBusinessInput[] | ClientUncheckedCreateWithoutBusinessInput[]
-    connectOrCreate?: ClientCreateOrConnectWithoutBusinessInput | ClientCreateOrConnectWithoutBusinessInput[]
-    upsert?: ClientUpsertWithWhereUniqueWithoutBusinessInput | ClientUpsertWithWhereUniqueWithoutBusinessInput[]
-    createMany?: ClientCreateManyBusinessInputEnvelope
-    set?: ClientWhereUniqueInput | ClientWhereUniqueInput[]
-    disconnect?: ClientWhereUniqueInput | ClientWhereUniqueInput[]
-    delete?: ClientWhereUniqueInput | ClientWhereUniqueInput[]
-    connect?: ClientWhereUniqueInput | ClientWhereUniqueInput[]
-    update?: ClientUpdateWithWhereUniqueWithoutBusinessInput | ClientUpdateWithWhereUniqueWithoutBusinessInput[]
-    updateMany?: ClientUpdateManyWithWhereWithoutBusinessInput | ClientUpdateManyWithWhereWithoutBusinessInput[]
-    deleteMany?: ClientScalarWhereInput | ClientScalarWhereInput[]
   }
 
   export type BookingUncheckedUpdateManyWithoutBusinessNestedInput = {
@@ -31420,12 +31308,6 @@ export namespace Prisma {
     update?: XOR<XOR<ServiceUpdateToOneWithWhereWithoutStaffInput, ServiceUpdateWithoutStaffInput>, ServiceUncheckedUpdateWithoutStaffInput>
   }
 
-  export type BusinessCreateNestedOneWithoutClientsInput = {
-    create?: XOR<BusinessCreateWithoutClientsInput, BusinessUncheckedCreateWithoutClientsInput>
-    connectOrCreate?: BusinessCreateOrConnectWithoutClientsInput
-    connect?: BusinessWhereUniqueInput
-  }
-
   export type LocationCreateNestedManyWithoutClientInput = {
     create?: XOR<LocationCreateWithoutClientInput, LocationUncheckedCreateWithoutClientInput> | LocationCreateWithoutClientInput[] | LocationUncheckedCreateWithoutClientInput[]
     connectOrCreate?: LocationCreateOrConnectWithoutClientInput | LocationCreateOrConnectWithoutClientInput[]
@@ -31438,13 +31320,6 @@ export namespace Prisma {
     connectOrCreate?: BookingCreateOrConnectWithoutClientInput | BookingCreateOrConnectWithoutClientInput[]
     createMany?: BookingCreateManyClientInputEnvelope
     connect?: BookingWhereUniqueInput | BookingWhereUniqueInput[]
-  }
-
-  export type InvoiceCreateNestedManyWithoutClientInput = {
-    create?: XOR<InvoiceCreateWithoutClientInput, InvoiceUncheckedCreateWithoutClientInput> | InvoiceCreateWithoutClientInput[] | InvoiceUncheckedCreateWithoutClientInput[]
-    connectOrCreate?: InvoiceCreateOrConnectWithoutClientInput | InvoiceCreateOrConnectWithoutClientInput[]
-    createMany?: InvoiceCreateManyClientInputEnvelope
-    connect?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
   }
 
   export type PaymentCreateNestedManyWithoutClientInput = {
@@ -31468,26 +31343,11 @@ export namespace Prisma {
     connect?: BookingWhereUniqueInput | BookingWhereUniqueInput[]
   }
 
-  export type InvoiceUncheckedCreateNestedManyWithoutClientInput = {
-    create?: XOR<InvoiceCreateWithoutClientInput, InvoiceUncheckedCreateWithoutClientInput> | InvoiceCreateWithoutClientInput[] | InvoiceUncheckedCreateWithoutClientInput[]
-    connectOrCreate?: InvoiceCreateOrConnectWithoutClientInput | InvoiceCreateOrConnectWithoutClientInput[]
-    createMany?: InvoiceCreateManyClientInputEnvelope
-    connect?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
-  }
-
   export type PaymentUncheckedCreateNestedManyWithoutClientInput = {
     create?: XOR<PaymentCreateWithoutClientInput, PaymentUncheckedCreateWithoutClientInput> | PaymentCreateWithoutClientInput[] | PaymentUncheckedCreateWithoutClientInput[]
     connectOrCreate?: PaymentCreateOrConnectWithoutClientInput | PaymentCreateOrConnectWithoutClientInput[]
     createMany?: PaymentCreateManyClientInputEnvelope
     connect?: PaymentWhereUniqueInput | PaymentWhereUniqueInput[]
-  }
-
-  export type BusinessUpdateOneRequiredWithoutClientsNestedInput = {
-    create?: XOR<BusinessCreateWithoutClientsInput, BusinessUncheckedCreateWithoutClientsInput>
-    connectOrCreate?: BusinessCreateOrConnectWithoutClientsInput
-    upsert?: BusinessUpsertWithoutClientsInput
-    connect?: BusinessWhereUniqueInput
-    update?: XOR<XOR<BusinessUpdateToOneWithWhereWithoutClientsInput, BusinessUpdateWithoutClientsInput>, BusinessUncheckedUpdateWithoutClientsInput>
   }
 
   export type LocationUpdateManyWithoutClientNestedInput = {
@@ -31516,20 +31376,6 @@ export namespace Prisma {
     update?: BookingUpdateWithWhereUniqueWithoutClientInput | BookingUpdateWithWhereUniqueWithoutClientInput[]
     updateMany?: BookingUpdateManyWithWhereWithoutClientInput | BookingUpdateManyWithWhereWithoutClientInput[]
     deleteMany?: BookingScalarWhereInput | BookingScalarWhereInput[]
-  }
-
-  export type InvoiceUpdateManyWithoutClientNestedInput = {
-    create?: XOR<InvoiceCreateWithoutClientInput, InvoiceUncheckedCreateWithoutClientInput> | InvoiceCreateWithoutClientInput[] | InvoiceUncheckedCreateWithoutClientInput[]
-    connectOrCreate?: InvoiceCreateOrConnectWithoutClientInput | InvoiceCreateOrConnectWithoutClientInput[]
-    upsert?: InvoiceUpsertWithWhereUniqueWithoutClientInput | InvoiceUpsertWithWhereUniqueWithoutClientInput[]
-    createMany?: InvoiceCreateManyClientInputEnvelope
-    set?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
-    disconnect?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
-    delete?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
-    connect?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
-    update?: InvoiceUpdateWithWhereUniqueWithoutClientInput | InvoiceUpdateWithWhereUniqueWithoutClientInput[]
-    updateMany?: InvoiceUpdateManyWithWhereWithoutClientInput | InvoiceUpdateManyWithWhereWithoutClientInput[]
-    deleteMany?: InvoiceScalarWhereInput | InvoiceScalarWhereInput[]
   }
 
   export type PaymentUpdateManyWithoutClientNestedInput = {
@@ -31572,20 +31418,6 @@ export namespace Prisma {
     update?: BookingUpdateWithWhereUniqueWithoutClientInput | BookingUpdateWithWhereUniqueWithoutClientInput[]
     updateMany?: BookingUpdateManyWithWhereWithoutClientInput | BookingUpdateManyWithWhereWithoutClientInput[]
     deleteMany?: BookingScalarWhereInput | BookingScalarWhereInput[]
-  }
-
-  export type InvoiceUncheckedUpdateManyWithoutClientNestedInput = {
-    create?: XOR<InvoiceCreateWithoutClientInput, InvoiceUncheckedCreateWithoutClientInput> | InvoiceCreateWithoutClientInput[] | InvoiceUncheckedCreateWithoutClientInput[]
-    connectOrCreate?: InvoiceCreateOrConnectWithoutClientInput | InvoiceCreateOrConnectWithoutClientInput[]
-    upsert?: InvoiceUpsertWithWhereUniqueWithoutClientInput | InvoiceUpsertWithWhereUniqueWithoutClientInput[]
-    createMany?: InvoiceCreateManyClientInputEnvelope
-    set?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
-    disconnect?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
-    delete?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
-    connect?: InvoiceWhereUniqueInput | InvoiceWhereUniqueInput[]
-    update?: InvoiceUpdateWithWhereUniqueWithoutClientInput | InvoiceUpdateWithWhereUniqueWithoutClientInput[]
-    updateMany?: InvoiceUpdateManyWithWhereWithoutClientInput | InvoiceUpdateManyWithWhereWithoutClientInput[]
-    deleteMany?: InvoiceScalarWhereInput | InvoiceScalarWhereInput[]
   }
 
   export type PaymentUncheckedUpdateManyWithoutClientNestedInput = {
@@ -31786,12 +31618,6 @@ export namespace Prisma {
     connect?: BusinessWhereUniqueInput
   }
 
-  export type ClientCreateNestedOneWithoutInvoicesInput = {
-    create?: XOR<ClientCreateWithoutInvoicesInput, ClientUncheckedCreateWithoutInvoicesInput>
-    connectOrCreate?: ClientCreateOrConnectWithoutInvoicesInput
-    connect?: ClientWhereUniqueInput
-  }
-
   export type BookingCreateNestedOneWithoutInvoiceInput = {
     create?: XOR<BookingCreateWithoutInvoiceInput, BookingUncheckedCreateWithoutInvoiceInput>
     connectOrCreate?: BookingCreateOrConnectWithoutInvoiceInput
@@ -31836,14 +31662,6 @@ export namespace Prisma {
     upsert?: BusinessUpsertWithoutInvoicesInput
     connect?: BusinessWhereUniqueInput
     update?: XOR<XOR<BusinessUpdateToOneWithWhereWithoutInvoicesInput, BusinessUpdateWithoutInvoicesInput>, BusinessUncheckedUpdateWithoutInvoicesInput>
-  }
-
-  export type ClientUpdateOneRequiredWithoutInvoicesNestedInput = {
-    create?: XOR<ClientCreateWithoutInvoicesInput, ClientUncheckedCreateWithoutInvoicesInput>
-    connectOrCreate?: ClientCreateOrConnectWithoutInvoicesInput
-    upsert?: ClientUpsertWithoutInvoicesInput
-    connect?: ClientWhereUniqueInput
-    update?: XOR<XOR<ClientUpdateToOneWithWhereWithoutInvoicesInput, ClientUpdateWithoutInvoicesInput>, ClientUncheckedUpdateWithoutInvoicesInput>
   }
 
   export type BookingUpdateOneWithoutInvoiceNestedInput = {
@@ -32887,44 +32705,6 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
-  export type ClientCreateWithoutBusinessInput = {
-    id?: string
-    name: string
-    email?: string | null
-    phone?: string | null
-    notes?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    locations?: LocationCreateNestedManyWithoutClientInput
-    bookings?: BookingCreateNestedManyWithoutClientInput
-    invoices?: InvoiceCreateNestedManyWithoutClientInput
-    payments?: PaymentCreateNestedManyWithoutClientInput
-  }
-
-  export type ClientUncheckedCreateWithoutBusinessInput = {
-    id?: string
-    name: string
-    email?: string | null
-    phone?: string | null
-    notes?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    locations?: LocationUncheckedCreateNestedManyWithoutClientInput
-    bookings?: BookingUncheckedCreateNestedManyWithoutClientInput
-    invoices?: InvoiceUncheckedCreateNestedManyWithoutClientInput
-    payments?: PaymentUncheckedCreateNestedManyWithoutClientInput
-  }
-
-  export type ClientCreateOrConnectWithoutBusinessInput = {
-    where: ClientWhereUniqueInput
-    create: XOR<ClientCreateWithoutBusinessInput, ClientUncheckedCreateWithoutBusinessInput>
-  }
-
-  export type ClientCreateManyBusinessInputEnvelope = {
-    data: ClientCreateManyBusinessInput | ClientCreateManyBusinessInput[]
-    skipDuplicates?: boolean
-  }
-
   export type BookingCreateWithoutBusinessInput = {
     id?: string
     startsAt: Date | string
@@ -32981,6 +32761,9 @@ export namespace Prisma {
 
   export type InvoiceCreateWithoutBusinessInput = {
     id?: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
     currency?: string
@@ -32995,7 +32778,6 @@ export namespace Prisma {
     notes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    client: ClientCreateNestedOneWithoutInvoicesInput
     booking?: BookingCreateNestedOneWithoutInvoiceInput
     items?: InvoiceItemCreateNestedManyWithoutInvoiceInput
     payments?: PaymentCreateNestedManyWithoutInvoiceInput
@@ -33003,7 +32785,9 @@ export namespace Prisma {
 
   export type InvoiceUncheckedCreateWithoutBusinessInput = {
     id?: string
-    clientId: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     bookingId?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
@@ -33376,36 +33160,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Service"> | Date | string
   }
 
-  export type ClientUpsertWithWhereUniqueWithoutBusinessInput = {
-    where: ClientWhereUniqueInput
-    update: XOR<ClientUpdateWithoutBusinessInput, ClientUncheckedUpdateWithoutBusinessInput>
-    create: XOR<ClientCreateWithoutBusinessInput, ClientUncheckedCreateWithoutBusinessInput>
-  }
-
-  export type ClientUpdateWithWhereUniqueWithoutBusinessInput = {
-    where: ClientWhereUniqueInput
-    data: XOR<ClientUpdateWithoutBusinessInput, ClientUncheckedUpdateWithoutBusinessInput>
-  }
-
-  export type ClientUpdateManyWithWhereWithoutBusinessInput = {
-    where: ClientScalarWhereInput
-    data: XOR<ClientUpdateManyMutationInput, ClientUncheckedUpdateManyWithoutBusinessInput>
-  }
-
-  export type ClientScalarWhereInput = {
-    AND?: ClientScalarWhereInput | ClientScalarWhereInput[]
-    OR?: ClientScalarWhereInput[]
-    NOT?: ClientScalarWhereInput | ClientScalarWhereInput[]
-    id?: StringFilter<"Client"> | string
-    businessId?: StringFilter<"Client"> | string
-    name?: StringFilter<"Client"> | string
-    email?: StringNullableFilter<"Client"> | string | null
-    phone?: StringNullableFilter<"Client"> | string | null
-    notes?: StringNullableFilter<"Client"> | string | null
-    createdAt?: DateTimeFilter<"Client"> | Date | string
-    updatedAt?: DateTimeFilter<"Client"> | Date | string
-  }
-
   export type BookingUpsertWithWhereUniqueWithoutBusinessInput = {
     where: BookingWhereUniqueInput
     update: XOR<BookingUpdateWithoutBusinessInput, BookingUncheckedUpdateWithoutBusinessInput>
@@ -33468,7 +33222,9 @@ export namespace Prisma {
     NOT?: InvoiceScalarWhereInput | InvoiceScalarWhereInput[]
     id?: StringFilter<"Invoice"> | string
     businessId?: StringFilter<"Invoice"> | string
-    clientId?: StringFilter<"Invoice"> | string
+    clientName?: StringFilter<"Invoice"> | string
+    clientEmail?: StringNullableFilter<"Invoice"> | string | null
+    clientPhone?: StringNullableFilter<"Invoice"> | string | null
     bookingId?: StringNullableFilter<"Invoice"> | string | null
     invoiceNumber?: StringFilter<"Invoice"> | string
     status?: EnumInvoiceStatusFilter<"Invoice"> | $Enums.InvoiceStatus
@@ -33613,7 +33369,6 @@ export namespace Prisma {
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
@@ -33647,7 +33402,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
@@ -33662,15 +33416,14 @@ export namespace Prisma {
 
   export type ClientCreateWithoutLocationsInput = {
     id?: string
+    businessId: string
     name: string
     email?: string | null
     phone?: string | null
     notes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    business: BusinessCreateNestedOneWithoutClientsInput
     bookings?: BookingCreateNestedManyWithoutClientInput
-    invoices?: InvoiceCreateNestedManyWithoutClientInput
     payments?: PaymentCreateNestedManyWithoutClientInput
   }
 
@@ -33684,7 +33437,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     bookings?: BookingUncheckedCreateNestedManyWithoutClientInput
-    invoices?: InvoiceUncheckedCreateNestedManyWithoutClientInput
     payments?: PaymentUncheckedCreateNestedManyWithoutClientInput
   }
 
@@ -33784,7 +33536,6 @@ export namespace Prisma {
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
@@ -33818,7 +33569,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
@@ -33839,15 +33589,14 @@ export namespace Prisma {
 
   export type ClientUpdateWithoutLocationsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    businessId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    business?: BusinessUpdateOneRequiredWithoutClientsNestedInput
     bookings?: BookingUpdateManyWithoutClientNestedInput
-    invoices?: InvoiceUpdateManyWithoutClientNestedInput
     payments?: PaymentUpdateManyWithoutClientNestedInput
   }
 
@@ -33861,7 +33610,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     bookings?: BookingUncheckedUpdateManyWithoutClientNestedInput
-    invoices?: InvoiceUncheckedUpdateManyWithoutClientNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutClientNestedInput
   }
 
@@ -33908,7 +33656,6 @@ export namespace Prisma {
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
@@ -33942,7 +33689,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
@@ -33992,7 +33738,6 @@ export namespace Prisma {
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
@@ -34026,7 +33771,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
@@ -34059,7 +33803,6 @@ export namespace Prisma {
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
@@ -34093,7 +33836,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
@@ -34143,7 +33885,6 @@ export namespace Prisma {
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
@@ -34177,7 +33918,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
@@ -34211,7 +33951,6 @@ export namespace Prisma {
     profile?: BusinessProfileCreateNestedOneWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
@@ -34245,7 +33984,6 @@ export namespace Prisma {
     profile?: BusinessProfileUncheckedCreateNestedOneWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
@@ -34324,7 +34062,6 @@ export namespace Prisma {
     profile?: BusinessProfileUpdateOneWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
@@ -34358,7 +34095,6 @@ export namespace Prisma {
     profile?: BusinessProfileUncheckedUpdateOneWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
@@ -34427,7 +34163,6 @@ export namespace Prisma {
     profile?: BusinessProfileCreateNestedOneWithoutBusinessInput
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
@@ -34461,7 +34196,6 @@ export namespace Prisma {
     profile?: BusinessProfileUncheckedCreateNestedOneWithoutBusinessInput
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
@@ -34612,7 +34346,6 @@ export namespace Prisma {
     profile?: BusinessProfileUpdateOneWithoutBusinessNestedInput
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
@@ -34646,7 +34379,6 @@ export namespace Prisma {
     profile?: BusinessProfileUncheckedUpdateOneWithoutBusinessNestedInput
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
@@ -34755,7 +34487,6 @@ export namespace Prisma {
     profile?: BusinessProfileCreateNestedOneWithoutBusinessInput
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
@@ -34789,7 +34520,6 @@ export namespace Prisma {
     profile?: BusinessProfileUncheckedCreateNestedOneWithoutBusinessInput
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
@@ -34943,7 +34673,6 @@ export namespace Prisma {
     profile?: BusinessProfileUpdateOneWithoutBusinessNestedInput
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
@@ -34977,7 +34706,6 @@ export namespace Prisma {
     profile?: BusinessProfileUncheckedUpdateOneWithoutBusinessNestedInput
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
@@ -35224,79 +34952,6 @@ export namespace Prisma {
     invoiceItems?: InvoiceItemUncheckedUpdateManyWithoutServiceNestedInput
   }
 
-  export type BusinessCreateWithoutClientsInput = {
-    id?: string
-    name: string
-    slug: string
-    category?: $Enums.BusinessCategory
-    description?: string | null
-    phone?: string | null
-    email?: string | null
-    website?: string | null
-    whatsapp?: string | null
-    city?: string | null
-    state?: string | null
-    country?: string
-    currency?: string
-    timezone?: string
-    acceptsOnsite?: boolean
-    acceptsMobile?: boolean
-    acceptsVirtual?: boolean
-    isPublished?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    owner: UserCreateNestedOneWithoutOwnedBusinessesInput
-    location?: LocationCreateNestedOneWithoutBusinessInput
-    profile?: BusinessProfileCreateNestedOneWithoutBusinessInput
-    members?: BusinessMemberCreateNestedManyWithoutBusinessInput
-    staff?: StaffMemberCreateNestedManyWithoutBusinessInput
-    services?: ServiceCreateNestedManyWithoutBusinessInput
-    bookings?: BookingCreateNestedManyWithoutBusinessInput
-    invoices?: InvoiceCreateNestedManyWithoutBusinessInput
-    payments?: PaymentCreateNestedManyWithoutBusinessInput
-    availabilityRules?: AvailabilityRuleCreateNestedManyWithoutBusinessInput
-    serviceAreas?: ServiceAreaCreateNestedManyWithoutBusinessInput
-  }
-
-  export type BusinessUncheckedCreateWithoutClientsInput = {
-    id?: string
-    ownerId: string
-    name: string
-    slug: string
-    category?: $Enums.BusinessCategory
-    description?: string | null
-    phone?: string | null
-    email?: string | null
-    website?: string | null
-    whatsapp?: string | null
-    city?: string | null
-    state?: string | null
-    country?: string
-    currency?: string
-    timezone?: string
-    acceptsOnsite?: boolean
-    acceptsMobile?: boolean
-    acceptsVirtual?: boolean
-    isPublished?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    location?: LocationUncheckedCreateNestedOneWithoutBusinessInput
-    profile?: BusinessProfileUncheckedCreateNestedOneWithoutBusinessInput
-    members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
-    staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
-    services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
-    invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
-    payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
-    availabilityRules?: AvailabilityRuleUncheckedCreateNestedManyWithoutBusinessInput
-    serviceAreas?: ServiceAreaUncheckedCreateNestedManyWithoutBusinessInput
-  }
-
-  export type BusinessCreateOrConnectWithoutClientsInput = {
-    where: BusinessWhereUniqueInput
-    create: XOR<BusinessCreateWithoutClientsInput, BusinessUncheckedCreateWithoutClientsInput>
-  }
-
   export type LocationCreateWithoutClientInput = {
     id?: string
     label?: string | null
@@ -35405,60 +35060,6 @@ export namespace Prisma {
     skipDuplicates?: boolean
   }
 
-  export type InvoiceCreateWithoutClientInput = {
-    id?: string
-    invoiceNumber: string
-    status?: $Enums.InvoiceStatus
-    currency?: string
-    subtotal: Decimal | DecimalJsLike | number | string
-    taxAmount?: Decimal | DecimalJsLike | number | string
-    discount?: Decimal | DecimalJsLike | number | string
-    total: Decimal | DecimalJsLike | number | string
-    amountPaid?: Decimal | DecimalJsLike | number | string
-    dueAt?: Date | string | null
-    sentAt?: Date | string | null
-    paidAt?: Date | string | null
-    notes?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    business: BusinessCreateNestedOneWithoutInvoicesInput
-    booking?: BookingCreateNestedOneWithoutInvoiceInput
-    items?: InvoiceItemCreateNestedManyWithoutInvoiceInput
-    payments?: PaymentCreateNestedManyWithoutInvoiceInput
-  }
-
-  export type InvoiceUncheckedCreateWithoutClientInput = {
-    id?: string
-    businessId: string
-    bookingId?: string | null
-    invoiceNumber: string
-    status?: $Enums.InvoiceStatus
-    currency?: string
-    subtotal: Decimal | DecimalJsLike | number | string
-    taxAmount?: Decimal | DecimalJsLike | number | string
-    discount?: Decimal | DecimalJsLike | number | string
-    total: Decimal | DecimalJsLike | number | string
-    amountPaid?: Decimal | DecimalJsLike | number | string
-    dueAt?: Date | string | null
-    sentAt?: Date | string | null
-    paidAt?: Date | string | null
-    notes?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    items?: InvoiceItemUncheckedCreateNestedManyWithoutInvoiceInput
-    payments?: PaymentUncheckedCreateNestedManyWithoutInvoiceInput
-  }
-
-  export type InvoiceCreateOrConnectWithoutClientInput = {
-    where: InvoiceWhereUniqueInput
-    create: XOR<InvoiceCreateWithoutClientInput, InvoiceUncheckedCreateWithoutClientInput>
-  }
-
-  export type InvoiceCreateManyClientInputEnvelope = {
-    data: InvoiceCreateManyClientInput | InvoiceCreateManyClientInput[]
-    skipDuplicates?: boolean
-  }
-
   export type PaymentCreateWithoutClientInput = {
     id?: string
     provider: $Enums.PaymentProvider
@@ -35499,85 +35100,6 @@ export namespace Prisma {
   export type PaymentCreateManyClientInputEnvelope = {
     data: PaymentCreateManyClientInput | PaymentCreateManyClientInput[]
     skipDuplicates?: boolean
-  }
-
-  export type BusinessUpsertWithoutClientsInput = {
-    update: XOR<BusinessUpdateWithoutClientsInput, BusinessUncheckedUpdateWithoutClientsInput>
-    create: XOR<BusinessCreateWithoutClientsInput, BusinessUncheckedCreateWithoutClientsInput>
-    where?: BusinessWhereInput
-  }
-
-  export type BusinessUpdateToOneWithWhereWithoutClientsInput = {
-    where?: BusinessWhereInput
-    data: XOR<BusinessUpdateWithoutClientsInput, BusinessUncheckedUpdateWithoutClientsInput>
-  }
-
-  export type BusinessUpdateWithoutClientsInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    slug?: StringFieldUpdateOperationsInput | string
-    category?: EnumBusinessCategoryFieldUpdateOperationsInput | $Enums.BusinessCategory
-    description?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    website?: NullableStringFieldUpdateOperationsInput | string | null
-    whatsapp?: NullableStringFieldUpdateOperationsInput | string | null
-    city?: NullableStringFieldUpdateOperationsInput | string | null
-    state?: NullableStringFieldUpdateOperationsInput | string | null
-    country?: StringFieldUpdateOperationsInput | string
-    currency?: StringFieldUpdateOperationsInput | string
-    timezone?: StringFieldUpdateOperationsInput | string
-    acceptsOnsite?: BoolFieldUpdateOperationsInput | boolean
-    acceptsMobile?: BoolFieldUpdateOperationsInput | boolean
-    acceptsVirtual?: BoolFieldUpdateOperationsInput | boolean
-    isPublished?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    owner?: UserUpdateOneRequiredWithoutOwnedBusinessesNestedInput
-    location?: LocationUpdateOneWithoutBusinessNestedInput
-    profile?: BusinessProfileUpdateOneWithoutBusinessNestedInput
-    members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
-    staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
-    services?: ServiceUpdateManyWithoutBusinessNestedInput
-    bookings?: BookingUpdateManyWithoutBusinessNestedInput
-    invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
-    payments?: PaymentUpdateManyWithoutBusinessNestedInput
-    availabilityRules?: AvailabilityRuleUpdateManyWithoutBusinessNestedInput
-    serviceAreas?: ServiceAreaUpdateManyWithoutBusinessNestedInput
-  }
-
-  export type BusinessUncheckedUpdateWithoutClientsInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    ownerId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    slug?: StringFieldUpdateOperationsInput | string
-    category?: EnumBusinessCategoryFieldUpdateOperationsInput | $Enums.BusinessCategory
-    description?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    website?: NullableStringFieldUpdateOperationsInput | string | null
-    whatsapp?: NullableStringFieldUpdateOperationsInput | string | null
-    city?: NullableStringFieldUpdateOperationsInput | string | null
-    state?: NullableStringFieldUpdateOperationsInput | string | null
-    country?: StringFieldUpdateOperationsInput | string
-    currency?: StringFieldUpdateOperationsInput | string
-    timezone?: StringFieldUpdateOperationsInput | string
-    acceptsOnsite?: BoolFieldUpdateOperationsInput | boolean
-    acceptsMobile?: BoolFieldUpdateOperationsInput | boolean
-    acceptsVirtual?: BoolFieldUpdateOperationsInput | boolean
-    isPublished?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    location?: LocationUncheckedUpdateOneWithoutBusinessNestedInput
-    profile?: BusinessProfileUncheckedUpdateOneWithoutBusinessNestedInput
-    members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
-    staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
-    services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
-    invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
-    payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
-    availabilityRules?: AvailabilityRuleUncheckedUpdateManyWithoutBusinessNestedInput
-    serviceAreas?: ServiceAreaUncheckedUpdateManyWithoutBusinessNestedInput
   }
 
   export type LocationUpsertWithWhereUniqueWithoutClientInput = {
@@ -35637,22 +35159,6 @@ export namespace Prisma {
     data: XOR<BookingUpdateManyMutationInput, BookingUncheckedUpdateManyWithoutClientInput>
   }
 
-  export type InvoiceUpsertWithWhereUniqueWithoutClientInput = {
-    where: InvoiceWhereUniqueInput
-    update: XOR<InvoiceUpdateWithoutClientInput, InvoiceUncheckedUpdateWithoutClientInput>
-    create: XOR<InvoiceCreateWithoutClientInput, InvoiceUncheckedCreateWithoutClientInput>
-  }
-
-  export type InvoiceUpdateWithWhereUniqueWithoutClientInput = {
-    where: InvoiceWhereUniqueInput
-    data: XOR<InvoiceUpdateWithoutClientInput, InvoiceUncheckedUpdateWithoutClientInput>
-  }
-
-  export type InvoiceUpdateManyWithWhereWithoutClientInput = {
-    where: InvoiceScalarWhereInput
-    data: XOR<InvoiceUpdateManyMutationInput, InvoiceUncheckedUpdateManyWithoutClientInput>
-  }
-
   export type PaymentUpsertWithWhereUniqueWithoutClientInput = {
     where: PaymentWhereUniqueInput
     update: XOR<PaymentUpdateWithoutClientInput, PaymentUncheckedUpdateWithoutClientInput>
@@ -35696,7 +35202,6 @@ export namespace Prisma {
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
@@ -35730,7 +35235,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
@@ -35780,7 +35284,6 @@ export namespace Prisma {
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
@@ -35814,7 +35317,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
@@ -35848,7 +35350,6 @@ export namespace Prisma {
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
     availabilityRules?: AvailabilityRuleCreateNestedManyWithoutBusinessInput
@@ -35882,7 +35383,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
     availabilityRules?: AvailabilityRuleUncheckedCreateNestedManyWithoutBusinessInput
@@ -35943,15 +35443,14 @@ export namespace Prisma {
 
   export type ClientCreateWithoutBookingsInput = {
     id?: string
+    businessId: string
     name: string
     email?: string | null
     phone?: string | null
     notes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    business: BusinessCreateNestedOneWithoutClientsInput
     locations?: LocationCreateNestedManyWithoutClientInput
-    invoices?: InvoiceCreateNestedManyWithoutClientInput
     payments?: PaymentCreateNestedManyWithoutClientInput
   }
 
@@ -35965,7 +35464,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     locations?: LocationUncheckedCreateNestedManyWithoutClientInput
-    invoices?: InvoiceUncheckedCreateNestedManyWithoutClientInput
     payments?: PaymentUncheckedCreateNestedManyWithoutClientInput
   }
 
@@ -36060,6 +35558,9 @@ export namespace Prisma {
 
   export type InvoiceCreateWithoutBookingInput = {
     id?: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
     currency?: string
@@ -36075,7 +35576,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     business: BusinessCreateNestedOneWithoutInvoicesInput
-    client: ClientCreateNestedOneWithoutInvoicesInput
     items?: InvoiceItemCreateNestedManyWithoutInvoiceInput
     payments?: PaymentCreateNestedManyWithoutInvoiceInput
   }
@@ -36083,7 +35583,9 @@ export namespace Prisma {
   export type InvoiceUncheckedCreateWithoutBookingInput = {
     id?: string
     businessId: string
-    clientId: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
     currency?: string
@@ -36187,7 +35689,6 @@ export namespace Prisma {
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
     availabilityRules?: AvailabilityRuleUpdateManyWithoutBusinessNestedInput
@@ -36221,7 +35722,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
     availabilityRules?: AvailabilityRuleUncheckedUpdateManyWithoutBusinessNestedInput
@@ -36294,15 +35794,14 @@ export namespace Prisma {
 
   export type ClientUpdateWithoutBookingsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    businessId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    business?: BusinessUpdateOneRequiredWithoutClientsNestedInput
     locations?: LocationUpdateManyWithoutClientNestedInput
-    invoices?: InvoiceUpdateManyWithoutClientNestedInput
     payments?: PaymentUpdateManyWithoutClientNestedInput
   }
 
@@ -36316,7 +35815,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     locations?: LocationUncheckedUpdateManyWithoutClientNestedInput
-    invoices?: InvoiceUncheckedUpdateManyWithoutClientNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutClientNestedInput
   }
 
@@ -36429,6 +35927,9 @@ export namespace Prisma {
 
   export type InvoiceUpdateWithoutBookingInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
     currency?: StringFieldUpdateOperationsInput | string
@@ -36444,7 +35945,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     business?: BusinessUpdateOneRequiredWithoutInvoicesNestedInput
-    client?: ClientUpdateOneRequiredWithoutInvoicesNestedInput
     items?: InvoiceItemUpdateManyWithoutInvoiceNestedInput
     payments?: PaymentUpdateManyWithoutInvoiceNestedInput
   }
@@ -36452,7 +35952,9 @@ export namespace Prisma {
   export type InvoiceUncheckedUpdateWithoutBookingInput = {
     id?: StringFieldUpdateOperationsInput | string
     businessId?: StringFieldUpdateOperationsInput | string
-    clientId?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
     currency?: StringFieldUpdateOperationsInput | string
@@ -36514,7 +36016,6 @@ export namespace Prisma {
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
     availabilityRules?: AvailabilityRuleCreateNestedManyWithoutBusinessInput
@@ -36548,7 +36049,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
     availabilityRules?: AvailabilityRuleUncheckedCreateNestedManyWithoutBusinessInput
@@ -36558,39 +36058,6 @@ export namespace Prisma {
   export type BusinessCreateOrConnectWithoutInvoicesInput = {
     where: BusinessWhereUniqueInput
     create: XOR<BusinessCreateWithoutInvoicesInput, BusinessUncheckedCreateWithoutInvoicesInput>
-  }
-
-  export type ClientCreateWithoutInvoicesInput = {
-    id?: string
-    name: string
-    email?: string | null
-    phone?: string | null
-    notes?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    business: BusinessCreateNestedOneWithoutClientsInput
-    locations?: LocationCreateNestedManyWithoutClientInput
-    bookings?: BookingCreateNestedManyWithoutClientInput
-    payments?: PaymentCreateNestedManyWithoutClientInput
-  }
-
-  export type ClientUncheckedCreateWithoutInvoicesInput = {
-    id?: string
-    businessId: string
-    name: string
-    email?: string | null
-    phone?: string | null
-    notes?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    locations?: LocationUncheckedCreateNestedManyWithoutClientInput
-    bookings?: BookingUncheckedCreateNestedManyWithoutClientInput
-    payments?: PaymentUncheckedCreateNestedManyWithoutClientInput
-  }
-
-  export type ClientCreateOrConnectWithoutInvoicesInput = {
-    where: ClientWhereUniqueInput
-    create: XOR<ClientCreateWithoutInvoicesInput, ClientUncheckedCreateWithoutInvoicesInput>
   }
 
   export type BookingCreateWithoutInvoiceInput = {
@@ -36754,7 +36221,6 @@ export namespace Prisma {
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
     availabilityRules?: AvailabilityRuleUpdateManyWithoutBusinessNestedInput
@@ -36788,50 +36254,10 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput
     availabilityRules?: AvailabilityRuleUncheckedUpdateManyWithoutBusinessNestedInput
     serviceAreas?: ServiceAreaUncheckedUpdateManyWithoutBusinessNestedInput
-  }
-
-  export type ClientUpsertWithoutInvoicesInput = {
-    update: XOR<ClientUpdateWithoutInvoicesInput, ClientUncheckedUpdateWithoutInvoicesInput>
-    create: XOR<ClientCreateWithoutInvoicesInput, ClientUncheckedCreateWithoutInvoicesInput>
-    where?: ClientWhereInput
-  }
-
-  export type ClientUpdateToOneWithWhereWithoutInvoicesInput = {
-    where?: ClientWhereInput
-    data: XOR<ClientUpdateWithoutInvoicesInput, ClientUncheckedUpdateWithoutInvoicesInput>
-  }
-
-  export type ClientUpdateWithoutInvoicesInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    notes?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    business?: BusinessUpdateOneRequiredWithoutClientsNestedInput
-    locations?: LocationUpdateManyWithoutClientNestedInput
-    bookings?: BookingUpdateManyWithoutClientNestedInput
-    payments?: PaymentUpdateManyWithoutClientNestedInput
-  }
-
-  export type ClientUncheckedUpdateWithoutInvoicesInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    businessId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    notes?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    locations?: LocationUncheckedUpdateManyWithoutClientNestedInput
-    bookings?: BookingUncheckedUpdateManyWithoutClientNestedInput
-    payments?: PaymentUncheckedUpdateManyWithoutClientNestedInput
   }
 
   export type BookingUpsertWithoutInvoiceInput = {
@@ -36923,6 +36349,9 @@ export namespace Prisma {
 
   export type InvoiceCreateWithoutItemsInput = {
     id?: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
     currency?: string
@@ -36938,7 +36367,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     business: BusinessCreateNestedOneWithoutInvoicesInput
-    client: ClientCreateNestedOneWithoutInvoicesInput
     booking?: BookingCreateNestedOneWithoutInvoiceInput
     payments?: PaymentCreateNestedManyWithoutInvoiceInput
   }
@@ -36946,7 +36374,9 @@ export namespace Prisma {
   export type InvoiceUncheckedCreateWithoutItemsInput = {
     id?: string
     businessId: string
-    clientId: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     bookingId?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
@@ -37030,6 +36460,9 @@ export namespace Prisma {
 
   export type InvoiceUpdateWithoutItemsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
     currency?: StringFieldUpdateOperationsInput | string
@@ -37045,7 +36478,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     business?: BusinessUpdateOneRequiredWithoutInvoicesNestedInput
-    client?: ClientUpdateOneRequiredWithoutInvoicesNestedInput
     booking?: BookingUpdateOneWithoutInvoiceNestedInput
     payments?: PaymentUpdateManyWithoutInvoiceNestedInput
   }
@@ -37053,7 +36485,9 @@ export namespace Prisma {
   export type InvoiceUncheckedUpdateWithoutItemsInput = {
     id?: StringFieldUpdateOperationsInput | string
     businessId?: StringFieldUpdateOperationsInput | string
-    clientId?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     bookingId?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
@@ -37152,7 +36586,6 @@ export namespace Prisma {
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     availabilityRules?: AvailabilityRuleCreateNestedManyWithoutBusinessInput
@@ -37186,7 +36619,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     availabilityRules?: AvailabilityRuleUncheckedCreateNestedManyWithoutBusinessInput
@@ -37200,16 +36632,15 @@ export namespace Prisma {
 
   export type ClientCreateWithoutPaymentsInput = {
     id?: string
+    businessId: string
     name: string
     email?: string | null
     phone?: string | null
     notes?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    business: BusinessCreateNestedOneWithoutClientsInput
     locations?: LocationCreateNestedManyWithoutClientInput
     bookings?: BookingCreateNestedManyWithoutClientInput
-    invoices?: InvoiceCreateNestedManyWithoutClientInput
   }
 
   export type ClientUncheckedCreateWithoutPaymentsInput = {
@@ -37223,7 +36654,6 @@ export namespace Prisma {
     updatedAt?: Date | string
     locations?: LocationUncheckedCreateNestedManyWithoutClientInput
     bookings?: BookingUncheckedCreateNestedManyWithoutClientInput
-    invoices?: InvoiceUncheckedCreateNestedManyWithoutClientInput
   }
 
   export type ClientCreateOrConnectWithoutPaymentsInput = {
@@ -37233,6 +36663,9 @@ export namespace Prisma {
 
   export type InvoiceCreateWithoutPaymentsInput = {
     id?: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
     currency?: string
@@ -37248,7 +36681,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     business: BusinessCreateNestedOneWithoutInvoicesInput
-    client: ClientCreateNestedOneWithoutInvoicesInput
     booking?: BookingCreateNestedOneWithoutInvoiceInput
     items?: InvoiceItemCreateNestedManyWithoutInvoiceInput
   }
@@ -37256,7 +36688,9 @@ export namespace Prisma {
   export type InvoiceUncheckedCreateWithoutPaymentsInput = {
     id?: string
     businessId: string
-    clientId: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     bookingId?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
@@ -37367,7 +36801,6 @@ export namespace Prisma {
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     availabilityRules?: AvailabilityRuleUpdateManyWithoutBusinessNestedInput
@@ -37401,7 +36834,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     availabilityRules?: AvailabilityRuleUncheckedUpdateManyWithoutBusinessNestedInput
@@ -37421,16 +36853,15 @@ export namespace Prisma {
 
   export type ClientUpdateWithoutPaymentsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    businessId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     email?: NullableStringFieldUpdateOperationsInput | string | null
     phone?: NullableStringFieldUpdateOperationsInput | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    business?: BusinessUpdateOneRequiredWithoutClientsNestedInput
     locations?: LocationUpdateManyWithoutClientNestedInput
     bookings?: BookingUpdateManyWithoutClientNestedInput
-    invoices?: InvoiceUpdateManyWithoutClientNestedInput
   }
 
   export type ClientUncheckedUpdateWithoutPaymentsInput = {
@@ -37444,7 +36875,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     locations?: LocationUncheckedUpdateManyWithoutClientNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutClientNestedInput
-    invoices?: InvoiceUncheckedUpdateManyWithoutClientNestedInput
   }
 
   export type InvoiceUpsertWithoutPaymentsInput = {
@@ -37460,6 +36890,9 @@ export namespace Prisma {
 
   export type InvoiceUpdateWithoutPaymentsInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
     currency?: StringFieldUpdateOperationsInput | string
@@ -37475,7 +36908,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     business?: BusinessUpdateOneRequiredWithoutInvoicesNestedInput
-    client?: ClientUpdateOneRequiredWithoutInvoicesNestedInput
     booking?: BookingUpdateOneWithoutInvoiceNestedInput
     items?: InvoiceItemUpdateManyWithoutInvoiceNestedInput
   }
@@ -37483,7 +36915,9 @@ export namespace Prisma {
   export type InvoiceUncheckedUpdateWithoutPaymentsInput = {
     id?: StringFieldUpdateOperationsInput | string
     businessId?: StringFieldUpdateOperationsInput | string
-    clientId?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     bookingId?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
@@ -37773,7 +37207,6 @@ export namespace Prisma {
     members?: BusinessMemberCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberCreateNestedManyWithoutBusinessInput
     services?: ServiceCreateNestedManyWithoutBusinessInput
-    clients?: ClientCreateNestedManyWithoutBusinessInput
     bookings?: BookingCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceCreateNestedManyWithoutBusinessInput
     payments?: PaymentCreateNestedManyWithoutBusinessInput
@@ -37807,7 +37240,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedCreateNestedManyWithoutBusinessInput
     staff?: StaffMemberUncheckedCreateNestedManyWithoutBusinessInput
     services?: ServiceUncheckedCreateNestedManyWithoutBusinessInput
-    clients?: ClientUncheckedCreateNestedManyWithoutBusinessInput
     bookings?: BookingUncheckedCreateNestedManyWithoutBusinessInput
     invoices?: InvoiceUncheckedCreateNestedManyWithoutBusinessInput
     payments?: PaymentUncheckedCreateNestedManyWithoutBusinessInput
@@ -38063,16 +37495,6 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
-  export type ClientCreateManyBusinessInput = {
-    id?: string
-    name: string
-    email?: string | null
-    phone?: string | null
-    notes?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
   export type BookingCreateManyBusinessInput = {
     id?: string
     serviceId: string
@@ -38095,7 +37517,9 @@ export namespace Prisma {
 
   export type InvoiceCreateManyBusinessInput = {
     id?: string
-    clientId: string
+    clientName: string
+    clientEmail?: string | null
+    clientPhone?: string | null
     bookingId?: string | null
     invoiceNumber: string
     status?: $Enums.InvoiceStatus
@@ -38278,44 +37702,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type ClientUpdateWithoutBusinessInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    notes?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    locations?: LocationUpdateManyWithoutClientNestedInput
-    bookings?: BookingUpdateManyWithoutClientNestedInput
-    invoices?: InvoiceUpdateManyWithoutClientNestedInput
-    payments?: PaymentUpdateManyWithoutClientNestedInput
-  }
-
-  export type ClientUncheckedUpdateWithoutBusinessInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    notes?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    locations?: LocationUncheckedUpdateManyWithoutClientNestedInput
-    bookings?: BookingUncheckedUpdateManyWithoutClientNestedInput
-    invoices?: InvoiceUncheckedUpdateManyWithoutClientNestedInput
-    payments?: PaymentUncheckedUpdateManyWithoutClientNestedInput
-  }
-
-  export type ClientUncheckedUpdateManyWithoutBusinessInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    phone?: NullableStringFieldUpdateOperationsInput | string | null
-    notes?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
   export type BookingUpdateWithoutBusinessInput = {
     id?: StringFieldUpdateOperationsInput | string
     startsAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -38382,6 +37768,9 @@ export namespace Prisma {
 
   export type InvoiceUpdateWithoutBusinessInput = {
     id?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
     currency?: StringFieldUpdateOperationsInput | string
@@ -38396,7 +37785,6 @@ export namespace Prisma {
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    client?: ClientUpdateOneRequiredWithoutInvoicesNestedInput
     booking?: BookingUpdateOneWithoutInvoiceNestedInput
     items?: InvoiceItemUpdateManyWithoutInvoiceNestedInput
     payments?: PaymentUpdateManyWithoutInvoiceNestedInput
@@ -38404,7 +37792,9 @@ export namespace Prisma {
 
   export type InvoiceUncheckedUpdateWithoutBusinessInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clientId?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     bookingId?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
@@ -38426,7 +37816,9 @@ export namespace Prisma {
 
   export type InvoiceUncheckedUpdateManyWithoutBusinessInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clientId?: StringFieldUpdateOperationsInput | string
+    clientName?: StringFieldUpdateOperationsInput | string
+    clientEmail?: NullableStringFieldUpdateOperationsInput | string | null
+    clientPhone?: NullableStringFieldUpdateOperationsInput | string | null
     bookingId?: NullableStringFieldUpdateOperationsInput | string | null
     invoiceNumber?: StringFieldUpdateOperationsInput | string
     status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
@@ -38936,26 +38328,6 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
-  export type InvoiceCreateManyClientInput = {
-    id?: string
-    businessId: string
-    bookingId?: string | null
-    invoiceNumber: string
-    status?: $Enums.InvoiceStatus
-    currency?: string
-    subtotal: Decimal | DecimalJsLike | number | string
-    taxAmount?: Decimal | DecimalJsLike | number | string
-    discount?: Decimal | DecimalJsLike | number | string
-    total: Decimal | DecimalJsLike | number | string
-    amountPaid?: Decimal | DecimalJsLike | number | string
-    dueAt?: Date | string | null
-    sentAt?: Date | string | null
-    paidAt?: Date | string | null
-    notes?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
   export type PaymentCreateManyClientInput = {
     id?: string
     businessId: string
@@ -39096,70 +38468,6 @@ export namespace Prisma {
     routeProvider?: NullableEnumMapProviderFieldUpdateOperationsInput | $Enums.MapProvider | null
     routePolyline?: NullableStringFieldUpdateOperationsInput | string | null
     routeCalculatedAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    notes?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type InvoiceUpdateWithoutClientInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    invoiceNumber?: StringFieldUpdateOperationsInput | string
-    status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
-    currency?: StringFieldUpdateOperationsInput | string
-    subtotal?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    discount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    amountPaid?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    dueAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    paidAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    notes?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    business?: BusinessUpdateOneRequiredWithoutInvoicesNestedInput
-    booking?: BookingUpdateOneWithoutInvoiceNestedInput
-    items?: InvoiceItemUpdateManyWithoutInvoiceNestedInput
-    payments?: PaymentUpdateManyWithoutInvoiceNestedInput
-  }
-
-  export type InvoiceUncheckedUpdateWithoutClientInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    businessId?: StringFieldUpdateOperationsInput | string
-    bookingId?: NullableStringFieldUpdateOperationsInput | string | null
-    invoiceNumber?: StringFieldUpdateOperationsInput | string
-    status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
-    currency?: StringFieldUpdateOperationsInput | string
-    subtotal?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    discount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    amountPaid?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    dueAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    paidAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    notes?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    items?: InvoiceItemUncheckedUpdateManyWithoutInvoiceNestedInput
-    payments?: PaymentUncheckedUpdateManyWithoutInvoiceNestedInput
-  }
-
-  export type InvoiceUncheckedUpdateManyWithoutClientInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    businessId?: StringFieldUpdateOperationsInput | string
-    bookingId?: NullableStringFieldUpdateOperationsInput | string | null
-    invoiceNumber?: StringFieldUpdateOperationsInput | string
-    status?: EnumInvoiceStatusFieldUpdateOperationsInput | $Enums.InvoiceStatus
-    currency?: StringFieldUpdateOperationsInput | string
-    subtotal?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    taxAmount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    discount?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    total?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    amountPaid?: DecimalFieldUpdateOperationsInput | Decimal | DecimalJsLike | number | string
-    dueAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    sentAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
-    paidAt?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
     notes?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -39538,7 +38846,6 @@ export namespace Prisma {
     members?: BusinessMemberUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUpdateManyWithoutBusinessNestedInput
     services?: ServiceUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUpdateManyWithoutBusinessNestedInput
@@ -39572,7 +38879,6 @@ export namespace Prisma {
     members?: BusinessMemberUncheckedUpdateManyWithoutBusinessNestedInput
     staff?: StaffMemberUncheckedUpdateManyWithoutBusinessNestedInput
     services?: ServiceUncheckedUpdateManyWithoutBusinessNestedInput
-    clients?: ClientUncheckedUpdateManyWithoutBusinessNestedInput
     bookings?: BookingUncheckedUpdateManyWithoutBusinessNestedInput
     invoices?: InvoiceUncheckedUpdateManyWithoutBusinessNestedInput
     payments?: PaymentUncheckedUpdateManyWithoutBusinessNestedInput

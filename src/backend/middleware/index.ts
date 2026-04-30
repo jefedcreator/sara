@@ -106,20 +106,20 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
     } catch (error: any) {
       console.error('Middleware execution error:', error);
 
-      Sentry.captureException(error, {
-        tags: {
-          type: 'middleware_error',
-        },
-        extra: {
-          url: getExternalUrl(request.url),
-          method: request.method,
-          params: request.params,
-          query: request.query,
-        },
-        user: request.user
-          ? { id: request.user.id, email: request.user.email ?? undefined }
-          : undefined,
-      });
+      // Sentry.captureException(error, {
+      //   tags: {
+      //     type: 'middleware_error',
+      //   },
+      //   extra: {
+      //     url: getExternalUrl(request.url),
+      //     method: request.method,
+      //     params: request.params,
+      //     query: request.query,
+      //   },
+      //   user: request.user
+      //     ? { id: request.user.id, email: request.user.email ?? undefined }
+      //     : undefined,
+      // });
 
       const statusCode =
         error instanceof HttpException
@@ -136,21 +136,21 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
     } catch (error: any) {
       console.error('Handler error:', error);
 
-      Sentry.captureException(error, {
-        tags: {
-          type: 'handler_error',
-        },
-        extra: {
-          url: getExternalUrl(request.url),
-          method: request.method,
-          params: request.params,
-          query: request.query,
-          body: request.parsedBody,
-        },
-        user: request.user
-          ? { id: request.user.id, email: request.user.email ?? undefined }
-          : undefined,
-      });
+      // Sentry.captureException(error, {
+      //   tags: {
+      //     type: 'handler_error',
+      //   },
+      //   extra: {
+      //     url: getExternalUrl(request.url),
+      //     method: request.method,
+      //     params: request.params,
+      //     query: request.query,
+      //     body: request.parsedBody,
+      //   },
+      //   user: request.user
+      //     ? { id: request.user.id, email: request.user.email ?? undefined }
+      //     : undefined,
+      // });
 
       const statusCode =
         error instanceof HttpException
