@@ -114,7 +114,6 @@ model Business {
   members           BusinessMember[]
   staff             StaffMember[]
   services          Service[]
-  clients           Client[]
   bookings          Booking[]
   invoices          Invoice[]
   payments          Payment[]
@@ -284,10 +283,8 @@ model Client {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  business  Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
   locations Location[]
   bookings  Booking[]
-  invoices  Invoice[]
   payments  Payment[]
 
   @@unique([businessId, email])
@@ -349,7 +346,9 @@ model Booking {
 model Invoice {
   id            String        @id @default(cuid())
   businessId    String
-  clientId      String
+  clientName    String
+  clientEmail   String?
+  clientPhone   String?
   bookingId     String?       @unique
   invoiceNumber String
   status        InvoiceStatus @default(DRAFT)
@@ -367,14 +366,13 @@ model Invoice {
   updatedAt     DateTime      @updatedAt
 
   business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  client   Client        @relation(fields: [clientId], references: [id], onDelete: Restrict)
   booking  Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
   items    InvoiceItem[]
   payments Payment[]
 
   @@unique([businessId, invoiceNumber])
   @@index([businessId, status])
-  @@index([clientId])
+  @@index([clientEmail])
 }
 
 model InvoiceItem {

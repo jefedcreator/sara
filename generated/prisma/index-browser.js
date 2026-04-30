@@ -292,7 +292,9 @@ exports.Prisma.BookingScalarFieldEnum = {
 exports.Prisma.InvoiceScalarFieldEnum = {
   id: 'id',
   businessId: 'businessId',
-  clientId: 'clientId',
+  clientName: 'clientName',
+  clientEmail: 'clientEmail',
+  clientPhone: 'clientPhone',
   bookingId: 'bookingId',
   invoiceNumber: 'invoiceNumber',
   status: 'status',
