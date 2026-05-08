@@ -1,8 +1,13 @@
 import {
   authMiddleware,
   bodyValidatorMiddleware,
+  queryValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
+import {
+  invoiceQueryValidatorSchema,
+  type InvoiceQueryValidatorSchema,
+} from "@/backend/validators/invoice.validator";
 import { cloudinaryService } from "@/backend/services/cloudinary";
 import { generateInvoicePdf } from "@/backend/services/pdf";
 import {
@@ -17,7 +22,10 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from "@/utils/exceptions";
+import { Prisma, type Invoice } from "@prisma/client";
 import { NextResponse } from "next/server";
+import slugify from "slugify";
+import type { ApiResponse, CreatedInvoice, InvoiceListItem, PaginatedApiResponse } from "types";
 
 export const runtime = "nodejs";
 
@@ -37,22 +45,13 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
 
       const business = await db.business.findUnique({
         where: { id: payload.businessId },
-        include: {
-          members: {
-            where: { userId: user.id },
-            select: { userId: true },
-            take: 1,
-          },
-          profile: true,
-        },
       });
 
       if (!business) {
         throw new NotFoundException("Business not found");
       }
 
-      const canCreateInvoice =
-        business.ownerId === user.id || business.members.length > 0;
+      const canCreateInvoice = business.ownerId === user.id;
 
       if (!canCreateInvoice) {
         throw new ForbiddenException(
@@ -63,11 +62,11 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
       const [booking, existingInvoice] = await Promise.all([
         payload.bookingId
           ? db.booking.findFirst({
-              where: {
-                id: payload.bookingId,
-                businessId: payload.businessId,
-              },
-            })
+            where: {
+              id: payload.bookingId,
+              businessId: payload.businessId,
+            },
+          })
           : Promise.resolve(null),
         db.invoice.findUnique({
           where: {
@@ -89,13 +88,13 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         );
       }
 
-      const serviceIds = [
-        ...new Set(
+      const serviceIds = Array.from(
+        new Set(
           (payload.items ?? [])
             .map((item) => item.serviceId)
             .filter((serviceId): serviceId is string => Boolean(serviceId)),
         ),
-      ];
+      );
 
       if (serviceIds.length > 0) {
         const services = await db.service.findMany({
@@ -113,48 +112,65 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         }
       }
 
-      const invoice = await db.invoice.create({
-        data: {
-          businessId: payload.businessId,
-          clientName: payload.name,
-          clientEmail: payload.email ?? null,
-          clientPhone: payload.phone ?? null,
-          bookingId: payload.bookingId ?? null,
-          invoiceNumber: payload.invoiceNumber,
-          status: payload.status,
-          currency: payload.currency,
-          subtotal: payload.subtotal,
-          taxAmount: payload.taxAmount,
-          discount: payload.discount,
-          total: payload.total,
-          amountPaid: payload.amountPaid,
-          dueAt: payload.dueAt ?? null,
-          sentAt: payload.sentAt ?? null,
-          paidAt: payload.paidAt ?? null,
-          notes: payload.notes ?? null,
-          items:
-            payload.items && payload.items.length > 0
-              ? {
-                  create: payload.items.map((item) => ({
-                    serviceId: item.serviceId ?? null,
-                    description: item.description,
-                    quantity: item.quantity,
-                    unitPrice: item.unitPrice,
-                    total: item.total,
-                  })),
-                }
-              : undefined,
-        },
-        include: {
-          business: {
-            include: {
-              profile: true,
-            },
+      const data: Prisma.InvoiceCreateInput = {
+        business: {
+          connect: {
+            id: payload.businessId,
           },
+        },
+        slug: slugify(`${payload.name}-${payload.invoiceNumber}-${Date.now()}`, { lower: true, strict: true }),
+        clientName: payload.name,
+        clientEmail: payload.email ?? null,
+        clientPhone: payload.phone ?? null,
+        invoiceNumber: payload.invoiceNumber,
+        status: payload.status,
+        currency: payload.currency,
+        subtotal: payload.subtotal,
+        taxAmount: payload.taxAmount,
+        discount: payload.discount,
+        total: payload.total,
+        amountPaid: payload.amountPaid,
+        dueAt: payload.dueAt ?? null,
+        sentAt: payload.sentAt ?? null,
+        paidAt: payload.paidAt ?? null,
+        notes: payload.notes ?? null,
+      }
+
+      if (payload.bookingId) {
+        data.booking = {
+          connect: {
+            id: payload.bookingId,
+          },
+        }
+      }
+
+      if (payload.items && payload.items.length > 0) {
+        data.items = {
+          create: payload.items.map((item) => ({
+            serviceId: item.serviceId ?? null,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.total,
+          })),
+        }
+      }
+
+      const invoice = await db.invoice.create({
+        data,
+        include: {
+          business: true,
           items: true,
         },
-      });
+      })
+
       createdInvoiceId = invoice.id;
+
+      if (!invoice.business) {
+        throw new InternalServerErrorException(
+          "Failed to retrieve business details for the invoice",
+        );
+      }
 
       const pdfBuffer = await generateInvoicePdf({
         invoiceNumber: invoice.invoiceNumber,
@@ -176,7 +192,7 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
           city: invoice.business.city,
           state: invoice.business.state,
           country: invoice.business.country,
-          logoUrl: invoice.business.profile?.logoUrl,
+          logoUrl: invoice.business.logoUrl,
         },
         client: {
           name: invoice.clientName,
@@ -199,18 +215,22 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         resource_type: "raw",
       });
 
-      return NextResponse.json(
-        {
-          status: 201,
-          message: "Invoice created successfully",
-          data: {
-            invoice,
-            pdf: {
-              url: uploadResult.secure_url,
-              publicId: uploadResult.public_id,
-            },
-          },
+      const invoicedata: CreatedInvoice = {
+        ...invoice,
+        pdf: {
+          url: uploadResult.secure_url,
+          publicId: uploadResult.public_id,
         },
+      }
+
+      const response: ApiResponse<CreatedInvoice> = {
+        status: 201,
+        message: "Invoice created successfully",
+        data: invoicedata,
+      }
+
+      return NextResponse.json(
+        response,
         { status: 201 },
       );
     } catch (error: any) {
@@ -235,4 +255,159 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
     }
   },
   [authMiddleware, bodyValidatorMiddleware(invoiceValidatorSchema)],
+);
+
+/**
+ * @queryParams InvoiceQueryValidatorSchema
+ * @description Retrieves invoices for the authenticated user's business. Supports search, pagination, and filtering.
+ * @auth bearer
+ */
+export const GET = withMiddleware<InvoiceQueryValidatorSchema, InvoiceQueryValidatorSchema>(
+  async (request) => {
+    try {
+      const payload = request.query!;
+      const user = request.user!;
+
+      // Only return invoices for businesses owned by the authenticated user
+      const business = await db.business.findUnique({
+        where: { ownerId: user.id },
+        select: { id: true },
+      });
+
+      if (!business) {
+        throw new NotFoundException("Business not found for this user");
+      }
+
+      const where: Prisma.InvoiceWhereInput = {
+        businessId: business.id,
+      };
+
+      // Filter by specific businessId if provided (must still be the user's business)
+      if (payload.businessId && payload.businessId !== business.id) {
+        throw new ForbiddenException(
+          "You do not have permission to view invoices for this business",
+        );
+      }
+
+      if (payload.status) {
+        where.status = payload.status;
+      }
+
+      if (payload.clientName) {
+        where.clientName = { contains: payload.clientName, mode: "insensitive" };
+      }
+
+      if (payload.clientEmail) {
+        where.clientEmail = { contains: payload.clientEmail, mode: "insensitive" };
+      }
+
+      if (payload.bookingId) {
+        where.bookingId = payload.bookingId;
+      }
+
+      if (payload.invoiceNumber) {
+        where.invoiceNumber = { contains: payload.invoiceNumber, mode: "insensitive" };
+      }
+
+      // Date range filters
+      if (payload.dueFrom || payload.dueTo) {
+        where.dueAt = {
+          ...(payload.dueFrom && { gte: payload.dueFrom }),
+          ...(payload.dueTo && { lte: payload.dueTo }),
+        };
+      }
+
+      if (payload.createdFrom || payload.createdTo) {
+        where.createdAt = {
+          ...(payload.createdFrom && { gte: payload.createdFrom }),
+          ...(payload.createdTo && { lte: payload.createdTo }),
+        };
+      }
+
+      // Text search across multiple fields
+      if (payload.query) {
+        where.OR = [
+          { clientName: { contains: payload.query, mode: "insensitive" } },
+          { clientEmail: { contains: payload.query, mode: "insensitive" } },
+          { invoiceNumber: { contains: payload.query, mode: "insensitive" } },
+        ];
+      }
+
+      const orderBy: Prisma.InvoiceOrderByWithRelationInput = {
+        [payload.sortBy ?? "createdAt"]: payload.sortOrder ?? "desc",
+      };
+
+      const include: Prisma.InvoiceInclude = {
+        items: true,
+        booking: {
+          select: {
+            id: true,
+            slug: true,
+            clientName: true,
+            startTime: true,
+          },
+        },
+        _count: {
+          select: {
+            items: true,
+            payments: true,
+          },
+        },
+      };
+
+      if (payload.all) {
+        const data = await db.invoice.findMany({
+          where,
+          include,
+          orderBy,
+        });
+
+        const response: PaginatedApiResponse<InvoiceListItem[]> = {
+          status: 200,
+          message: "Invoices retrieved successfully",
+          data,
+          total: data.length,
+          page: 1,
+          size: data.length || 1,
+          totalPages: 1,
+        }
+
+        return NextResponse.json(response);
+      }
+
+      const page = payload.page ?? 1;
+      const size = payload.size ?? 10;
+      const skip = (page - 1) * size;
+
+      const [count, data] = await Promise.all([
+        db.invoice.count({ where }),
+        db.invoice.findMany({
+          where,
+          take: size,
+          skip,
+          orderBy,
+          include,
+        }),
+      ]);
+
+      const response: PaginatedApiResponse<InvoiceListItem[]> = {
+        status: 200,
+        message: "Invoices retrieved successfully",
+        data,
+        total: count,
+        page,
+        size,
+        totalPages: Math.ceil(count / size),
+      }
+
+      return NextResponse.json(response);
+    } catch (error: any) {
+      if (error.statusCode) throw error;
+
+      throw new InternalServerErrorException(
+        `An error occurred while fetching invoices: ${error.message}`,
+      );
+    }
+  },
+  [authMiddleware, queryValidatorMiddleware(invoiceQueryValidatorSchema)],
 );

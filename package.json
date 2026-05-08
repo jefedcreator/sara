@@ -10,6 +10,10 @@
     "db:migrate": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
+    "docker:build": "sh ./scripts/docker-compose build",
+    "docker:down": "sh ./scripts/docker-compose down",
+    "docker:logs": "sh ./scripts/docker-compose logs -f app postgres",
+    "docker:up": "sh ./scripts/docker-compose up --build",
     "dev": "next dev --turbo",
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
@@ -35,6 +39,7 @@
     "nuqs": "^2.8.9",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "slugify": "^1.6.9",
     "tailwind-merge": "^3.5.0",
     "zod": "^4.3.6"
   },

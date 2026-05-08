@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -8,42 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum BusinessCategory {
-  FASHION_DESIGN
-  LASH_TECHNICIAN
-  HAIR_STYLIST
-  BARBER
-  MAKEUP_ARTIST
-  NAIL_TECHNICIAN
-  SPA_AND_BEAUTY
-  PHOTOGRAPHY
-  EVENT_SERVICES
-  CONSULTING
-  OTHER
-}
-
-enum BusinessRole {
-  OWNER
-  ADMIN
-  STAFF
-}
-
-enum DayOfWeek {
-  MONDAY
-  TUESDAY
-  WEDNESDAY
-  THURSDAY
-  FRIDAY
-  SATURDAY
-  SUNDAY
-}
+// --- Enums ---
 
 enum BookingStatus {
   PENDING
   CONFIRMED
   COMPLETED
   CANCELLED
-  NO_SHOW
 }
 
 enum InvoiceStatus {
@@ -55,324 +25,158 @@ enum InvoiceStatus {
   OVERDUE
 }
 
-enum PaymentStatus {
-  PENDING
-  PROCESSING
-  SUCCEEDED
-  FAILED
-  REFUNDED
-}
-
-enum PaymentProvider {
-  PAYSTACK
+enum PaymentMethod {
   STRIPE
-  FLUTTERWAVE
-  BANK_TRANSFER
+  PAYSTACK
   CASH
-  OTHER
+  BANK_TRANSFER
 }
 
-enum MapProvider {
-  GOOGLE_MAPS
-  MAPBOX
-  OPENSTREETMAP
-  OTHER
-}
+// --- Auth & Core ---
 
-enum ServiceLocationType {
-  BUSINESS_LOCATION
-  CLIENT_LOCATION
-  VIRTUAL
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+
+  // A user account is a business owner
+  business Business?
+
+  @@index([email])
 }
 
 model Business {
-  id             String           @id @default(cuid())
-  ownerId        String
-  name           String
-  slug           String           @unique
-  category       BusinessCategory @default(OTHER)
-  description    String?
-  phone          String?
-  email          String?
-  website        String?
-  whatsapp       String?
-  city           String?
-  state          String?
-  country        String           @default("NG")
-  currency       String           @default("NGN")
-  timezone       String           @default("Africa/Lagos")
-  acceptsOnsite  Boolean          @default(true)
-  acceptsMobile  Boolean          @default(false)
-  acceptsVirtual Boolean          @default(false)
-  isPublished    Boolean          @default(false)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-
-  owner             User               @relation("OwnedBusinesses", fields: [ownerId], references: [id], onDelete: Cascade)
-  location          Location?          @relation("BusinessLocation")
-  profile           BusinessProfile?
-  members           BusinessMember[]
-  staff             StaffMember[]
-  services          Service[]
-  bookings          Booking[]
-  invoices          Invoice[]
-  payments          Payment[]
-  availabilityRules AvailabilityRule[]
-  serviceAreas      ServiceArea[]
-
-  @@index([ownerId])
-  @@index([category])
-  @@index([city, state])
-  @@index([isPublished])
-}
-
-model Location {
-  id               String       @id @default(cuid())
-  businessId       String?      @unique
-  clientId         String?
-  label            String?
-  formattedAddress String?
-  addressLine1     String?
-  addressLine2     String?
-  city             String?
-  state            String?
-  country          String       @default("NG")
-  postalCode       String?
-  latitude         Decimal?     @db.Decimal(9, 6)
-  longitude        Decimal?     @db.Decimal(9, 6)
-  placeId          String?
-  mapProvider      MapProvider?
-  routeNotes       String?
-  isDefault        Boolean      @default(false)
-  createdAt        DateTime     @default(now())
-  updatedAt        DateTime     @updatedAt
-
-  business Business? @relation("BusinessLocation", fields: [businessId], references: [id], onDelete: Cascade)
-  client   Client?   @relation(fields: [clientId], references: [id], onDelete: Cascade)
-  bookings Booking[]
-
-  @@index([clientId])
-  @@index([city, state])
-  @@index([latitude, longitude])
-  @@index([placeId])
-}
-
-model ServiceArea {
-  id         String   @id @default(cuid())
-  businessId String
-  name       String
-  city       String?
-  state      String?
-  country    String   @default("NG")
-  latitude   Decimal? @db.Decimal(9, 6)
-  longitude  Decimal? @db.Decimal(9, 6)
-  radiusKm   Decimal? @db.Decimal(8, 2)
-  travelFee  Decimal? @db.Decimal(10, 2)
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-
-  @@index([businessId])
-  @@index([city, state])
-  @@index([isActive])
-}
-
-model BusinessProfile {
-  id              String   @id @default(cuid())
-  businessId      String   @unique
-  headline        String?
-  bio             String?
-  metaTitle       String?
-  metaDescription String?
-  searchKeywords  String[]
-  logoUrl         String?
-  coverImageUrl   String?
-  instagramUrl    String?
-  tiktokUrl       String?
-  facebookUrl     String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-}
-
-model BusinessMember {
-  businessId String
-  userId     String
-  role       BusinessRole @default(STAFF)
-  invitedAt  DateTime     @default(now())
-  acceptedAt DateTime?
-
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@id([businessId, userId])
-  @@index([userId])
-}
-
-model StaffMember {
   id          String   @id @default(cuid())
-  businessId  String
-  userId      String?
-  displayName String
-  title       String?
-  bio         String?
-  email       String?
+  ownerId     String   @unique
+  name        String
+  slug        String   @unique
+  description String?
   phone       String?
-  isBookable  Boolean  @default(true)
+  email       String?
+  address     String?
+  city        String?
+  state       String?
+  country     String?
+  logoUrl     String?
+  latitude    Decimal? @db.Decimal(9, 6)
+  longitude   Decimal? @db.Decimal(9, 6)
+  currency    String   @default("USD")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  business Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  user     User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
-  services StaffService[]
-  bookings Booking[]      @relation("BookingStaff")
+  owner    User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  services Service[]
+  bookings Booking[]
+  invoices Invoice[]
+  payments Payment[]
+  receipts Receipt[]
+  gallery  GalleryItem[]
 
-  @@index([businessId])
-  @@index([userId])
+  @@index([ownerId])
+  @@index([slug])
 }
+
+// --- Business Entities ---
 
 model Service {
-  id              String              @id @default(cuid())
-  businessId      String
-  name            String
-  slug            String
-  description     String?
-  durationMinutes Int
-  bufferMinutes   Int                 @default(0)
-  price           Decimal             @db.Decimal(10, 2)
-  currency        String              @default("NGN")
-  requiresDeposit Boolean             @default(false)
-  depositAmount   Decimal?            @db.Decimal(10, 2)
-  locationType    ServiceLocationType @default(BUSINESS_LOCATION)
-  travelFee       Decimal?            @db.Decimal(10, 2)
-  isActive        Boolean             @default(true)
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  businessId  String
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  duration    Int // Duration in minutes
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  business     Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  staff        StaffService[]
-  bookings     Booking[]
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  bookings Booking[]
   invoiceItems InvoiceItem[]
 
-  @@unique([businessId, slug])
   @@index([businessId])
-  @@index([isActive])
+  @@index([slug])
 }
 
-model StaffService {
-  staffId   String
-  serviceId String
 
-  staff   StaffMember @relation(fields: [staffId], references: [id], onDelete: Cascade)
-  service Service     @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-
-  @@id([staffId, serviceId])
-  @@index([serviceId])
-}
-
-model Client {
-  id         String   @id @default(cuid())
-  businessId String
-  name       String
-  email      String?
-  phone      String?
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  locations Location[]
-  bookings  Booking[]
-  payments  Payment[]
-
-  @@unique([businessId, email])
-  @@index([businessId])
-  @@index([phone])
-}
-
-model AvailabilityRule {
-  id          String    @id @default(cuid())
-  businessId  String
-  dayOfWeek   DayOfWeek
-  startsAt    String
-  endsAt      String
-  isAvailable Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-
-  @@index([businessId, dayOfWeek])
-}
+// --- Transactions ---
 
 model Booking {
-  id                     String              @id @default(cuid())
-  businessId             String
-  serviceId              String
-  clientId               String
-  staffId                String?
-  locationId             String?
-  startsAt               DateTime
-  endsAt                 DateTime
-  status                 BookingStatus       @default(PENDING)
-  locationType           ServiceLocationType @default(BUSINESS_LOCATION)
-  routeDistanceKm        Decimal?            @db.Decimal(8, 2)
-  estimatedTravelMinutes Int?
-  routeProvider          MapProvider?
-  routePolyline          String?
-  routeCalculatedAt      DateTime?
-  notes                  String?
-  createdAt              DateTime            @default(now())
-  updatedAt              DateTime            @updatedAt
+  id         String        @id @default(cuid())
+  slug       String        @unique
+  businessId String
+  serviceId  String
+  startTime  DateTime
+  endTime    DateTime
+  status     BookingStatus @default(PENDING)
+  notes      String?
 
-  business Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  service  Service      @relation(fields: [serviceId], references: [id], onDelete: Restrict)
-  client   Client       @relation(fields: [clientId], references: [id], onDelete: Restrict)
-  staff    StaffMember? @relation("BookingStaff", fields: [staffId], references: [id], onDelete: SetNull)
-  location Location?    @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  // Client Details (Snapshot)
+  clientName  String
+  clientEmail String?
+  clientPhone String?
+
+  // OSM Routing fields
+  clientLat     Decimal? @db.Decimal(9, 6)
+  clientLong    Decimal? @db.Decimal(9, 6)
+  distanceKm    Decimal? @db.Decimal(10, 2)
+  durationMin   Int?
+  routePolyline String?  @db.Text // Encoded polyline for mapping
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  service  Service  @relation(fields: [serviceId], references: [id])
   invoice  Invoice?
-  payments Payment[]
 
-  @@index([businessId, startsAt])
-  @@index([clientId])
-  @@index([locationId])
+  @@index([businessId])
   @@index([serviceId])
-  @@index([staffId])
-  @@index([status])
+  @@index([slug])
 }
 
 model Invoice {
   id            String        @id @default(cuid())
+  slug          String        @unique
   businessId    String
+  bookingId     String?       @unique
+  invoiceNumber String // e.g., INV-1001
+  status        InvoiceStatus @default(DRAFT)
+  currency      String        @default("USD")
+  
+  // Client Details (Snapshot)
   clientName    String
   clientEmail   String?
   clientPhone   String?
-  bookingId     String?       @unique
-  invoiceNumber String
-  status        InvoiceStatus @default(DRAFT)
-  currency      String        @default("NGN")
+
+  // Financial Details
   subtotal      Decimal       @db.Decimal(10, 2)
   taxAmount     Decimal       @default(0) @db.Decimal(10, 2)
   discount      Decimal       @default(0) @db.Decimal(10, 2)
   total         Decimal       @db.Decimal(10, 2)
   amountPaid    Decimal       @default(0) @db.Decimal(10, 2)
+  
   dueAt         DateTime?
   sentAt        DateTime?
   paidAt        DateTime?
   notes         String?
+  
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  booking  Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  booking  Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
   items    InvoiceItem[]
   payments Payment[]
 
   @@unique([businessId, invoiceNumber])
-  @@index([businessId, status])
-  @@index([clientEmail])
+  @@index([businessId])
+  @@index([bookingId])
+  @@index([slug])
 }
 
 model InvoiceItem {
@@ -384,7 +188,6 @@ model InvoiceItem {
   unitPrice   Decimal  @db.Decimal(10, 2)
   total       Decimal  @db.Decimal(10, 2)
   createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
 
   invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
@@ -394,51 +197,81 @@ model InvoiceItem {
 }
 
 model Payment {
-  id                  String          @id @default(cuid())
-  businessId          String
-  clientId            String
-  invoiceId           String?
-  bookingId           String?
-  provider            PaymentProvider
-  status              PaymentStatus   @default(PENDING)
-  amount              Decimal         @db.Decimal(10, 2)
-  currency            String          @default("NGN")
-  providerReference   String?         @unique
-  providerCheckoutUrl String?
-  paidAt              DateTime?
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  id         String        @id @default(cuid())
+  businessId String
+  invoiceId  String?
+  amount     Decimal       @db.Decimal(10, 2)
+  method     PaymentMethod
+  reference  String?       @unique // External transaction ID
+
+  // Client Details (Snapshot)
+  clientName  String?
+  clientEmail String?
+  clientPhone String?
+
+  createdAt  DateTime      @default(now())
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  client   Client   @relation(fields: [clientId], references: [id], onDelete: Restrict)
   invoice  Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  booking  Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  receipt  Receipt?
 
-  @@index([businessId, status])
-  @@index([clientId])
+  @@index([businessId])
   @@index([invoiceId])
-  @@index([bookingId])
 }
 
-// Auth.js adapter models
-model Account {
-  id                       String  @id @default(cuid())
-  userId                   String
-  type                     String
-  provider                 String
-  providerAccountId        String
-  refresh_token            String?
-  access_token             String?
-  expires_at               Int?
-  token_type               String?
-  scope                    String?
-  id_token                 String?
-  session_state            String?
-  refresh_token_expires_in Int?
+model Receipt {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  businessId    String
+  paymentId     String   @unique
+  receiptNumber String // e.g., RCP-1001
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Client Details (Snapshot)
+  clientName    String?
+  clientEmail   String?
+  clientPhone   String?
+
+  issuedAt      DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  payment  Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+  @@index([paymentId])
+  @@index([slug])
+}
+
+model GalleryItem {
+  id         String   @id @default(cuid())
+  businessId String
+  url        String
+  caption    String?
+  createdAt  DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@index([businessId])
+}
+
+// --- Auth.js Internals ---
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -446,22 +279,9 @@ model Session {
   sessionToken String   @unique
   userId       String
   expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-
-  accounts        Account[]
-  sessions        Session[]
-  ownedBusinesses Business[]       @relation("OwnedBusinesses")
-  memberships     BusinessMember[]
-  staffProfiles   StaffMember[]
+  @@index([userId])
 }
 
 model VerificationToken {

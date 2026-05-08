@@ -1,0 +1,32 @@
+#!/usr/bin/env sh
+set -eu
+
+if docker compose version >/dev/null 2>&1; then
+  exec docker compose "$@"
+fi
+
+if command -v docker-compose >/dev/null 2>&1; then
+  exec docker-compose "$@"
+fi
+
+cat >&2 <<'EOF'
+Docker Compose is not available to the Docker CLI.
+
+Install the Compose plugin and make Docker aware of it:
+
+  brew install docker-compose
+
+Then add this to ~/.docker/config.json:
+
+  {
+    "cliPluginsExtraDirs": [
+      "/usr/local/lib/docker/cli-plugins"
+    ]
+  }
+
+After that, verify with:
+
+  docker compose version
+EOF
+
+exit 127
