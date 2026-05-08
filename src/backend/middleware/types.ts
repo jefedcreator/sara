@@ -1,4 +1,4 @@
-import type { BusinessMember } from '@prisma/client';
+import type { User } from '@prisma/client';
 import { type NextRequest } from 'next/server';
 import type z from 'zod';
 import type { ClubQueryValidatorSchema } from '../validators/club.validator';
@@ -44,7 +44,7 @@ export interface AuthRequest<B = unknown, Q = QueryParameters>
   params?: Record<string, string>;
   files?: Record<string, File>;
   validatedData?: B;
-  user: BusinessMember | null;
+  user: User | null;
   isExpired?: boolean;
 }
 
