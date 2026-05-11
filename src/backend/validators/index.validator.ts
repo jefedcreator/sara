@@ -69,3 +69,11 @@ export type BaseQueryValidatorSchema = z.infer<typeof baseQueryValidatorSchema>;
 export type BaseQueryValidatorInput = z.input<typeof baseQueryValidatorSchema>;
 
 export const paramValidator = z.object({ id: mongoIdValidator });
+
+export const slugParamValidator = z.object({
+    slug: z.string().min(1, 'slug is required'),
+});
+
+export const nextAuthPathParamValidator = z.object({
+    nextauth: z.array(z.string().min(1)).min(1, 'nextauth path is required'),
+});

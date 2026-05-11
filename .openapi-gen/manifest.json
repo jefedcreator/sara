@@ -1,0 +1,33 @@
+{
+  "configPath": "/Users/jefedcreator/Documents/Development/sara/next.openapi.json",
+  "outputFile": "/Users/jefedcreator/Documents/Development/sara/public/openapi.json",
+  "diagnostics": [],
+  "performance": {
+    "prepareTemplateMs": 0.1912409999999909,
+    "loadCustomFragmentsMs": 0.0011680000000069413,
+    "prepareDocumentMs": 0.19240899999999783,
+    "scanRouteFilesMs": 67.75750500000004,
+    "deriveRoutePathMs": 1.00667200000089,
+    "filterRouteCandidatesMs": 0.11365300000011302,
+    "sourcePrecheckMs": 3.2235370000007606,
+    "readRouteFilesMs": 2.4738760000011553,
+    "parseRouteFilesMs": 56.55138600000009,
+    "analyzeRouteFilesMs": 688.5748699999995,
+    "typescriptResponseInferenceMs": 0,
+    "processRouteFilesMs": 746.0548499999993,
+    "registerRouteMs": 1010.1382989999993,
+    "getSchemaContentMs": 974.5170340000006,
+    "createRequestParamsMs": 11.474218000000292,
+    "createRequestBodyMs": 0,
+    "processResponsesMs": 3.3876719999998386,
+    "createResponseSchemaMs": 0,
+    "buildOperationsMs": 1011.0019259999999,
+    "sortAndMergePathsMs": 4.610559000000194,
+    "buildPathsMs": 4.610559000000194,
+    "defaultComponentsAndErrorsMs": 0.5866009999999733,
+    "mergeSchemasMs": 5.680915999999797,
+    "finalizeDocumentMs": 80.47232099999974,
+    "totalMs": 1922.2173719999998,
+    "scanRoutesMs": 1824.8142809999993
+  }
+}

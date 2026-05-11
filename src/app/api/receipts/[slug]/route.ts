@@ -34,6 +34,7 @@ const receiptInclude: Prisma.ReceiptInclude = {
 
 /**
  * @body UpdateReceiptValidatorSchema
+ * @pathParams slugParamValidator
  * @description Updates an existing receipt for the authenticated user's business.
  * @contentType application/json
  * @auth bearer
@@ -95,6 +96,7 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
 );
 
 /**
+ * @pathParams slugParamValidator
  * @description Deletes an existing receipt for the authenticated user's business.
  * @auth bearer
  */
@@ -141,7 +143,8 @@ export const DELETE = withMiddleware<unknown>(
 );
 
 /**
- * @description Retrieves a single receipt by slug.
+ * @pathParams slugParamValidator
+ * @description Retrieves a single receipt by slug for the authenticated user's business.
  * @auth bearer
  */
 export const GET = withMiddleware<unknown>(

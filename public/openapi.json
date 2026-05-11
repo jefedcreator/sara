@@ -1,0 +1,2409 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "API Documentation",
+    "version": "1.0.0",
+    "description": "This is the OpenAPI specification for your project."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api",
+      "description": "Local development server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "baseQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "default": "1",
+            "type": "string"
+          },
+          "size": {
+            "default": "10",
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "name",
+              "createdAt",
+              "updatedAt"
+            ],
+            "default": "createdAt"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "all": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "page",
+          "size"
+        ],
+        "additionalProperties": false
+      },
+      "cuidValidator": {
+        "type": "string",
+        "format": "cuid"
+      },
+      "invoiceItemValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "$ref": "#/components/schemas/optionalCuidValidator"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "quantity": {
+            "default": 1,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "unitPrice": {
+            "type": "object"
+          },
+          "total": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "serviceId",
+          "description",
+          "quantity",
+          "unitPrice",
+          "total"
+        ],
+        "additionalProperties": false
+      },
+      "InvoiceQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "default": "1",
+            "type": "string"
+          },
+          "size": {
+            "default": "10",
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "invoiceNumber",
+              "status",
+              "dueAt",
+              "sentAt",
+              "paidAt",
+              "total",
+              "createdAt",
+              "updatedAt"
+            ],
+            "default": "createdAt"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "all": {
+            "type": "string"
+          },
+          "businessId": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255
+          },
+          "clientName": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "bookingId": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/invoiceStatusValidatorSchema"
+              }
+            ]
+          },
+          "invoiceNumber": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "dueFrom": {
+            "type": "object"
+          },
+          "dueTo": {
+            "type": "object"
+          },
+          "createdFrom": {
+            "type": "object"
+          },
+          "createdTo": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      },
+      "invoiceQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "default": "1",
+            "type": "string"
+          },
+          "size": {
+            "default": "10",
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "invoiceNumber",
+              "status",
+              "dueAt",
+              "sentAt",
+              "paidAt",
+              "total",
+              "createdAt",
+              "updatedAt"
+            ],
+            "default": "createdAt"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "all": {
+            "type": "string"
+          },
+          "businessId": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255
+          },
+          "clientName": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "bookingId": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
+          },
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/invoiceStatusValidatorSchema"
+              }
+            ]
+          },
+          "invoiceNumber": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "dueFrom": {
+            "type": "object"
+          },
+          "dueTo": {
+            "type": "object"
+          },
+          "createdFrom": {
+            "type": "object"
+          },
+          "createdTo": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      },
+      "invoiceStatusValidatorSchema": {
+        "type": "string",
+        "enum": [
+          "DRAFT",
+          "SENT",
+          "PARTIALLY_PAID",
+          "PAID",
+          "VOID",
+          "OVERDUE"
+        ]
+      },
+      "InvoiceValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "businessId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true
+          },
+          "bookingId": {
+            "$ref": "#/components/schemas/optionalCuidValidator"
+          },
+          "invoiceNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "status": {
+            "$ref": "#/components/schemas/invoiceStatusValidatorSchema",
+            "default": "DRAFT"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "default": "NGN"
+          },
+          "subtotal": {
+            "type": "object"
+          },
+          "taxAmount": {
+            "type": "object",
+            "default": 0
+          },
+          "discount": {
+            "type": "object",
+            "default": 0
+          },
+          "total": {
+            "type": "object"
+          },
+          "amountPaid": {
+            "type": "object",
+            "default": 0
+          },
+          "dueAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "sentAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "paidAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/invoiceItemValidatorSchema"
+            }
+          }
+        },
+        "required": [
+          "businessId",
+          "name",
+          "bookingId",
+          "invoiceNumber",
+          "status",
+          "currency",
+          "subtotal",
+          "taxAmount",
+          "discount",
+          "total",
+          "amountPaid"
+        ],
+        "additionalProperties": false
+      },
+      "invoiceValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "businessId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true
+          },
+          "bookingId": {
+            "$ref": "#/components/schemas/optionalCuidValidator"
+          },
+          "invoiceNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "status": {
+            "$ref": "#/components/schemas/invoiceStatusValidatorSchema",
+            "default": "DRAFT"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "default": "NGN"
+          },
+          "subtotal": {
+            "type": "object"
+          },
+          "taxAmount": {
+            "type": "object",
+            "default": 0
+          },
+          "discount": {
+            "type": "object",
+            "default": 0
+          },
+          "total": {
+            "type": "object"
+          },
+          "amountPaid": {
+            "type": "object",
+            "default": 0
+          },
+          "dueAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "sentAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "paidAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/invoiceItemValidatorSchema"
+            }
+          }
+        },
+        "required": [
+          "businessId",
+          "name",
+          "bookingId",
+          "invoiceNumber",
+          "status",
+          "currency",
+          "subtotal",
+          "taxAmount",
+          "discount",
+          "total",
+          "amountPaid"
+        ],
+        "additionalProperties": false
+      },
+      "mongoIdValidator": {
+        "type": "string",
+        "pattern": "^[0-9a-fA-F]{24}$"
+      },
+      "nextAuthPathParamValidator": {
+        "type": "object",
+        "properties": {
+          "nextauth": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "nextauth"
+        ]
+      },
+      "OAuthAuthorizationQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "callbackUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "redirect": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "oauthAuthorizationQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "callbackUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "redirect": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "OAuthCallbackQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "oauthCallbackQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      },
+      "OAuthCallbackValidatorSchema": {
+        "$ref": "#/components/schemas/oauthCallbackQueryValidatorSchema"
+      },
+      "oauthCallbackValidatorSchema": {
+        "$ref": "#/components/schemas/oauthCallbackQueryValidatorSchema"
+      },
+      "optionalCuidValidator": {
+        "type": "string",
+        "format": "cuid"
+      },
+      "paramValidator": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/mongoIdValidator"
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "paymentMethodValidatorSchema": {
+        "type": "string",
+        "enum": [
+          "STRIPE",
+          "PAYSTACK",
+          "CASH",
+          "BANK_TRANSFER"
+        ]
+      },
+      "ReceiptQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "default": "1",
+            "type": "string"
+          },
+          "size": {
+            "default": "10",
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "receiptNumber",
+              "issuedAt",
+              "clientName"
+            ],
+            "default": "issuedAt"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "all": {
+            "type": "string"
+          },
+          "businessId": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
+          },
+          "clientName": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255
+          },
+          "receiptNumber": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "paymentId": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
+          },
+          "issuedFrom": {
+            "type": "object"
+          },
+          "issuedTo": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      },
+      "receiptQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "default": "1",
+            "type": "string"
+          },
+          "size": {
+            "default": "10",
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "receiptNumber",
+              "issuedAt",
+              "clientName"
+            ],
+            "default": "issuedAt"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "all": {
+            "type": "string"
+          },
+          "businessId": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
+          },
+          "clientName": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255
+          },
+          "receiptNumber": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "paymentId": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
+          },
+          "issuedFrom": {
+            "type": "object"
+          },
+          "issuedTo": {
+            "type": "object"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ReceiptValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "businessId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "paymentId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "receiptNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientName": {
+            "type": "string",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "clientPhone": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true
+          }
+        },
+        "required": [
+          "businessId",
+          "paymentId",
+          "receiptNumber"
+        ],
+        "additionalProperties": false
+      },
+      "receiptValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "businessId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "paymentId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "receiptNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientName": {
+            "type": "string",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "clientPhone": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true
+          }
+        },
+        "required": [
+          "businessId",
+          "paymentId",
+          "receiptNumber"
+        ],
+        "additionalProperties": false
+      },
+      "slugParamValidator": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "slug"
+        ]
+      },
+      "UpdateInvoiceValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "businessId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true
+          },
+          "bookingId": {
+            "$ref": "#/components/schemas/optionalCuidValidator"
+          },
+          "invoiceNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "status": {
+            "$ref": "#/components/schemas/invoiceStatusValidatorSchema",
+            "default": "DRAFT"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "default": "NGN"
+          },
+          "subtotal": {
+            "type": "object"
+          },
+          "taxAmount": {
+            "type": "object",
+            "default": 0
+          },
+          "discount": {
+            "type": "object",
+            "default": 0
+          },
+          "total": {
+            "type": "object"
+          },
+          "amountPaid": {
+            "type": "object",
+            "default": 0
+          },
+          "dueAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "sentAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "paidAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/invoiceItemValidatorSchema"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "updateInvoiceValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "businessId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "phone": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true
+          },
+          "bookingId": {
+            "$ref": "#/components/schemas/optionalCuidValidator"
+          },
+          "invoiceNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "status": {
+            "$ref": "#/components/schemas/invoiceStatusValidatorSchema",
+            "default": "DRAFT"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "default": "NGN"
+          },
+          "subtotal": {
+            "type": "object"
+          },
+          "taxAmount": {
+            "type": "object",
+            "default": 0
+          },
+          "discount": {
+            "type": "object",
+            "default": 0
+          },
+          "total": {
+            "type": "object"
+          },
+          "amountPaid": {
+            "type": "object",
+            "default": 0
+          },
+          "dueAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "sentAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "paidAt": {
+            "type": "object",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/invoiceItemValidatorSchema"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "UpdateReceiptValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "businessId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "paymentId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "receiptNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientName": {
+            "type": "string",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "clientPhone": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "updateReceiptValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "businessId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "paymentId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "receiptNumber": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientName": {
+            "type": "string",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email",
+            "maxLength": 255,
+            "nullable": true
+          },
+          "clientPhone": {
+            "type": "string",
+            "maxLength": 50,
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "responses": {
+      "400": {
+        "description": "Bad Request",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Invalid request parameters"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "400"
+                }
+              }
+            }
+          }
+        }
+      },
+      "401": {
+        "description": "Unauthorized",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Authentication required"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "401"
+                }
+              }
+            }
+          }
+        }
+      },
+      "403": {
+        "description": "Forbidden",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Access denied"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "403"
+                }
+              }
+            }
+          }
+        }
+      },
+      "404": {
+        "description": "Not Found",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Resource not found"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "404"
+                }
+              }
+            }
+          }
+        }
+      },
+      "409": {
+        "description": "Conflict",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "Resource already exists"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "409"
+                }
+              }
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "Internal Server Error",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "error": {
+                  "type": "string",
+                  "example": "An unexpected error occurred"
+                },
+                "code": {
+                  "type": "string",
+                  "example": "500"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/auth/{nextauth}": {
+      "get": {
+        "operationId": "get-auth-{nextauth}",
+        "summary": "",
+        "description": "Handles NextAuth GET requests for session and provider auth routes.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "nextauth",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "example": "example"
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-auth-{nextauth}",
+        "summary": "",
+        "description": "Handles NextAuth POST requests for callbacks, sign-in, and sign-out routes.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "nextauth",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 1
+            },
+            "example": "example"
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/auth/facebook": {
+      "get": {
+        "operationId": "get-auth-facebook",
+        "summary": "",
+        "description": "Starts Facebook OAuth by returning or redirecting to the Facebook authorization URL.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "callbackUrl",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "in": "query",
+            "name": "redirect",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-auth-facebook",
+        "summary": "",
+        "description": "Starts Facebook OAuth by returning or redirecting to the Facebook authorization URL.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "callbackUrl",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "in": "query",
+            "name": "redirect",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/auth/google": {
+      "get": {
+        "operationId": "get-auth-google",
+        "summary": "",
+        "description": "Starts Google OAuth by returning or redirecting to the Google authorization URL.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "callbackUrl",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "in": "query",
+            "name": "redirect",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-auth-google",
+        "summary": "",
+        "description": "Starts Google OAuth by returning or redirecting to the Google authorization URL.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "callbackUrl",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "in": "query",
+            "name": "redirect",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/auth/instagram": {
+      "get": {
+        "operationId": "get-auth-instagram",
+        "summary": "",
+        "description": "Starts Instagram OAuth by returning or redirecting to the Instagram authorization URL.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "callbackUrl",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "in": "query",
+            "name": "redirect",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-auth-instagram",
+        "summary": "",
+        "description": "Starts Instagram OAuth by returning or redirecting to the Instagram authorization URL.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "callbackUrl",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uri"
+            }
+          },
+          {
+            "in": "query",
+            "name": "redirect",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "operationId": "post-auth-logout",
+        "summary": "",
+        "description": "Deletes the current cookie-backed session and redirects the user to the home page.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/auth/facebook/callback": {
+      "get": {
+        "operationId": "get-auth-facebook-callback",
+        "summary": "",
+        "description": "Handles the Facebook OAuth callback, creates a user session, and returns or redirects with the session token.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-auth-facebook-callback",
+        "summary": "",
+        "description": "Handles the Facebook OAuth callback from a JSON payload, creates a user session, and returns or redirects with the session token.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthCallbackValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "operationId": "get-auth-google-callback",
+        "summary": "",
+        "description": "Handles the Google OAuth callback, creates a user session, and returns or redirects with the session token.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-auth-google-callback",
+        "summary": "",
+        "description": "Handles the Google OAuth callback from a JSON payload, creates a user session, and returns or redirects with the session token.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthCallbackValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/auth/instagram/callback": {
+      "get": {
+        "operationId": "get-auth-instagram-callback",
+        "summary": "",
+        "description": "Handles the Instagram OAuth callback, creates a user session, and returns or redirects with the session token.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-auth-instagram-callback",
+        "summary": "",
+        "description": "Handles the Instagram OAuth callback from a JSON payload, creates a user session, and returns or redirects with the session token.",
+        "tags": [
+          "Auth"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "code",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "state",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OAuthCallbackValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/invoices": {
+      "get": {
+        "operationId": "get-invoices",
+        "summary": "",
+        "description": "Retrieves invoices for the authenticated user's business. Supports search, pagination, and filtering.",
+        "tags": [
+          "Invoices"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": "1",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "invoiceNumber",
+                "status",
+                "dueAt",
+                "sentAt",
+                "paidAt",
+                "total",
+                "createdAt",
+                "updatedAt"
+              ],
+              "default": "createdAt"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "all",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "businessId",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/cuidValidator"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "clientEmail",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "email",
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "clientName",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "bookingId",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/cuidValidator"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/invoiceStatusValidatorSchema"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "invoiceNumber",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "dueFrom",
+            "required": false,
+            "schema": {
+              "type": "object"
+            },
+            "style": "deepObject",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "dueTo",
+            "required": false,
+            "schema": {
+              "type": "object"
+            },
+            "style": "deepObject",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "createdFrom",
+            "required": false,
+            "schema": {
+              "type": "object"
+            },
+            "style": "deepObject",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "createdTo",
+            "required": false,
+            "schema": {
+              "type": "object"
+            },
+            "style": "deepObject",
+            "explode": true
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-invoices",
+        "summary": "",
+        "description": "Creates a new invoice for a business, generates a PDF, and uploads it to Cloudinary.",
+        "tags": [
+          "Invoices"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/invoiceValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/invoices/{slug}": {
+      "get": {
+        "operationId": "get-invoices-{slug}",
+        "summary": "",
+        "description": "Retrieves a single invoice by slug for the authenticated user's business.",
+        "tags": [
+          "Invoices"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "slug"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-invoices-{slug}",
+        "summary": "",
+        "description": "Updates an existing invoice for the authenticated user's business.",
+        "tags": [
+          "Invoices"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "slug"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateInvoiceValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-invoices-{slug}",
+        "summary": "",
+        "description": "Deletes an existing invoice for the authenticated user's business.",
+        "tags": [
+          "Invoices"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "slug"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/receipts": {
+      "get": {
+        "operationId": "get-receipts",
+        "summary": "",
+        "description": "Retrieves receipts for the authenticated user's business. Supports search, pagination, and filtering.",
+        "tags": [
+          "Receipts"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": "1",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": "10",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "receiptNumber",
+                "issuedAt",
+                "clientName"
+              ],
+              "default": "issuedAt"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "all",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "businessId",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/cuidValidator"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "clientName",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "clientEmail",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "email",
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "receiptNumber",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "paymentId",
+            "required": false,
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/cuidValidator"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "issuedFrom",
+            "required": false,
+            "schema": {
+              "type": "object"
+            },
+            "style": "deepObject",
+            "explode": true
+          },
+          {
+            "in": "query",
+            "name": "issuedTo",
+            "required": false,
+            "schema": {
+              "type": "object"
+            },
+            "style": "deepObject",
+            "explode": true
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-receipts",
+        "summary": "",
+        "description": "Creates a new receipt for a business.",
+        "tags": [
+          "Receipts"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/receiptValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/receipts/{slug}": {
+      "get": {
+        "operationId": "get-receipts-{slug}",
+        "summary": "",
+        "description": "Retrieves a single receipt by slug for the authenticated user's business.",
+        "tags": [
+          "Receipts"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "slug"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-receipts-{slug}",
+        "summary": "",
+        "description": "Updates an existing receipt for the authenticated user's business.",
+        "tags": [
+          "Receipts"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "slug"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReceiptValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-receipts-{slug}",
+        "summary": "",
+        "description": "Deletes an existing receipt for the authenticated user's business.",
+        "tags": [
+          "Receipts"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "slug"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Invoices"
+    },
+    {
+      "name": "Receipts"
+    }
+  ]
+}

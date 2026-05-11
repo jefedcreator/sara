@@ -19,6 +19,7 @@ import { NextResponse } from 'next/server';
 
 /**
  * @body UpdateInvoiceValidatorSchema
+ * @pathParams slugParamValidator
  * @description Updates an existing invoice for the authenticated user's business.
  * @contentType application/json
  * @auth bearer
@@ -123,6 +124,7 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
 );
 
 /**
+ * @pathParams slugParamValidator
  * @description Deletes an existing invoice for the authenticated user's business.
  * @auth bearer
  */
@@ -169,7 +171,8 @@ export const DELETE = withMiddleware<unknown>(
 );
 
 /**
- * @description Retrieves a single invoice by slug.
+ * @pathParams slugParamValidator
+ * @description Retrieves a single invoice by slug for the authenticated user's business.
  * @auth bearer
  */
 export const GET = withMiddleware<unknown>(
