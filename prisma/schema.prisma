@@ -32,14 +32,21 @@ enum PaymentMethod {
   BANK_TRANSFER
 }
 
+enum LoginProvider {
+  google
+  facebook
+  instagram
+}
+
 // --- Auth & Core ---
 
 model User {
-  id            String    @id @default(cuid())
+  id            String         @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?        @unique
   emailVerified DateTime?
   image         String?
+  loginProvider LoginProvider?
   accounts      Account[]
   sessions      Session[]
 
@@ -47,6 +54,7 @@ model User {
   business Business?
 
   @@index([email])
+  @@index([loginProvider])
 }
 
 model Business {

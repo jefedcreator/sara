@@ -390,6 +390,7 @@ export class AuthService {
             name: profile.name ?? existingAccount.user.name,
             email: profile.email ?? existingAccount.user.email,
             image: profile.image ?? existingAccount.user.image,
+            loginProvider: provider,
           },
         }),
         this.prisma.account.update({
@@ -411,6 +412,7 @@ export class AuthService {
         data: {
           name: profile.name ?? existingUser.name,
           image: profile.image ?? existingUser.image,
+          loginProvider: provider,
           accounts: {
             create: accountData,
           },
@@ -425,6 +427,7 @@ export class AuthService {
         name: profile.name,
         email: profile.email,
         image: profile.image,
+        loginProvider: provider,
         accounts: {
           create: accountData,
         },

@@ -1,5 +1,5 @@
 import { env } from "@/env";
-import { authService } from "@/backend/services/auth";
+import { auth, signIn, signOut } from "@/server/auth";
 
 const authProviders = [
   {
@@ -29,7 +29,7 @@ const authProviders = [
 ] as const;
 
 export default async function HomePage() {
-  const user = await authService.getCurrentUserFromCustomSession();
+  const session = await auth();
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 py-16 text-zinc-50">
@@ -48,20 +48,32 @@ export default async function HomePage() {
         </div>
 
         <div className="rounded-lg border border-white/10 bg-white p-6 text-zinc-950 shadow-2xl shadow-black/30">
-          {user ? (
+          {session?.user ? (
             <div className="space-y-6">
               <div>
                 <p className="text-sm font-medium text-zinc-500">
                   Signed in as
                 </p>
                 <p className="mt-1 text-xl font-semibold">
-                  {user.name ?? user.email ?? "Your account"}
+                  {session.user.name ?? session.user.email ?? "Your account"}
                 </p>
-                {user.email ? (
-                  <p className="mt-1 text-sm text-zinc-500">{user.email}</p>
+                {session.user.email ? (
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {session.user.email}
+                  </p>
+                ) : null}
+                {session.user.loginProvider ? (
+                  <p className="mt-2 text-sm font-medium text-emerald-700">
+                    Signed in with {session.user.loginProvider}
+                  </p>
                 ) : null}
               </div>
-              <form action="/api/auth/logout" method="post">
+              <form
+                action={async () => {
+                  "use server";
+                  await signOut({ redirectTo: "/" });
+                }}
+              >
                 <button className="w-full rounded-md bg-zinc-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800">
                   Sign out
                 </button>
@@ -81,13 +93,17 @@ export default async function HomePage() {
                 <div className="space-y-3">
                   {authProviders.map((provider) =>
                     provider.isConfigured ? (
-                      <a
+                      <form
                         key={provider.id}
-                        className="block w-full rounded-md border border-zinc-200 bg-white px-4 py-3 text-center text-sm font-semibold text-zinc-950 transition hover:border-zinc-950 hover:bg-zinc-50"
-                        href={`/api/auth/${provider.id}?redirect=true&callbackUrl=/`}
+                        action={async () => {
+                          "use server";
+                          await signIn(provider.id, { redirectTo: "/" });
+                        }}
                       >
-                        {provider.label}
-                      </a>
+                        <button className="w-full rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:border-zinc-950 hover:bg-zinc-50">
+                          {provider.label}
+                        </button>
+                      </form>
                     ) : (
                       <button
                         key={provider.id}
