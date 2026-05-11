@@ -4,6 +4,9 @@ import { db } from "@/server/db";
 
 const sessionCookieName = "sara-session";
 
+/**
+ * @description Deletes the current cookie-backed session and redirects the user to the home page.
+ */
 export const POST = async (request: NextRequest) => {
   const sessionToken = request.cookies.get(sessionCookieName)?.value;
 
