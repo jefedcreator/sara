@@ -3,6 +3,7 @@ import type {
     InvoiceItem,
     Business,
     Payment,
+    Receipt,
 } from "@prisma/client";
 
 export interface PaginationMeta {
@@ -48,3 +49,14 @@ export type CreatedInvoice = Invoice & {
         publicId: string,
     }
 }
+
+export type ReceiptListItem = Receipt & {
+    payment: Payment & {
+        invoice?: {
+            id: string;
+            slug: string;
+            invoiceNumber: string;
+        } | null;
+    };
+    business: Business;
+};
