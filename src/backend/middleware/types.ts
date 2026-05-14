@@ -1,4 +1,4 @@
-import type { User } from '@prisma/client';
+import type { User, Session, Business } from '@prisma/client';
 import { type NextRequest } from 'next/server';
 import type z from 'zod';
 import type { BaseQueryValidatorSchema } from '../validators/index.validator';
@@ -29,6 +29,11 @@ export type QueryParameters = Prettify<
   BaseQueryValidatorSchema
 >;
 
+export type AuthenticatedUser = User & {
+  business: Business | null;
+  session: Session;
+};
+
 export interface AuthRequest<B = unknown, Q = QueryParameters>
   extends NextRequest {
   parsedBody?: B;
@@ -36,7 +41,7 @@ export interface AuthRequest<B = unknown, Q = QueryParameters>
   params?: Record<string, string>;
   files?: Record<string, File>;
   validatedData?: B;
-  user: User | null;
+  user: AuthenticatedUser | null;
   isExpired?: boolean;
 }
 
