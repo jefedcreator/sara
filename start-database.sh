@@ -37,6 +37,19 @@ if ! $DOCKER_CMD info > /dev/null 2>&1; then
   exit 1
 fi
 
+# check if container is already running
+if [ "$($DOCKER_CMD ps -q -f name=$DB_CONTAINER_NAME)" ] || [ "$($DOCKER_CMD ps -q -f name=$DB_CONTAINER_NAME-1)" ]; then
+  echo "Database container '$DB_CONTAINER_NAME' is already running"
+  exit 0
+fi
+
+if [ "$($DOCKER_CMD ps -q -a -f name=$DB_CONTAINER_NAME)" ] || [ "$($DOCKER_CMD ps -q -a -f name=$DB_CONTAINER_NAME-1)" ]; then
+  ACTUAL_NAME=$($DOCKER_CMD ps -a --format '{{.Names}}' -f name=$DB_CONTAINER_NAME | head -n 1)
+  $DOCKER_CMD start "$ACTUAL_NAME"
+  echo "Existing database container '$ACTUAL_NAME' started"
+  exit 0
+fi
+
 if command -v nc >/dev/null 2>&1; then
   if nc -z localhost "$DB_PORT" 2>/dev/null; then
     echo "Port $DB_PORT is already in use."
@@ -49,17 +62,6 @@ else
     echo "Aborting."
     exit 1
   fi
-fi
-
-if [ "$($DOCKER_CMD ps -q -f name=$DB_CONTAINER_NAME)" ]; then
-  echo "Database container '$DB_CONTAINER_NAME' already running"
-  exit 0
-fi
-
-if [ "$($DOCKER_CMD ps -q -a -f name=$DB_CONTAINER_NAME)" ]; then
-  $DOCKER_CMD start "$DB_CONTAINER_NAME"
-  echo "Existing database container '$DB_CONTAINER_NAME' started"
-  exit 0
 fi
 
 if [ "$DB_PASSWORD" = "password" ]; then

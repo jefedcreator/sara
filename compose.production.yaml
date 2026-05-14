@@ -1,0 +1,16 @@
+services:
+  app:
+    build:
+      context: .
+      target: production
+    command: ["yarn", "start"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/sara
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes: []
+
+  postgres:
+    profiles: []

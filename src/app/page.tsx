@@ -62,9 +62,9 @@ export default async function HomePage() {
                     {session.user.email}
                   </p>
                 ) : null}
-                {session.user.loginProvider ? (
+                {session.user.provider ? (
                   <p className="mt-2 text-sm font-medium text-emerald-700">
-                    Signed in with {session.user.loginProvider}
+                    Signed in with {session.user.provider}
                   </p>
                 ) : null}
               </div>

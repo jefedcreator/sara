@@ -1,4 +1,5 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
+import { Provider } from "@prisma/client";
 import type { DefaultSession, NextAuthConfig } from "next-auth";
 import FacebookProvider from "next-auth/providers/facebook";
 import GoogleProvider from "next-auth/providers/google";
@@ -7,23 +8,23 @@ import InstagramProvider from "next-auth/providers/instagram";
 import { env } from "@/env";
 import { db } from "@/server/db";
 
-type LoginProvider = "google" | "facebook" | "instagram";
+// Use Provider from @prisma/client instead of local type definition
 
-const loginProviders = ["google", "facebook", "instagram"] as const;
+const providersList = ["google", "facebook", "instagram"] as const;
 
-const isLoginProvider = (provider?: string): provider is LoginProvider =>
-  loginProviders.includes(provider as LoginProvider);
+const isProvider = (provider?: string): provider is Provider =>
+  providersList.includes(provider as Provider);
 
 declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
-      loginProvider?: LoginProvider | null;
+      provider?: Provider | null;
     } & DefaultSession["user"];
   }
 
   interface User {
-    loginProvider?: LoginProvider | null;
+    provider?: Provider | null;
   }
 }
 
@@ -39,9 +40,9 @@ const addProvider = (
   }
 };
 
-const getTokenLoginProvider = (value: unknown): LoginProvider | null => {
+const getTokenProvider = (value: unknown): Provider | null => {
   if (typeof value !== "string") return null;
-  return isLoginProvider(value) ? value : null;
+  return isProvider(value) ? value : null;
 };
 
 addProvider(
@@ -85,22 +86,22 @@ export const authConfig = {
   },
   callbacks: {
     async signIn({ account, user }) {
-      if (user.id && isLoginProvider(account?.provider)) {
-        user.loginProvider = account.provider;
+      if (user.id && isProvider(account?.provider)) {
+        user.provider = account.provider as Provider;
 
         await db.user.update({
           where: { id: user.id },
-          data: { loginProvider: account.provider },
+          data: { provider: account.provider as Provider },
         });
       }
 
       return true;
     },
     jwt: ({ token, account, user }) => {
-      if (isLoginProvider(account?.provider)) {
-        token.loginProvider = account.provider;
-      } else if (user?.loginProvider) {
-        token.loginProvider = user.loginProvider;
+      if (isProvider(account?.provider)) {
+        token.provider = account.provider;
+      } else if (user?.provider) {
+        token.provider = user.provider;
       }
 
       return token;
@@ -110,8 +111,9 @@ export const authConfig = {
       user: {
         ...session.user,
         id: token.sub!,
-        loginProvider: getTokenLoginProvider(token.loginProvider),
+        provider: getTokenProvider(token.provider),
       },
     }),
   },
 } satisfies NextAuthConfig;
+

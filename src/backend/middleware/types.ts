@@ -1,10 +1,6 @@
 import type { User } from '@prisma/client';
 import { type NextRequest } from 'next/server';
 import type z from 'zod';
-import type { ClubQueryValidatorSchema } from '../validators/club.validator';
-import type { LeaderboardQueryValidatorSchema } from '../validators/leaderboard.validator';
-import type { ExploreQueryValidatorSchema } from '../validators/explore.validator';
-import type { NotificationQueryValidatorSchema } from '../validators/notification.validator';
 import type { BaseQueryValidatorSchema } from '../validators/index.validator';
 
 export type MiddlewareResponse = {
@@ -30,11 +26,7 @@ type Prettify<T> = {
 } & {};
 
 export type QueryParameters = Prettify<
-  BaseQueryValidatorSchema &
-    LeaderboardQueryValidatorSchema &
-    ClubQueryValidatorSchema &
-    ExploreQueryValidatorSchema &
-    NotificationQueryValidatorSchema
+  BaseQueryValidatorSchema
 >;
 
 export interface AuthRequest<B = unknown, Q = QueryParameters>
