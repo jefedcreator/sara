@@ -3,13 +3,16 @@ FROM node:24.15.0-alpine AS base
 WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 
-RUN apk add --no-cache libc6-compat openssl
+RUN for i in 1 2 3 4 5; do apk add --no-cache libc6-compat openssl && break || sleep 2; done
 
 FROM base AS deps
 
 COPY package.json yarn.lock ./
 COPY prisma ./prisma
-RUN yarn install --frozen-lockfile
+RUN for i in 1 2 3 4 5; do \
+    yarn install --frozen-lockfile --network-timeout 600000 --cache-folder /tmp/yarn-cache && break || \
+    (echo "Yarn install failed, retrying in 5s..." && sleep 5); \
+    done && rm -rf /tmp/yarn-cache
 
 FROM base AS dev
 
@@ -34,7 +37,7 @@ FROM base AS prod-deps
 ENV YARN_IGNORE_SCRIPTS=1
 
 COPY package.json yarn.lock ./
-RUN yarn install --frozen-lockfile --production
+RUN yarn install --frozen-lockfile --production --network-timeout 600000 --cache-folder /tmp/yarn-cache && rm -rf /tmp/yarn-cache
 
 FROM base AS production
 

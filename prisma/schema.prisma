@@ -32,7 +32,7 @@ enum PaymentMethod {
   BANK_TRANSFER
 }
 
-enum LoginProvider {
+enum Provider {
   google
   facebook
   instagram
@@ -46,7 +46,7 @@ model User {
   email         String?        @unique
   emailVerified DateTime?
   image         String?
-  loginProvider LoginProvider?
+  provider Provider?
   accounts      Account[]
   sessions      Session[]
 
@@ -54,7 +54,7 @@ model User {
   business Business?
 
   @@index([email])
-  @@index([loginProvider])
+  @@index([provider])
 }
 
 model Business {

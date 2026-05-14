@@ -1,21 +1,22 @@
 import { randomBytes } from "node:crypto";
 
-import type { Account, PrismaClient, User } from "@prisma/client";
+import type { Account, Provider, PrismaClient, User } from "@prisma/client";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { env } from "@/env";
 import { db } from "@/server/db";
 
-export type ProviderId = "google" | "facebook" | "instagram";
+// export type Provider = "google" | "facebook" | "instagram";
 
 type OAuthProviderConfig = {
-  id: ProviderId;
+  id: Provider;
   name: string;
   authorizationUrl: string;
   tokenUrl: string;
   scope: string;
   clientId?: string;
   clientSecret?: string;
+  configurationId?: string;
 };
 
 type ConfiguredOAuthProvider = OAuthProviderConfig & {
@@ -40,12 +41,13 @@ type OAuthProfile = {
 };
 
 type AuthenticatedUser = Pick<User, "id" | "name" | "email" | "image"> & {
-  provider: ProviderId;
+  provider: Provider;
 };
 
 type CallbackBody = {
   code?: string;
   state?: string;
+  sessionToken?: string;
 };
 
 type DecodedState = {
@@ -56,7 +58,7 @@ export class AuthService {
   private readonly sessionMaxAgeSeconds = 60 * 60 * 24 * 30;
   private readonly sessionCookieName = "sara-session";
 
-  private readonly providerConfigs: Record<ProviderId, OAuthProviderConfig> = {
+  private readonly providerConfigs: Record<Provider, OAuthProviderConfig> = {
     google: {
       id: "google",
       name: "Google",
@@ -71,24 +73,25 @@ export class AuthService {
       name: "Facebook",
       authorizationUrl: "https://www.facebook.com/v19.0/dialog/oauth",
       tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
-      scope: "email,public_profile",
+      scope: "email public_profile",
       clientId: env.AUTH_FACEBOOK_ID ?? env.FACEBOOK_CLIENT_ID,
       clientSecret: env.AUTH_FACEBOOK_SECRET ?? env.FACEBOOK_CLIENT_SECRET,
+      configurationId: env.CONFIGURATION_ID,
     },
     instagram: {
       id: "instagram",
       name: "Instagram",
       authorizationUrl: "https://api.instagram.com/oauth/authorize",
       tokenUrl: "https://api.instagram.com/oauth/access_token",
-      scope: "user_profile",
+      scope: "instagram_business_basic",  // ← replace user_profile
       clientId: env.AUTH_INSTAGRAM_ID ?? env.INSTAGRAM_CLIENT_ID,
       clientSecret: env.AUTH_INSTAGRAM_SECRET ?? env.INSTAGRAM_CLIENT_SECRET,
     },
   };
 
-  constructor(private readonly prisma: PrismaClient = db) {}
+  constructor(private readonly prisma: PrismaClient = db) { }
 
-  createAuthorizationResponse(request: NextRequest, providerId: ProviderId) {
+  createAuthorizationResponse(request: NextRequest, providerId: Provider) {
     try {
       const provider = this.getConfiguredProvider(providerId);
       const redirectUri = this.getRedirectUri(request, provider.id);
@@ -105,9 +108,13 @@ export class AuthService {
       authorizationUrl.searchParams.set("state", state);
 
       if (provider.id === "google") {
+        authorizationUrl.searchParams.set("scope", provider.scope);
         authorizationUrl.searchParams.set("access_type", "offline");
+      } else if (provider.id === "facebook" && provider.configurationId) {
+        authorizationUrl.searchParams.set("config_id", provider.configurationId);
+      } else {
+        authorizationUrl.searchParams.set("scope", provider.scope);
       }
-
       if (shouldRedirect) {
         return NextResponse.redirect(authorizationUrl);
       }
@@ -122,13 +129,51 @@ export class AuthService {
     }
   }
 
-  async createCallbackResponse(request: NextRequest, providerId: ProviderId) {
+  async createCallbackResponse(request: NextRequest, providerId: Provider) {
     try {
       const provider = this.getConfiguredProvider(providerId);
       const body = await this.getCallbackBody(request);
       const code = request.nextUrl.searchParams.get("code") ?? body?.code;
+      const sessionTokenParam =
+        request.nextUrl.searchParams.get("sessionToken") ?? body?.sessionToken;
 
       if (!code) {
+        if (sessionTokenParam) {
+          const session = await this.prisma.session.findUnique({
+            where: { sessionToken: sessionTokenParam },
+            include: { user: true },
+          });
+
+          if (session && session.expires > new Date()) {
+            const state = this.decodeState(
+              request.nextUrl.searchParams.get("state") ?? body?.state ?? null,
+            );
+
+            if (state.callbackUrl) {
+              const redirectUrl = new URL(
+                state.callbackUrl,
+                this.getAppUrl(request),
+              );
+              redirectUrl.searchParams.set("sessionToken", sessionTokenParam);
+
+              const response = NextResponse.redirect(redirectUrl);
+              this.setSessionCookie(response, sessionTokenParam);
+              return response;
+            }
+
+            const user = this.toAuthenticatedUser(session.user, provider.id);
+            const response = NextResponse.json({
+              user,
+              sessionToken: sessionTokenParam,
+              tokenType: "Session",
+              expiresIn: this.sessionMaxAgeSeconds,
+            });
+
+            this.setSessionCookie(response, sessionTokenParam);
+            return response;
+          }
+        }
+
         return NextResponse.json(
           { error: "Missing OAuth authorization code." },
           { status: 400 },
@@ -141,6 +186,8 @@ export class AuthService {
         this.getRedirectUri(request, provider.id),
       );
       const profile = await this.fetchProviderProfile(provider.id, tokenSet);
+      console.log('profile', profile);
+
       const user = await this.findOrCreateOAuthUser(
         provider.id,
         profile,
@@ -198,7 +245,7 @@ export class AuthService {
     );
   }
 
-  private getRedirectUri(request: NextRequest, provider: ProviderId) {
+  private getRedirectUri(request: NextRequest, provider: Provider) {
     return new URL(
       `/api/auth/${provider}/callback`,
       this.getAppUrl(request),
@@ -206,7 +253,7 @@ export class AuthService {
   }
 
   private getConfiguredProvider(
-    providerId: ProviderId,
+    providerId: Provider,
   ): ConfiguredOAuthProvider {
     const provider = this.providerConfigs[providerId];
 
@@ -290,7 +337,7 @@ export class AuthService {
   }
 
   private async fetchProviderProfile(
-    providerId: ProviderId,
+    providerId: Provider,
     tokenSet: OAuthTokenSet,
   ): Promise<OAuthProfile> {
     if (providerId === "google") {
@@ -366,7 +413,7 @@ export class AuthService {
   }
 
   private async findOrCreateOAuthUser(
-    provider: ProviderId,
+    provider: Provider,
     profile: OAuthProfile,
     tokenSet: OAuthTokenSet,
   ): Promise<AuthenticatedUser> {
@@ -390,7 +437,7 @@ export class AuthService {
             name: profile.name ?? existingAccount.user.name,
             email: profile.email ?? existingAccount.user.email,
             image: profile.image ?? existingAccount.user.image,
-            loginProvider: provider,
+            provider,
           },
         }),
         this.prisma.account.update({
@@ -412,7 +459,7 @@ export class AuthService {
         data: {
           name: profile.name ?? existingUser.name,
           image: profile.image ?? existingUser.image,
-          loginProvider: provider,
+          provider: provider as Provider,
           accounts: {
             create: accountData,
           },
@@ -427,7 +474,7 @@ export class AuthService {
         name: profile.name,
         email: profile.email,
         image: profile.image,
-        loginProvider: provider,
+        provider: provider,
         accounts: {
           create: accountData,
         },
@@ -438,7 +485,7 @@ export class AuthService {
   }
 
   private createAccountData(
-    provider: ProviderId,
+    provider: Provider,
     providerAccountId: string,
     tokenSet: OAuthTokenSet,
   ): Omit<Account, "id" | "userId"> {
@@ -485,7 +532,7 @@ export class AuthService {
 
   private toAuthenticatedUser(
     user: User,
-    provider: ProviderId,
+    provider: Provider,
   ): AuthenticatedUser {
     return {
       id: user.id,

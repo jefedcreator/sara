@@ -29,6 +29,7 @@ export const env = createEnv({
     FACEBOOK_CLIENT_SECRET: z.string().optional(),
     INSTAGRAM_CLIENT_ID: z.string().optional(),
     INSTAGRAM_CLIENT_SECRET: z.string().optional(),
+    CONFIGURATION_ID: z.string().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -68,6 +69,7 @@ export const env = createEnv({
     INSTAGRAM_CLIENT_ID: process.env.INSTAGRAM_CLIENT_ID,
     INSTAGRAM_CLIENT_SECRET: process.env.INSTAGRAM_CLIENT_SECRET,
     NODE_ENV: process.env.NODE_ENV,
+    CONFIGURATION_ID: process.env.CONFIGURATION_ID,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
