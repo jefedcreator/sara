@@ -1,7 +1,6 @@
 import { db } from '@/server/db';
 import { parseHttpError } from '@/utils';
 import { HttpException, UnauthorizedException } from '@/utils/exceptions';
-import jwt from 'jsonwebtoken';
 import { NextResponse } from 'next/server';
 import * as Sentry from '@sentry/nextjs';
 import { type z } from 'zod';
@@ -243,52 +242,49 @@ export const pathParamValidatorMiddleware =
     }
   };
 
-/**
- *
- * @param request AuthRequest
- *
- * @returns
- */
 export const authMiddleware = async <B = unknown, Q = QueryParameters>(
   request: AuthRequest<B, Q>
 ): Promise<MiddlewareResponse> => {
-  const token = request.headers.get('authorization')!;
+  // 1. Extract token from cookie or Authorization header
+  const sessionToken = 
+    request.cookies.get('sara-session')?.value || 
+    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
 
   try {
-    if (!token) {
+    if (!sessionToken || sessionToken === 'undefined' || sessionToken === 'null') {
       throw new UnauthorizedException('Unauthorized');
     }
 
-    const auth_token = token.replace(/^Bearer\s+/i, '').trim();
-    if (!auth_token || auth_token === 'undefined' || auth_token === 'null') {
-      throw new UnauthorizedException('Invalid auth token format');
-    }
-
-    const decoded = jwt.verify(
-      auth_token,
-      process.env.AUTH_SECRET!
-    ) as I_JwtPayload;
-
-    if (!decoded || !decoded.uid) {
-      throw new UnauthorizedException('Unauthorized');
-    }
-
-    const user = await db.user.findUnique({
-      where: {
-        id: decoded.uid,
+    // 2. Query the Session table to validate the token
+    const session = await db.session.findUnique({
+      where: { sessionToken },
+      include: { 
+        user: {
+          include: {
+            business: true
+          }
+        } 
       },
     });
 
-    if (!user) {
+    if (!session) {
+      throw new UnauthorizedException('Invalid session');
+    }
+
+    // 3. Check if session has expired
+    if (session.expires < new Date()) {
+      // Optionally clean up expired session
+      await db.session.delete({ where: { id: session.id } }).catch(() => {});
+      throw new UnauthorizedException('Session expired');
+    }
+
+    if (!session.user) {
       throw new UnauthorizedException('User not found');
     }
 
-    request.user = user;
+    request.user = session.user;
   } catch (error: any) {
     console.error('Auth error:', error.message || error);
-    if (error.name === 'TokenExpiredError') {
-      throw new UnauthorizedException('Session expired');
-    }
     if (error instanceof UnauthorizedException) {
       throw error;
     }
@@ -305,19 +301,12 @@ export const authMiddleware = async <B = unknown, Q = QueryParameters>(
 export const optionalAuthMiddleware = async <B = unknown, Q = QueryParameters>(
   request: AuthRequest<B, Q>
 ): Promise<MiddlewareResponse> => {
-  const authHeader = request.headers.get('authorization');
+  // 1. Extract token from cookie or Authorization header
+  const sessionToken = 
+    request.cookies.get('sara-session')?.value || 
+    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
 
-  if (!authHeader) {
-    request.user = null;
-    return {
-      message: '',
-      statusCode: 200,
-      next: true,
-    };
-  }
-
-  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-  if (!token || token === 'undefined' || token === 'null') {
+  if (!sessionToken || sessionToken === 'undefined' || sessionToken === 'null') {
     request.user = null;
     return {
       message: '',
@@ -327,20 +316,28 @@ export const optionalAuthMiddleware = async <B = unknown, Q = QueryParameters>(
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.AUTH_SECRET!) as I_JwtPayload;
+    // 2. Query the Session table to validate the token
+    const session = await db.session.findUnique({
+      where: { sessionToken },
+      include: { 
+        user: {
+          include: {
+            business: true
+          }
+        } 
+      },
+    });
 
-    if (!decoded || !decoded.uid) {
-      request.user = null;
+    if (session && session.expires > new Date()) {
+      request.user = session.user;
     } else {
-      const user = await db.user.findUnique({
-        where: { id: decoded.uid },
-      });
-      request.user = user;
+      if (session && session.expires <= new Date()) {
+        request.isExpired = true;
+      }
+      request.user = null;
     }
   } catch (error: any) {
-    if (error.name === 'TokenExpiredError') {
-      request.isExpired = true;
-    }
+    console.error('Optional Auth error:', error.message || error);
     request.user = null;
   }
 

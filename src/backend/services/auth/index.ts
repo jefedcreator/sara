@@ -1,5 +1,4 @@
 import { randomBytes } from "node:crypto";
-
 import type { Account, Provider, PrismaClient, User } from "@prisma/client";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -141,7 +140,7 @@ export class AuthService {
         if (sessionTokenParam) {
           const session = await this.prisma.session.findUnique({
             where: { sessionToken: sessionTokenParam },
-            include: { user: true },
+            include: { user: { include: { business: true } } },
           });
 
           if (session && session.expires > new Date()) {
@@ -165,7 +164,7 @@ export class AuthService {
             const response = NextResponse.json({
               user,
               sessionToken: sessionTokenParam,
-              tokenType: "Session",
+              tokenType: "Bearer",
               expiresIn: this.sessionMaxAgeSeconds,
             });
 
@@ -210,13 +209,14 @@ export class AuthService {
       const response = NextResponse.json({
         user,
         sessionToken,
-        tokenType: "Session",
+        tokenType: "Bearer",
         expiresIn: this.sessionMaxAgeSeconds,
       });
 
       this.setSessionCookie(response, sessionToken);
       return response;
     } catch (error) {
+      console.log('error??', error);
       return this.oauthErrorResponse(error);
     }
   }
@@ -229,7 +229,7 @@ export class AuthService {
 
     const session = await this.prisma.session.findUnique({
       where: { sessionToken },
-      include: { user: true },
+      include: { user: { include: { business: true } } },
     });
 
     if (!session || session.expires <= new Date()) return null;
@@ -459,7 +459,7 @@ export class AuthService {
         data: {
           name: profile.name ?? existingUser.name,
           image: profile.image ?? existingUser.image,
-          provider: provider as Provider,
+          provider,
           accounts: {
             create: accountData,
           },
