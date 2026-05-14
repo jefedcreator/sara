@@ -282,7 +282,10 @@ export const authMiddleware = async <B = unknown, Q = QueryParameters>(
       throw new UnauthorizedException('User not found');
     }
 
-    request.user = session.user;
+    request.user = {
+      ...session.user,
+      session
+    };
   } catch (error: any) {
     console.error('Auth error:', error.message || error);
     if (error instanceof UnauthorizedException) {
@@ -329,7 +332,10 @@ export const optionalAuthMiddleware = async <B = unknown, Q = QueryParameters>(
     });
 
     if (session && session.expires > new Date()) {
-      request.user = session.user;
+      request.user = {
+        ...session.user,
+        session
+      };
     } else {
       if (session && session.expires <= new Date()) {
         request.isExpired = true;

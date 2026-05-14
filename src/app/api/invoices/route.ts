@@ -43,9 +43,11 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
       const payload = request.validatedData!;
       const user = request.user!;
 
-      const business = await db.business.findUnique({
-        where: { id: payload.businessId },
-      });
+      // const business = await db.business.findUnique({
+      //   where: { id: payload.businessId },
+      // });
+
+      const business = user.business;
 
       if (!business) {
         throw new NotFoundException("Business not found");
