@@ -16,6 +16,8 @@ import {
 } from '@/utils/exceptions';
 import { type Receipt, type Prisma } from '@prisma/client';
 import { NextResponse } from 'next/server';
+import { cloudinaryService } from "@/backend/services/cloudinary";
+import { generateReceiptPdf } from "@/backend/services/pdf";
 
 const receiptInclude: Prisma.ReceiptInclude = {
   payment: {
@@ -30,6 +32,7 @@ const receiptInclude: Prisma.ReceiptInclude = {
     },
   },
   business: true,
+  items: true,
 };
 
 /**
@@ -46,42 +49,122 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
       const user = request.user!;
       const { slug } = params;
 
-      const receipt = await db.receipt.findUnique({
+      const existingReceipt = await db.receipt.findUnique({
         where: { slug },
-        include: { business: { select: { ownerId: true } } },
+        include: { business: true },
       });
 
-      if (!receipt) {
+      if (!existingReceipt) {
         throw new NotFoundException('Receipt not found');
       }
 
-      if (receipt.business.ownerId !== user.id) {
+      if (existingReceipt.business.ownerId !== user.id) {
         throw new ForbiddenException(
           'You are not authorized to update this receipt'
         );
       }
 
-      const data: Prisma.ReceiptUpdateInput = {};
+      const updatedReceiptResult = await db.$transaction(async (tx) => {
+        const data: Prisma.ReceiptUpdateInput = {};
 
-      if (payload.clientName !== undefined) data.clientName = payload.clientName ?? null;
-      if (payload.clientEmail !== undefined) data.clientEmail = payload.clientEmail ?? null;
-      if (payload.clientPhone !== undefined) data.clientPhone = payload.clientPhone ?? null;
-      if (payload.receiptNumber) data.receiptNumber = payload.receiptNumber;
+        if (payload.name !== undefined) data.name = payload.name ?? null;
+        if (payload.email !== undefined) data.email = payload.email ?? null;
+        if (payload.phone !== undefined) data.phone = payload.phone ?? null;
+        if (payload.currency !== undefined) data.currency = payload.currency;
+        if (payload.subtotal !== undefined) data.subtotal = payload.subtotal;
+        if (payload.taxAmount !== undefined) data.taxAmount = payload.taxAmount;
+        if (payload.discount !== undefined) data.discount = payload.discount;
+        if (payload.total !== undefined) data.total = payload.total;
+        if (payload.amountPaid !== undefined) data.amountPaid = payload.amountPaid;
+        if (payload.paymentMethod !== undefined) data.paymentMethod = payload.paymentMethod;
+        if (payload.notes !== undefined) data.notes = payload.notes ?? null;
 
-      if (payload.paymentId) {
-        data.payment = { connect: { id: payload.paymentId } };
-      }
+        if (payload.paymentId) {
+          data.payment = { connect: { id: payload.paymentId } };
+        } else if (payload.paymentId === null) {
+          data.payment = { disconnect: true };
+        }
 
-      const updatedReceipt = await db.receipt.update({
-        where: { slug },
-        data,
-        include: receiptInclude,
+        if (payload.items) {
+          // Delete existing items and create new ones for a full replacement
+          await tx.receiptItem.deleteMany({
+            where: { receiptId: existingReceipt.id },
+          });
+
+          if (payload.items && payload.items.length > 0) {
+            data.items = {
+              create: payload.items.map((item) => ({
+                description: item.description,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+                total: item.total,
+              })),
+            };
+          }
+        }
+
+        const receipt = await tx.receipt.update({
+          where: { id: existingReceipt.id },
+          data,
+          include: { business: true, items: true },
+        });
+
+        // Regenerate PDF with updated data
+        const pdfBuffer = await generateReceiptPdf({
+          receiptNumber: receipt.receiptNumber,
+          paymentMethod: receipt.paymentMethod,
+          currency: receipt.currency,
+          subtotal: receipt.subtotal.toString(),
+          taxAmount: receipt.taxAmount.toString(),
+          discount: receipt.discount.toString(),
+          total: receipt.total.toString(),
+          amountPaid: receipt.amountPaid.toString(),
+          paidAt: receipt.createdAt,
+          notes: receipt.notes,
+          business: {
+            name: receipt.business.name,
+            email: receipt.business.email,
+            phone: receipt.business.phone,
+            city: receipt.business.city,
+            state: receipt.business.state,
+            country: receipt.business.country,
+            logoUrl: receipt.business.logoUrl,
+          },
+          client: {
+            name: receipt.name || "Client",
+            email: receipt.email,
+            phone: receipt.phone,
+          },
+          items: receipt.items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice.toString(),
+            total: item.total.toString(),
+          })),
+        });
+
+        // Upload new version to Cloudinary
+        const uploadResult = await cloudinaryService.uploadImage(pdfBuffer, {
+          filename: `${receipt.receiptNumber}.pdf`,
+          folder: `sara/businesses/${receipt.businessId}/receipts`,
+          mime_type: "application/pdf",
+          public_id: receipt.id,
+          resource_type: "raw",
+        });
+
+        // Update receipt with potentially new URL (if public_id handling differs)
+        const finalReceipt = await tx.receipt.update({
+          where: { id: receipt.id },
+          data: { url: uploadResult.secure_url },
+        });
+
+        return finalReceipt;
       });
 
-      const response: ApiResponse<ReceiptListItem> = {
+      const response: ApiResponse<Receipt> = {
         status: 200,
         message: 'Receipt updated successfully',
-        data: updatedReceipt,
+        data: updatedReceiptResult,
       };
 
       return NextResponse.json(response);
@@ -171,7 +254,7 @@ export const GET = withMiddleware<unknown>(
       const response: ApiResponse<ReceiptListItem> = {
         status: 200,
         message: 'Receipt retrieved successfully',
-        data: receipt,
+        data: receipt as unknown as ReceiptListItem,
       };
 
       return NextResponse.json(response);

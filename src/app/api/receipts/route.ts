@@ -18,12 +18,12 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from "@/utils/exceptions";
-import { Prisma } from "@prisma/client";
+import { Prisma, type Receipt } from "@prisma/client";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
 import type { ApiResponse, ReceiptListItem, PaginatedApiResponse } from "types";
-
-export const runtime = "nodejs";
+import { cloudinaryService } from "@/backend/services/cloudinary";
+import { generateReceiptPdf } from "@/backend/services/pdf";
 
 /**
  * @body ReceiptValidatorSchema
@@ -36,10 +36,7 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
     try {
       const payload = request.validatedData!;
       const user = request.user!;
-
-      const business = await db.business.findUnique({
-        where: { id: payload.businessId },
-      });
+      const business = user.business;
 
       if (!business) {
         throw new NotFoundException("Business not found");
@@ -51,57 +48,143 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
         );
       }
 
-      // Validate that the payment belongs to this business and doesn't already have a receipt
-      const payment = await db.payment.findFirst({
-        where: {
-          id: payload.paymentId,
-          businessId: payload.businessId,
-        },
-        include: { receipt: { select: { id: true } } },
-      });
-
-      if (!payment) {
-        throw new BadRequestException("Payment not found for this business");
-      }
-
-      if (payment.receipt) {
-        throw new ConflictException("A receipt already exists for this payment");
-      }
-
-      const receipt = await db.receipt.create({
-        data: {
-          business: {
-            connect: { id: payload.businessId },
-          },
-          payment: {
-            connect: { id: payload.paymentId },
-          },
-          slug: slugify(`${payload.receiptNumber}-${Date.now()}`, { lower: true, strict: true }),
-          receiptNumber: payload.receiptNumber,
-          clientName: payload.clientName ?? null,
-          clientEmail: payload.clientEmail ?? null,
-          clientPhone: payload.clientPhone ?? null,
-        },
-        include: {
-          payment: {
-            include: {
-              invoice: {
-                select: {
-                  id: true,
-                  slug: true,
-                  invoiceNumber: true,
-                },
-              },
+      const receiptResult = await db.$transaction(async (tx) => {
+        // Validate that the payment belongs to this business and doesn't already have a receipt
+        if (payload.paymentId) {
+          const payment = await tx.payment.findFirst({
+            where: {
+              id: payload.paymentId,
+              businessId: business.id,
             },
+            include: { receipt: { select: { id: true } } },
+          });
+
+          if (!payment) {
+            throw new BadRequestException("Payment not found for this business");
+          }
+
+          if (payment.receipt) {
+            throw new ConflictException("A receipt already exists for this payment");
+          }
+        }
+
+        let receiptNumber = "";
+        const lastReceipt = await tx.receipt.findFirst({
+          where: { businessId: business.id },
+          orderBy: { createdAt: "desc" },
+          select: { receiptNumber: true },
+        });
+
+        if (lastReceipt && lastReceipt.receiptNumber.startsWith("RCP-")) {
+          const lastNumber = parseInt(lastReceipt.receiptNumber.replace("RCP-", ""), 10);
+          receiptNumber = `RCP-${isNaN(lastNumber) ? 1001 : lastNumber + 1}`;
+        } else {
+          receiptNumber = "RCP-1001";
+        }
+
+        const createData: Prisma.ReceiptCreateInput = {
+          business: {
+            connect: { id: business.id },
           },
-          business: true,
-        },
+          slug: slugify(`${business.name}-${receiptNumber}`, { lower: true, strict: true }),
+          receiptNumber,
+          name: payload.name,
+          email: payload.email,
+          phone: payload.phone,
+          currency: payload.currency,
+          subtotal: payload.subtotal,
+          taxAmount: payload.taxAmount,
+          discount: payload.discount,
+          total: payload.total,
+          amountPaid: payload.amountPaid,
+          paymentMethod: payload.paymentMethod,
+          notes: payload.notes,
+        };
+
+        if (payload.paymentId) {
+          createData.payment = {
+            connect: { id: payload.paymentId },
+          };
+        }
+
+        if (payload.items && payload.items.length > 0) {
+          createData.items = {
+            create: payload.items.map((item) => ({
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.total,
+            })),
+          };
+        }
+
+        const receipt = await tx.receipt.create({
+          data: createData,
+          include: { business: true, items: true },
+        });
+
+        if (!receipt.business) {
+          throw new InternalServerErrorException(
+            "Failed to retrieve business details for the receipt",
+          );
+        }
+
+        // Generate PDF
+        const pdfBuffer = await generateReceiptPdf({
+          receiptNumber: receipt.receiptNumber,
+          paymentMethod: receipt.paymentMethod,
+          currency: receipt.currency,
+          subtotal: receipt.subtotal.toString(),
+          taxAmount: receipt.taxAmount.toString(),
+          discount: receipt.discount.toString(),
+          total: receipt.total.toString(),
+          amountPaid: receipt.amountPaid.toString(),
+          paidAt: receipt.createdAt, // Using createdAt as paidAt
+          notes: receipt.notes,
+          business: {
+            name: receipt.business.name,
+            email: receipt.business.email,
+            phone: receipt.business.phone,
+            city: receipt.business.city,
+            state: receipt.business.state,
+            country: receipt.business.country,
+            logoUrl: receipt.business.logoUrl,
+          },
+          client: {
+            name: receipt.name || "Client",
+            email: receipt.email,
+            phone: receipt.phone,
+          },
+          items: receipt.items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice.toString(),
+            total: item.total.toString(),
+          })),
+        });
+
+        // Upload to Cloudinary
+        const uploadResult = await cloudinaryService.uploadImage(pdfBuffer, {
+          filename: `${receipt.receiptNumber}.pdf`,
+          folder: `sara/businesses/${business.id}/receipts`,
+          mime_type: "application/pdf",
+          public_id: receipt.id,
+          resource_type: "raw",
+        });
+
+        // Update receipt with URL
+        const updatedReceipt = await tx.receipt.update({
+          where: { id: receipt.id },
+          data: { url: uploadResult.secure_url },
+        });
+
+        return updatedReceipt;
       });
 
-      const response: ApiResponse<ReceiptListItem> = {
+      const response: ApiResponse<Receipt> = {
         status: 201,
         message: "Receipt created successfully",
-        data: receipt,
+        data: receiptResult,
       };
 
       return NextResponse.json(response, { status: 201 });
@@ -121,16 +204,13 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
  * @description Retrieves receipts for the authenticated user's business. Supports search, pagination, and filtering.
  * @auth bearer
  */
-export const GET = withMiddleware<ReceiptQueryValidatorSchema, ReceiptQueryValidatorSchema>(
+export const GET = withMiddleware<ReceiptQueryValidatorSchema>(
   async (request) => {
     try {
       const payload = request.query!;
       const user = request.user!;
 
-      const business = await db.business.findUnique({
-        where: { ownerId: user.id },
-        select: { id: true },
-      });
+      const business = user.business;
 
       if (!business) {
         throw new NotFoundException("Business not found for this user");
@@ -140,45 +220,41 @@ export const GET = withMiddleware<ReceiptQueryValidatorSchema, ReceiptQueryValid
         businessId: business.id,
       };
 
-      if (payload.businessId && payload.businessId !== business.id) {
+      if (user.id !== business.ownerId) {
         throw new ForbiddenException(
           "You do not have permission to view receipts for this business",
         );
       }
 
-      if (payload.clientName) {
-        where.clientName = { contains: payload.clientName, mode: "insensitive" };
+      if (payload.name) {
+        where.name = { contains: payload.name, mode: "insensitive" };
       }
 
-      if (payload.clientEmail) {
-        where.clientEmail = { contains: payload.clientEmail, mode: "insensitive" };
-      }
-
-      if (payload.receiptNumber) {
-        where.receiptNumber = { contains: payload.receiptNumber, mode: "insensitive" };
+      if (payload.email) {
+        where.email = { contains: payload.email, mode: "insensitive" };
       }
 
       if (payload.paymentId) {
         where.paymentId = payload.paymentId;
       }
 
-      if (payload.issuedFrom || payload.issuedTo) {
-        where.issuedAt = {
-          ...(payload.issuedFrom && { gte: payload.issuedFrom }),
-          ...(payload.issuedTo && { lte: payload.issuedTo }),
+      if (payload.createdFrom || payload.createdTo) {
+        where.createdAt = {
+          ...(payload.createdFrom && { gte: payload.createdFrom }),
+          ...(payload.createdTo && { lte: payload.createdTo }),
         };
       }
 
       if (payload.query) {
         where.OR = [
-          { clientName: { contains: payload.query, mode: "insensitive" } },
-          { clientEmail: { contains: payload.query, mode: "insensitive" } },
+          { name: { contains: payload.query, mode: "insensitive" } },
+          { email: { contains: payload.query, mode: "insensitive" } },
           { receiptNumber: { contains: payload.query, mode: "insensitive" } },
         ];
       }
 
       const orderBy: Prisma.ReceiptOrderByWithRelationInput = {
-        [payload.sortBy ?? "issuedAt"]: payload.sortOrder ?? "desc",
+        [payload.sortBy ?? "createdAt"]: payload.sortOrder ?? "desc",
       };
 
       const include: Prisma.ReceiptInclude = {
@@ -194,6 +270,7 @@ export const GET = withMiddleware<ReceiptQueryValidatorSchema, ReceiptQueryValid
           },
         },
         business: true,
+        items: true,
       };
 
       if (payload.all) {
@@ -216,8 +293,8 @@ export const GET = withMiddleware<ReceiptQueryValidatorSchema, ReceiptQueryValid
         return NextResponse.json(response);
       }
 
-      const page = Number(payload.page ?? 1);
-      const size = Number(payload.size ?? 10);
+      const page = payload.page ?? 1;
+      const size = payload.size ?? 10;
       const skip = (page - 1) * size;
 
       const [count, data] = await Promise.all([

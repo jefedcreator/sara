@@ -4,14 +4,12 @@ import {
   queryValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
-import {
-  invoiceQueryValidatorSchema,
-  type InvoiceQueryValidatorSchema,
-} from "@/backend/validators/invoice.validator";
 import { cloudinaryService } from "@/backend/services/cloudinary";
 import { generateInvoicePdf } from "@/backend/services/pdf";
 import {
+  invoiceQueryValidatorSchema,
   invoiceValidatorSchema,
+  type InvoiceQueryValidatorSchema,
   type InvoiceValidatorSchema,
 } from "@/backend/validators/invoice.validator";
 import { db } from "@/server/db";
@@ -25,9 +23,8 @@ import {
 import { Prisma, type Invoice } from "@prisma/client";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
-import type { ApiResponse, CreatedInvoice, InvoiceListItem, PaginatedApiResponse } from "types";
+import type { ApiResponse, InvoiceListItem, PaginatedApiResponse } from "types";
 
-export const runtime = "nodejs";
 
 /**
  * @body InvoiceValidatorSchema
@@ -241,7 +238,7 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
  * @description Retrieves invoices for the authenticated user's business. Supports search, pagination, and filtering.
  * @auth bearer
  */
-export const GET = withMiddleware<InvoiceQueryValidatorSchema, InvoiceQueryValidatorSchema>(
+export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
   async (request) => {
     try {
       const payload = request.query!;
@@ -250,7 +247,7 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema, InvoiceQueryValid
       // Only return invoices for businesses owned by the authenticated user
       const business = await db.business.findUnique({
         where: { ownerId: user.id },
-        select: { id: true },
+        select: { id: true, ownerId: true },
       });
 
       if (!business) {
@@ -262,7 +259,7 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema, InvoiceQueryValid
       };
 
       // Filter by specific businessId if provided (must still be the user's business)
-      if (payload.businessId && payload.businessId !== business.id) {
+      if (user.id !== business.ownerId) {
         throw new ForbiddenException(
           "You do not have permission to view invoices for this business",
         );

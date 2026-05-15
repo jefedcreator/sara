@@ -41,12 +41,12 @@ enum Provider {
 // --- Auth & Core ---
 
 model User {
-  id            String         @id @default(cuid())
+  id            String    @id @default(cuid())
   name          String?
-  email         String?        @unique
+  email         String?   @unique
   emailVerified DateTime?
   image         String?
-  provider Provider?
+  provider      Provider?
   accounts      Account[]
   sessions      Session[]
 
@@ -102,14 +102,13 @@ model Service {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  bookings Booking[]
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  bookings     Booking[]
   invoiceItems InvoiceItem[]
 
   @@index([businessId])
   @@index([slug])
 }
-
 
 // --- Transactions ---
 
@@ -155,29 +154,29 @@ model Invoice {
   invoiceNumber String // e.g., INV-1001
   status        InvoiceStatus @default(DRAFT)
   currency      String        @default("USD")
-  
+
   // Client Details (Snapshot)
-  clientName    String
-  clientEmail   String?
-  clientPhone   String?
+  clientName  String
+  clientEmail String?
+  clientPhone String?
 
   // Financial Details
-  subtotal      Decimal       @db.Decimal(10, 2)
-  taxAmount     Decimal       @default(0) @db.Decimal(10, 2)
-  discount      Decimal       @default(0) @db.Decimal(10, 2)
-  total         Decimal       @db.Decimal(10, 2)
-  amountPaid    Decimal       @default(0) @db.Decimal(10, 2)
-  
-  dueAt         DateTime?
-  sentAt        DateTime?
-  paidAt        DateTime?
-  notes         String?
-  url           String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  subtotal   Decimal @db.Decimal(10, 2)
+  taxAmount  Decimal @default(0) @db.Decimal(10, 2)
+  discount   Decimal @default(0) @db.Decimal(10, 2)
+  total      Decimal @db.Decimal(10, 2)
+  amountPaid Decimal @default(0) @db.Decimal(10, 2)
+
+  dueAt     DateTime?
+  sentAt    DateTime?
+  paidAt    DateTime?
+  notes     String?
+  url       String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  booking  Booking?       @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  booking  Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
   items    InvoiceItem[]
   payments Payment[]
 
@@ -217,7 +216,8 @@ model Payment {
   clientEmail String?
   clientPhone String?
 
-  createdAt  DateTime      @default(now())
+  createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   invoice  Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
@@ -228,26 +228,54 @@ model Payment {
 }
 
 model Receipt {
-  id            String   @id @default(cuid())
-  slug          String   @unique
+  id            String  @id @default(cuid())
+  slug          String  @unique
   businessId    String
-  paymentId     String   @unique
+  paymentId     String? @unique
   receiptNumber String // e.g., RCP-1001
 
   // Client Details (Snapshot)
-  clientName    String?
-  clientEmail   String?
-  clientPhone   String?
-  url           String?
+  name  String?
+  email String?
+  phone String?
 
-  issuedAt      DateTime @default(now())
+  // Financial Details
+  currency      String         @default("USD")
+  subtotal      Decimal        @default(0) @db.Decimal(10, 2)
+  taxAmount     Decimal        @default(0) @db.Decimal(10, 2)
+  discount      Decimal        @default(0) @db.Decimal(10, 2)
+  total         Decimal        @db.Decimal(10, 2)
+  amountPaid    Decimal        @db.Decimal(10, 2)
+  paymentMethod PaymentMethod?
 
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  payment  Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  notes String?
+  url   String?
 
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  payment  Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  items    ReceiptItem[]
+
+  @@unique([businessId, receiptNumber])
   @@index([businessId])
   @@index([paymentId])
   @@index([slug])
+}
+
+model ReceiptItem {
+  id          String   @id @default(cuid())
+  receiptId   String
+  description String
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  total       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+
+  receipt Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+
+  @@index([receiptId])
 }
 
 model GalleryItem {
