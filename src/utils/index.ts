@@ -1,17 +1,17 @@
-import { getChildId } from '@/utils/getChildId';
-import bcrypt from 'bcryptjs';
-import { type ClassValue, clsx } from 'clsx';
+import { getChildId } from "@/utils/getChildId";
+import bcrypt from "bcryptjs";
+import { type ClassValue, clsx } from "clsx";
 import {
   createSearchParamsCache,
   parseAsBoolean,
   parseAsInteger,
   parseAsString,
-  parseAsStringEnum, 
-} from 'nuqs/server';
-import { twMerge } from 'tailwind-merge';
-import { generateUsername } from 'unique-username-generator';
-import z from 'zod';
-import { HttpException } from './exceptions';
+  parseAsStringEnum,
+} from "nuqs/server";
+import { twMerge } from "tailwind-merge";
+import { generateUsername } from "unique-username-generator";
+import z from "zod";
+import { HttpException } from "./exceptions";
 
 const cn = (...inputs: ClassValue[]) => {
   return twMerge(clsx(inputs));
@@ -28,9 +28,9 @@ const convertFileToBase64 = (file: File): Promise<string> => {
 };
 
 const convertBase64ToFile = (base64: string, fileName: string) => {
-  const arr = base64.split(',');
+  const arr = base64.split(",");
   const mime = arr?.[0]?.match(/:(.*?);/)?.[1];
-  const bstr = atob(arr?.[1] ?? '');
+  const bstr = atob(arr?.[1] ?? "");
   let n = bstr.length;
   const u8arr = new Uint8Array(n);
   while (n--) {
@@ -73,7 +73,7 @@ const isValidObjectId = (q?: string) => {
 };
 
 const parseTransactionStatus = (status?: string) => {
-  if (status?.toLowerCase() != 'all') {
+  if (status?.toLowerCase() != "all") {
     return status?.toLowerCase();
   }
   return undefined;
@@ -81,8 +81,8 @@ const parseTransactionStatus = (status?: string) => {
 
 const generateRandomString = (length = 6): string => {
   const characters =
-    'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let result = '';
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+  let result = "";
   const charactersLength = characters.length;
   for (let i = 0; i < length; i++) {
     result += characters.charAt(Math.floor(Math.random() * charactersLength));
@@ -113,14 +113,14 @@ const genUsername = () => {
 
   // If we couldn't find a unique username after 5 attempts
   // Add some random characters to make it unique
-  const baseUsername = generateUsername('', 0, 6);
+  const baseUsername = generateUsername("", 0, 6);
   const randomChars = generateRandomString();
   return `${baseUsername}${randomChars}`.substring(0, 12).toLowerCase();
 };
 
 const mongoIdValidator = z
   .string()
-  .regex(/^[0-9a-fA-F]{24}$/, 'Invalid MongoDB ID format');
+  .regex(/^[0-9a-fA-F]{24}$/, "Invalid MongoDB ID format");
 
 const baseParams = {
   query: parseAsString,
@@ -129,12 +129,12 @@ const baseParams = {
 
 const exploreParams = {
   ...baseParams,
-  type: parseAsStringEnum(['clubs', 'leaderboards']),
+  type: parseAsStringEnum(["clubs", "leaderboards"]),
 };
 
 const notificationParams = {
   ...baseParams,
-  type: parseAsStringEnum(['info', 'club', 'leaderboard', 'reward']),
+  type: parseAsStringEnum(["info", "club", "leaderboard", "reward"]),
 };
 
 const clubsParams = {
@@ -152,11 +152,11 @@ const leaderboardsParams = {
 
 const leaderboardParams = {
   sortBy: parseAsStringEnum([
-    'effort',
-    'score',
-    'pace',
-    'distance',
-    'createdAt',
+    "effort",
+    "score",
+    "pace",
+    "distance",
+    "createdAt",
   ]),
 };
 
@@ -174,7 +174,7 @@ const getFontSize = (text: string, baseSize: number, minSize: number) => {
   if (estimatedWidth > maxContentWidth) {
     return Math.max(
       minSize,
-      Math.floor(maxContentWidth / (text.length * 0.65))
+      Math.floor(maxContentWidth / (text.length * 0.65)),
     );
   }
   return baseSize;
@@ -182,7 +182,7 @@ const getFontSize = (text: string, baseSize: number, minSize: number) => {
 
 /** Format total minutes → "1h 23m" or "45m" */
 function formatDuration(minutes: number | null): string {
-  if (!minutes) return '—';
+  if (!minutes) return "—";
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
@@ -191,7 +191,7 @@ function formatDuration(minutes: number | null): string {
 /** Parse pace string "M:SS" → total minutes for sorting */
 function parsePace(pace: string | null): number {
   if (!pace) return Infinity;
-  const [min, sec] = pace.split(':').map(Number);
+  const [min, sec] = pace.split(":").map(Number);
   return (min ?? 0) + (sec ?? 0) / 60;
 }
 

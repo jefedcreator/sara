@@ -2,20 +2,20 @@ import {
   authMiddleware,
   bodyValidatorMiddleware,
   withMiddleware,
-} from '@/backend/middleware';
+} from "@/backend/middleware";
 import {
   updateReceiptValidatorSchema,
   type UpdateReceiptValidatorSchema,
-} from '@/backend/validators/receipt.validator';
-import { db } from '@/server/db';
-import { type ApiResponse, type ReceiptListItem } from 'types';
+} from "@/backend/validators/receipt.validator";
+import { db } from "@/server/db";
+import { type ApiResponse, type ReceiptListItem } from "types";
 import {
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
-} from '@/utils/exceptions';
-import { type Receipt, type Prisma } from '@prisma/client';
-import { NextResponse } from 'next/server';
+} from "@/utils/exceptions";
+import { type Receipt, type Prisma } from "@prisma/client";
+import { NextResponse } from "next/server";
 import { cloudinaryService } from "@/backend/services/cloudinary";
 import { generateReceiptPdf } from "@/backend/services/pdf";
 
@@ -55,12 +55,12 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
       });
 
       if (!existingReceipt) {
-        throw new NotFoundException('Receipt not found');
+        throw new NotFoundException("Receipt not found");
       }
 
       if (existingReceipt.business.ownerId !== user.id) {
         throw new ForbiddenException(
-          'You are not authorized to update this receipt'
+          "You are not authorized to update this receipt",
         );
       }
 
@@ -75,8 +75,10 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
         if (payload.taxAmount !== undefined) data.taxAmount = payload.taxAmount;
         if (payload.discount !== undefined) data.discount = payload.discount;
         if (payload.total !== undefined) data.total = payload.total;
-        if (payload.amountPaid !== undefined) data.amountPaid = payload.amountPaid;
-        if (payload.paymentMethod !== undefined) data.paymentMethod = payload.paymentMethod;
+        if (payload.amountPaid !== undefined)
+          data.amountPaid = payload.amountPaid;
+        if (payload.paymentMethod !== undefined)
+          data.paymentMethod = payload.paymentMethod;
         if (payload.notes !== undefined) data.notes = payload.notes ?? null;
 
         if (payload.paymentId) {
@@ -163,7 +165,7 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
 
       const response: ApiResponse<Receipt> = {
         status: 200,
-        message: 'Receipt updated successfully',
+        message: "Receipt updated successfully",
         data: updatedReceiptResult,
       };
 
@@ -171,11 +173,11 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
     } catch (error: any) {
       if (error.statusCode) throw error;
       throw new InternalServerErrorException(
-        `An error occurred while updating receipt: ${error.message}`
+        `An error occurred while updating receipt: ${error.message}`,
       );
     }
   },
-  [authMiddleware, bodyValidatorMiddleware(updateReceiptValidatorSchema)]
+  [authMiddleware, bodyValidatorMiddleware(updateReceiptValidatorSchema)],
 );
 
 /**
@@ -195,12 +197,12 @@ export const DELETE = withMiddleware<unknown>(
       });
 
       if (!receipt) {
-        throw new NotFoundException('Receipt not found');
+        throw new NotFoundException("Receipt not found");
       }
 
       if (receipt.business.ownerId !== user.id) {
         throw new ForbiddenException(
-          'You are not authorized to delete this receipt'
+          "You are not authorized to delete this receipt",
         );
       }
 
@@ -210,7 +212,7 @@ export const DELETE = withMiddleware<unknown>(
 
       const response: ApiResponse<Receipt> = {
         status: 200,
-        message: 'Receipt deleted successfully',
+        message: "Receipt deleted successfully",
         data: deletedReceipt,
       };
 
@@ -218,11 +220,11 @@ export const DELETE = withMiddleware<unknown>(
     } catch (error: any) {
       if (error.statusCode) throw error;
       throw new InternalServerErrorException(
-        `An error occurred while deleting receipt: ${error.message}`
+        `An error occurred while deleting receipt: ${error.message}`,
       );
     }
   },
-  [authMiddleware]
+  [authMiddleware],
 );
 
 /**
@@ -242,18 +244,18 @@ export const GET = withMiddleware<unknown>(
       });
 
       if (!receipt) {
-        throw new NotFoundException('Receipt not found');
+        throw new NotFoundException("Receipt not found");
       }
 
       if (receipt.business.ownerId !== user.id) {
         throw new ForbiddenException(
-          'You are not authorized to view this receipt'
+          "You are not authorized to view this receipt",
         );
       }
 
       const response: ApiResponse<ReceiptListItem> = {
         status: 200,
-        message: 'Receipt retrieved successfully',
+        message: "Receipt retrieved successfully",
         data: receipt as unknown as ReceiptListItem,
       };
 
@@ -261,9 +263,9 @@ export const GET = withMiddleware<unknown>(
     } catch (error: any) {
       if (error.statusCode) throw error;
       throw new InternalServerErrorException(
-        `An error occurred while fetching receipt: ${error.message}`
+        `An error occurred while fetching receipt: ${error.message}`,
       );
     }
   },
-  [authMiddleware]
+  [authMiddleware],
 );

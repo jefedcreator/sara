@@ -25,7 +25,6 @@ import { NextResponse } from "next/server";
 import slugify from "slugify";
 import type { ApiResponse, InvoiceListItem, PaginatedApiResponse } from "types";
 
-
 /**
  * @body InvoiceValidatorSchema
  * @description Creates a new invoice for a business, generates a PDF, and uploads it to Cloudinary.
@@ -59,7 +58,10 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         });
 
         if (lastInvoice && lastInvoice.invoiceNumber.startsWith("INV-")) {
-          const lastNumber = parseInt(lastInvoice.invoiceNumber.replace("INV-", ""), 10);
+          const lastNumber = parseInt(
+            lastInvoice.invoiceNumber.replace("INV-", ""),
+            10,
+          );
           invoiceNumber = `INV-${isNaN(lastNumber) ? 1001 : lastNumber + 1}`;
         } else {
           invoiceNumber = "INV-1001";
@@ -69,8 +71,8 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         const [booking, existingInvoice] = await Promise.all([
           payload.bookingId
             ? tx.booking.findFirst({
-              where: { id: payload.bookingId, businessId: business.id },
-            })
+                where: { id: payload.bookingId, businessId: business.id },
+              })
             : Promise.resolve(null),
           tx.invoice.findUnique({
             where: {
@@ -116,7 +118,10 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
 
         const createData: Prisma.InvoiceCreateInput = {
           business: { connect: { id: business.id } },
-          slug: slugify(`${business.name}-${invoiceNumber}`, { lower: true, strict: true }),
+          slug: slugify(`${business.name}-${invoiceNumber}`, {
+            lower: true,
+            strict: true,
+          }),
           clientName: payload.name,
           clientEmail: payload.email ?? null,
           clientPhone: payload.phone ?? null,
@@ -211,7 +216,7 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         });
 
         return {
-          ...updatedInvoice
+          ...updatedInvoice,
         };
       });
 
@@ -270,11 +275,17 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
       }
 
       if (payload.clientName) {
-        where.clientName = { contains: payload.clientName, mode: "insensitive" };
+        where.clientName = {
+          contains: payload.clientName,
+          mode: "insensitive",
+        };
       }
 
       if (payload.clientEmail) {
-        where.clientEmail = { contains: payload.clientEmail, mode: "insensitive" };
+        where.clientEmail = {
+          contains: payload.clientEmail,
+          mode: "insensitive",
+        };
       }
 
       if (payload.bookingId) {
@@ -282,7 +293,10 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
       }
 
       if (payload.invoiceNumber) {
-        where.invoiceNumber = { contains: payload.invoiceNumber, mode: "insensitive" };
+        where.invoiceNumber = {
+          contains: payload.invoiceNumber,
+          mode: "insensitive",
+        };
       }
 
       // Date range filters
@@ -346,7 +360,7 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
           page: 1,
           size: data.length || 1,
           totalPages: 1,
-        }
+        };
 
         return NextResponse.json(response);
       }
@@ -374,7 +388,7 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
         page,
         size,
         totalPages: Math.ceil(count / size),
-      }
+      };
 
       return NextResponse.json(response);
     } catch (error: any) {

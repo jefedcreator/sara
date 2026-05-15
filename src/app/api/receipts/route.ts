@@ -60,11 +60,15 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
           });
 
           if (!payment) {
-            throw new BadRequestException("Payment not found for this business");
+            throw new BadRequestException(
+              "Payment not found for this business",
+            );
           }
 
           if (payment.receipt) {
-            throw new ConflictException("A receipt already exists for this payment");
+            throw new ConflictException(
+              "A receipt already exists for this payment",
+            );
           }
         }
 
@@ -76,7 +80,10 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
         });
 
         if (lastReceipt && lastReceipt.receiptNumber.startsWith("RCP-")) {
-          const lastNumber = parseInt(lastReceipt.receiptNumber.replace("RCP-", ""), 10);
+          const lastNumber = parseInt(
+            lastReceipt.receiptNumber.replace("RCP-", ""),
+            10,
+          );
           receiptNumber = `RCP-${isNaN(lastNumber) ? 1001 : lastNumber + 1}`;
         } else {
           receiptNumber = "RCP-1001";
@@ -86,7 +93,10 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
           business: {
             connect: { id: business.id },
           },
-          slug: slugify(`${business.name}-${receiptNumber}`, { lower: true, strict: true }),
+          slug: slugify(`${business.name}-${receiptNumber}`, {
+            lower: true,
+            strict: true,
+          }),
           receiptNumber,
           name: payload.name,
           email: payload.email,

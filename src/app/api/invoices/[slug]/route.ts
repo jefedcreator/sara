@@ -2,23 +2,23 @@ import {
   authMiddleware,
   bodyValidatorMiddleware,
   withMiddleware,
-} from '@/backend/middleware';
+} from "@/backend/middleware";
 import {
   updateInvoiceValidatorSchema,
   type UpdateInvoiceValidatorSchema,
-} from '@/backend/validators/invoice.validator';
-import { db } from '@/server/db';
+} from "@/backend/validators/invoice.validator";
+import { db } from "@/server/db";
 import { generateInvoicePdf } from "@/backend/services/pdf";
 import { cloudinaryService } from "@/backend/services/cloudinary";
-import { type ApiResponse, type InvoiceListItem } from 'types';
+import { type ApiResponse, type InvoiceListItem } from "types";
 import {
   BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
-} from '@/utils/exceptions';
-import { type Invoice, type Prisma } from '@prisma/client';
-import { NextResponse } from 'next/server';
+} from "@/utils/exceptions";
+import { type Invoice, type Prisma } from "@prisma/client";
+import { NextResponse } from "next/server";
 
 /**
  * @body UpdateInvoiceValidatorSchema
@@ -40,16 +40,16 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
       });
 
       if (!invoice) {
-        throw new NotFoundException('Invoice not found');
+        throw new NotFoundException("Invoice not found");
       }
 
       if (invoice.status === "PAID" || invoice.status === "PARTIALLY_PAID") {
-        throw new BadRequestException('Invoice cannot be updated');
+        throw new BadRequestException("Invoice cannot be updated");
       }
 
       if (invoice.business.ownerId !== user.id) {
         throw new ForbiddenException(
-          'You are not authorized to update this invoice'
+          "You are not authorized to update this invoice",
         );
       }
 
@@ -64,7 +64,8 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
       if (payload.taxAmount !== undefined) data.taxAmount = payload.taxAmount;
       if (payload.discount !== undefined) data.discount = payload.discount;
       if (payload.total !== undefined) data.total = payload.total;
-      if (payload.amountPaid !== undefined) data.amountPaid = payload.amountPaid;
+      if (payload.amountPaid !== undefined)
+        data.amountPaid = payload.amountPaid;
       if (payload.dueAt !== undefined) data.dueAt = payload.dueAt ?? null;
       if (payload.sentAt !== undefined) data.sentAt = payload.sentAt ?? null;
       if (payload.paidAt !== undefined) data.paidAt = payload.paidAt ?? null;
@@ -159,7 +160,7 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
 
       const response: ApiResponse<Invoice> = {
         status: 200,
-        message: 'Invoice updated successfully',
+        message: "Invoice updated successfully",
         data: updatedInvoicedata,
       };
 
@@ -167,11 +168,11 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
     } catch (error: any) {
       if (error.statusCode) throw error;
       throw new InternalServerErrorException(
-        `An error occurred while updating invoice: ${error.message}`
+        `An error occurred while updating invoice: ${error.message}`,
       );
     }
   },
-  [authMiddleware, bodyValidatorMiddleware(updateInvoiceValidatorSchema)]
+  [authMiddleware, bodyValidatorMiddleware(updateInvoiceValidatorSchema)],
 );
 
 /**
@@ -191,12 +192,12 @@ export const DELETE = withMiddleware<unknown>(
       });
 
       if (!invoice) {
-        throw new NotFoundException('Invoice not found');
+        throw new NotFoundException("Invoice not found");
       }
 
       if (invoice.business.ownerId !== user.id) {
         throw new ForbiddenException(
-          'You are not authorized to delete this invoice'
+          "You are not authorized to delete this invoice",
         );
       }
 
@@ -206,7 +207,7 @@ export const DELETE = withMiddleware<unknown>(
 
       const response: ApiResponse<Invoice> = {
         status: 200,
-        message: 'Invoice deleted successfully',
+        message: "Invoice deleted successfully",
         data: deletedInvoice,
       };
 
@@ -214,11 +215,11 @@ export const DELETE = withMiddleware<unknown>(
     } catch (error: any) {
       if (error.statusCode) throw error;
       throw new InternalServerErrorException(
-        `An error occurred while deleting invoice: ${error.message}`
+        `An error occurred while deleting invoice: ${error.message}`,
       );
     }
   },
-  [authMiddleware]
+  [authMiddleware],
 );
 
 /**
@@ -256,18 +257,18 @@ export const GET = withMiddleware<unknown>(
       });
 
       if (!invoice) {
-        throw new NotFoundException('Invoice not found');
+        throw new NotFoundException("Invoice not found");
       }
 
       if (invoice.business.ownerId !== user.id) {
         throw new ForbiddenException(
-          'You are not authorized to view this invoice'
+          "You are not authorized to view this invoice",
         );
       }
 
       const response: ApiResponse<InvoiceListItem> = {
         status: 200,
-        message: 'Invoice retrieved successfully',
+        message: "Invoice retrieved successfully",
         data: invoice,
       };
 
@@ -275,9 +276,9 @@ export const GET = withMiddleware<unknown>(
     } catch (error: any) {
       if (error.statusCode) throw error;
       throw new InternalServerErrorException(
-        `An error occurred while fetching invoice: ${error.message}`
+        `An error occurred while fetching invoice: ${error.message}`,
       );
     }
   },
-  [authMiddleware]
+  [authMiddleware],
 );

@@ -1,16 +1,16 @@
-import { db } from '@/server/db';
-import { parseHttpError } from '@/utils';
-import { HttpException, UnauthorizedException } from '@/utils/exceptions';
-import { NextResponse } from 'next/server';
-import * as Sentry from '@sentry/nextjs';
-import { type z } from 'zod';
+import { db } from "@/server/db";
+import { parseHttpError } from "@/utils";
+import { HttpException, UnauthorizedException } from "@/utils/exceptions";
+import { NextResponse } from "next/server";
+import * as Sentry from "@sentry/nextjs";
+import { type z } from "zod";
 import type {
   AuthRequest,
   I_JwtPayload,
   MiddlewareFunction,
   MiddlewareResponse,
   QueryParameters,
-} from './types';
+} from "./types";
 
 /**
  *
@@ -37,13 +37,13 @@ const getExternalUrl = (url: string) => {
 export const withMiddleware = <B = unknown, Q = QueryParameters>(
   handler: (
     request: AuthRequest<B, Q>,
-    context: { params: Record<string, string> }
+    context: { params: Record<string, string> },
   ) => Promise<Response>,
-  middlewares: MiddlewareFunction<B, Q>[]
+  middlewares: MiddlewareFunction<B, Q>[],
 ) => {
   const executeRequest = async (
     req: NextResponse | Request | any,
-    context: { params: Promise<Record<string, string>> } | any
+    context: { params: Promise<Record<string, string>> } | any,
   ) => {
     const request = req as AuthRequest<B, Q>;
     try {
@@ -61,15 +61,15 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
       request.query = query as Q;
 
       const contentType =
-        request.headers.get('content-type') ?? 'application/json';
+        request.headers.get("content-type") ?? "application/json";
 
-      if (contentType.includes('application/json')) {
+      if (contentType.includes("application/json")) {
         const body = (await request.json().catch(() => null)) as B;
         if (body) {
           request.parsedBody = body;
           request.files = {};
         }
-      } else if (contentType.includes('multipart/form-data')) {
+      } else if (contentType.includes("multipart/form-data")) {
         const formData = await request.formData();
         const parsedBody: Record<string, unknown> = {};
         const files: Record<string, File> = {};
@@ -83,7 +83,7 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
             parsedBody[key] = value;
           }
         }
-        console.log('parsedBody', parsedBody);
+        console.log("parsedBody", parsedBody);
 
         request.parsedBody = parsedBody as B;
         request.files = files;
@@ -98,12 +98,12 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
         if (!result.next) {
           return NextResponse.json(
             { message: result.message },
-            { status: result.statusCode || 400 }
+            { status: result.statusCode || 400 },
           );
         }
       }
     } catch (error: any) {
-      console.error('Middleware execution error:', error);
+      console.error("Middleware execution error:", error);
 
       // Sentry.captureException(error, {
       //   tags: {
@@ -125,15 +125,15 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
           ? error.statusCode
           : (error.statusCode ?? 500);
       return NextResponse.json(
-        { message: parseHttpError(error) ?? 'Internal server error' },
-        { status: statusCode }
+        { message: parseHttpError(error) ?? "Internal server error" },
+        { status: statusCode },
       );
     }
 
     try {
       return await handler(request, { params: request.params! });
     } catch (error: any) {
-      console.error('Handler error:', error);
+      console.error("Handler error:", error);
 
       // Sentry.captureException(error, {
       //   tags: {
@@ -156,15 +156,15 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
           ? error.statusCode
           : (error.statusCode ?? 500);
       return NextResponse.json(
-        { message: parseHttpError(error) ?? 'Internal server error' },
-        { status: statusCode }
+        { message: parseHttpError(error) ?? "Internal server error" },
+        { status: statusCode },
       );
     }
   };
 
   return async (
     req: NextResponse | Request | any,
-    context: { params: Promise<Record<string, string>> } | any
+    context: { params: Promise<Record<string, string>> } | any,
   ) => {
     const startTime = Date.now();
     const method = req.method;
@@ -179,20 +179,20 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
     const duration = Date.now() - startTime;
     const statusCode = response.status;
 
-    let statusColor = '\x1b[32m';
-    if (statusCode >= 300) statusColor = '\x1b[36m';
-    if (statusCode >= 400) statusColor = '\x1b[33m';
-    if (statusCode >= 500) statusColor = '\x1b[31m';
-    const resetColor = '\x1b[0m';
+    let statusColor = "\x1b[32m";
+    if (statusCode >= 300) statusColor = "\x1b[36m";
+    if (statusCode >= 400) statusColor = "\x1b[33m";
+    if (statusCode >= 500) statusColor = "\x1b[31m";
+    const resetColor = "\x1b[0m";
 
     const authReq = req as AuthRequest<B, Q>;
     const sanitizedBody = authReq.parsedBody
       ? JSON.parse(JSON.stringify(authReq.parsedBody))
       : {};
 
-    const sensitiveKeys = ['password', 'token', 'creditCard'];
+    const sensitiveKeys = ["password", "token", "creditCard"];
     sensitiveKeys.forEach((key) => {
-      if (sanitizedBody[key]) sanitizedBody[key] = '*****';
+      if (sanitizedBody[key]) sanitizedBody[key] = "*****";
     });
 
     const message = `${method} ${url} ${statusColor}${statusCode}${resetColor} - ${duration}ms`;
@@ -223,19 +223,19 @@ export const pathParamValidatorMiddleware =
 
     if (result.success) {
       return {
-        message: 'Invalid ID parameter',
+        message: "Invalid ID parameter",
         statusCode: 200,
         next: true,
       };
     } else {
       const firstError = result.error.issues[0];
-      const errorPath = firstError?.path.join('.');
+      const errorPath = firstError?.path.join(".");
       const errorMessage = firstError?.message;
 
       return {
         message: errorPath
           ? `${errorPath}: ${errorMessage}`
-          : (errorMessage ?? ''),
+          : (errorMessage ?? ""),
         statusCode: 422,
         next: false,
       };
@@ -243,76 +243,90 @@ export const pathParamValidatorMiddleware =
   };
 
 export const authMiddleware = async <B = unknown, Q = QueryParameters>(
-  request: AuthRequest<B, Q>
+  request: AuthRequest<B, Q>,
 ): Promise<MiddlewareResponse> => {
   // 1. Extract token from cookie or Authorization header
-  const sessionToken = 
-    request.cookies.get('sara-session')?.value || 
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
+  const sessionToken =
+    request.cookies.get("sara-session")?.value ||
+    request.headers
+      .get("authorization")
+      ?.replace(/^Bearer\s+/i, "")
+      .trim();
 
   try {
-    if (!sessionToken || sessionToken === 'undefined' || sessionToken === 'null') {
-      throw new UnauthorizedException('Unauthorized');
+    if (
+      !sessionToken ||
+      sessionToken === "undefined" ||
+      sessionToken === "null"
+    ) {
+      throw new UnauthorizedException("Unauthorized");
     }
 
     // 2. Query the Session table to validate the token
     const session = await db.session.findUnique({
       where: { sessionToken },
-      include: { 
+      include: {
         user: {
           include: {
-            business: true
-          }
-        } 
+            business: true,
+          },
+        },
       },
     });
 
     if (!session) {
-      throw new UnauthorizedException('Invalid session');
+      throw new UnauthorizedException("Invalid session");
     }
 
     // 3. Check if session has expired
     if (session.expires < new Date()) {
       // Optionally clean up expired session
       await db.session.delete({ where: { id: session.id } }).catch(() => {});
-      throw new UnauthorizedException('Session expired');
+      throw new UnauthorizedException("Session expired");
     }
 
     if (!session.user) {
-      throw new UnauthorizedException('User not found');
+      throw new UnauthorizedException("User not found");
     }
 
     request.user = {
       ...session.user,
-      session
+      session,
     };
   } catch (error: any) {
-    console.error('Auth error:', error.message || error);
+    console.error("Auth error:", error.message || error);
     if (error instanceof UnauthorizedException) {
       throw error;
     }
-    throw new UnauthorizedException('Invalid auth token');
+    throw new UnauthorizedException("Invalid auth token");
   }
 
   return {
-    message: '',
+    message: "",
     statusCode: 200,
     next: true,
   };
 };
 
 export const optionalAuthMiddleware = async <B = unknown, Q = QueryParameters>(
-  request: AuthRequest<B, Q>
+  request: AuthRequest<B, Q>,
 ): Promise<MiddlewareResponse> => {
   // 1. Extract token from cookie or Authorization header
-  const sessionToken = 
-    request.cookies.get('sara-session')?.value || 
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
+  const sessionToken =
+    request.cookies.get("sara-session")?.value ||
+    request.headers
+      .get("authorization")
+      ?.replace(/^Bearer\s+/i, "")
+      .trim();
 
-  if (!sessionToken || sessionToken === 'undefined' || sessionToken === 'null') {
+  if (
+    !sessionToken ||
+    sessionToken === "undefined" ||
+    sessionToken === "null"
+  ) {
     request.user = null;
     return {
-      message: '',
+      message: "",
       statusCode: 200,
       next: true,
     };
@@ -322,19 +336,19 @@ export const optionalAuthMiddleware = async <B = unknown, Q = QueryParameters>(
     // 2. Query the Session table to validate the token
     const session = await db.session.findUnique({
       where: { sessionToken },
-      include: { 
+      include: {
         user: {
           include: {
-            business: true
-          }
-        } 
+            business: true,
+          },
+        },
       },
     });
 
     if (session && session.expires > new Date()) {
       request.user = {
         ...session.user,
-        session
+        session,
       };
     } else {
       if (session && session.expires <= new Date()) {
@@ -343,12 +357,12 @@ export const optionalAuthMiddleware = async <B = unknown, Q = QueryParameters>(
       request.user = null;
     }
   } catch (error: any) {
-    console.error('Optional Auth error:', error.message || error);
+    console.error("Optional Auth error:", error.message || error);
     request.user = null;
   }
 
   return {
-    message: '',
+    message: "",
     statusCode: 200,
     next: true,
   };
@@ -363,7 +377,7 @@ export const optionalAuthMiddleware = async <B = unknown, Q = QueryParameters>(
 export const queryValidatorMiddleware =
   <Q extends z.ZodTypeAny>(schema: Q) =>
   async (
-    request: AuthRequest<unknown, z.infer<Q>>
+    request: AuthRequest<unknown, z.infer<Q>>,
   ): Promise<MiddlewareResponse> => {
     try {
       const searchParams = request.nextUrl.searchParams;
@@ -380,7 +394,7 @@ export const queryValidatorMiddleware =
         return {
           message: errorPath
             ? `Invalid query parameter: ${errorPath}`
-            : 'Invalid query parameters',
+            : "Invalid query parameters",
           statusCode: 422,
           next: false,
         };
@@ -390,14 +404,14 @@ export const queryValidatorMiddleware =
     } catch (error) {
       console.error(error);
       return {
-        message: 'Error parsing query parameters',
+        message: "Error parsing query parameters",
         statusCode: 400,
         next: false,
       };
     }
 
     return {
-      message: '',
+      message: "",
       statusCode: 200,
       next: true,
     };
@@ -413,7 +427,7 @@ export const queryValidatorMiddleware =
 export const bodyValidatorMiddleware =
   <B extends z.ZodTypeAny>(schema: B) =>
   async (
-    request: AuthRequest<z.infer<B>, unknown>
+    request: AuthRequest<z.infer<B>, unknown>,
   ): Promise<MiddlewareResponse> => {
     const body = request.parsedBody ?? {};
     // const query = request.query ?? {};
@@ -430,19 +444,19 @@ export const bodyValidatorMiddleware =
       request.validatedData = result.data;
 
       return {
-        message: '',
+        message: "",
         statusCode: 200,
         next: true,
       };
     } else {
       const firstError = result.error.issues[0];
-      const errorPath = firstError?.path.join('.');
+      const errorPath = firstError?.path.join(".");
       const errorMessage = firstError?.message;
 
       return {
         message: errorPath
           ? `${errorPath}: ${errorMessage}`
-          : (errorMessage ?? 'Validation failed'),
+          : (errorMessage ?? "Validation failed"),
         statusCode: 422,
         next: false,
       };
