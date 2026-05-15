@@ -52,12 +52,21 @@ const escapePdfText = (value: string) =>
 
 const toNumber = (value: number | string) => Number(value);
 
-const formatMoney = (value: number | string, currency: string) =>
-  new Intl.NumberFormat("en", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: 2,
-  }).format(toNumber(value));
+const formatMoney = (value: number | string, currency: string) => {
+  try {
+    return new Intl.NumberFormat("en", {
+      style: "currency",
+      currency,
+      minimumFractionDigits: 2,
+    }).format(toNumber(value));
+  } catch (error) {
+    // Fallback for invalid currency codes like symbols ($, £, etc.)
+    return `${currency}${toNumber(value).toLocaleString("en", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+};
 
 const formatDate = (date?: Date | null) =>
   date
@@ -88,10 +97,15 @@ const wrapText = (text: string, maxChars: number) => {
 };
 
 const fetchLogo = async (logoUrl?: string | null): Promise<PdfImage | null> => {
-  if (!logoUrl) return null;
+  if (!logoUrl || logoUrl.includes("placeimg.com")) return null;
 
   try {
-    const response = await fetch(logoUrl);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(logoUrl, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!response.ok) return null;
 
     const input = Buffer.from(await response.arrayBuffer());
@@ -111,8 +125,12 @@ const fetchLogo = async (logoUrl?: string | null): Promise<PdfImage | null> => {
       width: info.width,
       height: info.height,
     };
-  } catch (error) {
-    console.warn("Unable to embed business logo in invoice PDF:", error);
+  } catch (error: any) {
+    if (error.name === "AbortError") {
+      console.warn("Logo fetch timed out");
+    } else {
+      console.warn("Unable to embed business logo in invoice PDF:", error.message || error);
+    }
     return null;
   }
 };

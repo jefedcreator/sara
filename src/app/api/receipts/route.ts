@@ -216,8 +216,8 @@ export const GET = withMiddleware<ReceiptQueryValidatorSchema, ReceiptQueryValid
         return NextResponse.json(response);
       }
 
-      const page = payload.page ?? 1;
-      const size = payload.size ?? 10;
+      const page = Number(payload.page ?? 1);
+      const size = Number(payload.size ?? 10);
       const skip = (page - 1) * size;
 
       const [count, data] = await Promise.all([

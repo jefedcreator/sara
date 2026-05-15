@@ -38,31 +38,31 @@ export const invoiceItemValidatorSchema = z
 
 export const invoiceValidatorSchema = z
     .object({
-        businessId: cuidValidator,
+        // businessId: cuidValidator,
         name: z
             .string()
-            .min(1, "client.name cannot be empty")
-            .max(255, "client.name cannot exceed 255 characters"),
+            .min(1, "name cannot be empty")
+            .max(255, "name cannot exceed 255 characters"),
         email: z
             .string()
-            .email("client.email must be a valid email")
-            .max(255, "client.email cannot exceed 255 characters")
+            .email("email must be a valid email")
+            .max(255, "email cannot exceed 255 characters")
             .nullable()
             .optional(),
         phone: z
             .string()
-            .max(50, "client.phone cannot exceed 50 characters")
+            .max(50, "phone cannot exceed 50 characters")
             .nullable()
             .optional(),
         bookingId: optionalCuidValidator,
-        invoiceNumber: z
-            .string()
-            .min(1, "invoiceNumber cannot be empty")
-            .max(255, "invoiceNumber cannot exceed 255 characters"),
+        // invoiceNumber: z
+        //     .string()
+        //     .max(255, "invoiceNumber cannot exceed 255 characters")
+        //     .optional(),
         status: invoiceStatusValidatorSchema.default("DRAFT"),
         currency: z
             .string()
-            .length(3, "currency must be a 3-letter ISO currency code")
+            .max(10, "currency code too long")
             .toUpperCase()
             .default("NGN"),
         subtotal: decimalValidator("subtotal"),
@@ -79,8 +79,7 @@ export const invoiceValidatorSchema = z
             .nullable()
             .optional(),
         items: z.array(invoiceItemValidatorSchema).optional(),
-    })
-    .strict();
+    });
 
 export const updateInvoiceValidatorSchema = invoiceValidatorSchema
     .partial()

@@ -107,7 +107,7 @@ export const POST = withMiddleware<BusinessValidatorSchema>(
 );
 
 /**
- * @body BusinessValidatorSchema
+ * @body UpdateBusinessValidatorSchema
  * @description Updates the existing business for the authenticated user.
  * @contentType application/json
  * @auth bearer
