@@ -2,6 +2,8 @@ import type { User, Session, Business } from '@prisma/client';
 import { type NextRequest } from 'next/server';
 import type z from 'zod';
 import type { BaseQueryValidatorSchema } from '../validators/index.validator';
+import type { InvoiceQueryValidatorSchema } from '../validators/invoice.validator';
+import type { ReceiptQueryValidatorSchema } from '../validators/receipt.validator';
 
 export type MiddlewareResponse = {
   message: string;
@@ -26,7 +28,7 @@ type Prettify<T> = {
 } & {};
 
 export type QueryParameters = Prettify<
-  BaseQueryValidatorSchema
+  BaseQueryValidatorSchema & InvoiceQueryValidatorSchema & ReceiptQueryValidatorSchema
 >;
 
 export type AuthenticatedUser = User & {

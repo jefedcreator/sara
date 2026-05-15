@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { baseQueryValidatorSchema } from "./index.validator";
+import { baseQueryValidatorSchema, decimalValidator } from "./index.validator";
 
 const cuidValidator = z.string().cuid("id must be a valid cuid");
 
@@ -11,30 +11,48 @@ export const paymentMethodValidatorSchema = z.enum(
     "method must be one of: STRIPE, PAYSTACK, CASH, BANK_TRANSFER",
 );
 
+export const receiptItemValidatorSchema = z.object({
+    description: z.string().min(1, "description cannot be empty"),
+    quantity: z.number().int().positive().default(1),
+    unitPrice: z.number().nonnegative(),
+    total: z.number().nonnegative(),
+}).strict();
+
 export const receiptValidatorSchema = z
     .object({
-        businessId: cuidValidator,
-        paymentId: cuidValidator,
-        receiptNumber: z
+        paymentId: cuidValidator.optional(),
+        // receiptNumber: z
+        //     .string()
+        //     .min(1, "receiptNumber cannot be empty")
+        //     .max(255, "receiptNumber cannot exceed 255 characters"),
+        name: z
             .string()
-            .min(1, "receiptNumber cannot be empty")
-            .max(255, "receiptNumber cannot exceed 255 characters"),
-        clientName: z
-            .string()
-            .max(255, "clientName cannot exceed 255 characters")
+            .max(255, "name cannot exceed 255 characters")
             .nullable()
             .optional(),
-        clientEmail: z
+        email: z
             .string()
-            .email("clientEmail must be a valid email")
-            .max(255, "clientEmail cannot exceed 255 characters")
+            .email("email must be a valid email")
+            .max(255, "email cannot exceed 255 characters")
             .nullable()
             .optional(),
-        clientPhone: z
+        phone: z
             .string()
-            .max(50, "clientPhone cannot exceed 50 characters")
+            .max(50, "phone cannot exceed 50 characters")
             .nullable()
             .optional(),
+        currency: z.string().default("USD"),
+        subtotal: decimalValidator("subtotal"),
+        taxAmount: decimalValidator("taxAmount").default(0),
+        discount: decimalValidator("discount").default(0),
+        total: decimalValidator("total"),
+        amountPaid: decimalValidator("amountPaid").default(0), paymentMethod: paymentMethodValidatorSchema.optional().nullable(),
+        notes: z
+            .string()
+            .max(2000, "notes cannot exceed 2000 characters")
+            .nullable()
+            .optional(),
+        items: z.array(receiptItemValidatorSchema).optional(),
     })
     .strict();
 
@@ -45,33 +63,28 @@ export const updateReceiptValidatorSchema = receiptValidatorSchema
 export const receiptQueryValidatorSchema = baseQueryValidatorSchema
     .partial()
     .extend({
-        businessId: cuidValidator.optional(),
-        clientName: z
+        name: z
             .string()
-            .max(255, "clientName cannot exceed 255 characters")
+            .max(255, "name cannot exceed 255 characters")
             .optional(),
-        clientEmail: z
+        email: z
             .string()
-            .email("clientEmail must be a valid email")
-            .max(255, "clientEmail cannot exceed 255 characters")
-            .optional(),
-        receiptNumber: z
-            .string()
-            .max(255, "receiptNumber cannot exceed 255 characters")
+            .email("email must be a valid email")
+            .max(255, "email cannot exceed 255 characters")
             .optional(),
         paymentId: cuidValidator.optional(),
-        issuedFrom: dateValidator("issuedFrom").optional(),
-        issuedTo: dateValidator("issuedTo").optional(),
+        createdFrom: dateValidator("createdFrom").optional(),
+        createdTo: dateValidator("createdTo").optional(),
         sortBy: z
             .enum(
                 [
                     "receiptNumber",
-                    "issuedAt",
-                    "clientName",
+                    "createdAt",
+                    "name",
                 ],
-                "sortBy must be one of: receiptNumber, issuedAt, clientName",
+                "sortBy must be one of: receiptNumber, createdAt, name",
             )
-            .default("issuedAt")
+            .default("createdAt")
             .optional(),
     })
     .strict();

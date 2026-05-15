@@ -87,6 +87,15 @@ export type BaseQueryValidatorInput = z.input<typeof baseQueryValidatorSchema>;
 
 // export const paramValidator = z.object({ id: mongoIdValidator });
 
+export const decimalValidator = (field: string) =>
+    z.coerce
+        .number()
+        .finite(`${field} must be a finite number`)
+        .min(0, `${field} cannot be negative`);
+
+export const dateValidator = (field: string) =>
+    z.coerce.date(`${field} must be a valid date`);
+
 export const slugParamValidator = z.object({
     slug: z.string().min(1, 'slug is required'),
 });

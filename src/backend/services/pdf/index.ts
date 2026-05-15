@@ -37,6 +37,34 @@ export type InvoicePdfData = {
   items: InvoicePdfItem[];
 };
 
+export type ReceiptPdfData = {
+  receiptNumber: string;
+  paymentMethod?: string | null;
+  currency: string;
+  subtotal: number | string;
+  taxAmount: number | string;
+  discount: number | string;
+  total: number | string;
+  amountPaid: number | string;
+  paidAt?: Date | null;
+  notes?: string | null;
+  business: {
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    city?: string | null;
+    state?: string | null;
+    country?: string | null;
+    logoUrl?: string | null;
+  };
+  client: {
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+  };
+  items: InvoicePdfItem[];
+};
+
 type PdfImage = {
   data: Buffer;
   width: number;
@@ -361,6 +389,121 @@ export const generateInvoicePdf = async (invoice: InvoicePdfData) => {
     canvas.text("Notes", MARGIN, y, { bold: true });
     y -= 16;
     wrapText(invoice.notes, 84)
+      .slice(0, 5)
+      .forEach((line) => {
+        canvas.text(line, MARGIN, y);
+        y -= 14;
+      });
+  }
+
+  return buildPdf(canvas.toBuffer(), logo);
+};
+
+export const generateReceiptPdf = async (receipt: ReceiptPdfData) => {
+  const logo = await fetchLogo(receipt.business.logoUrl);
+  const canvas = new PdfCanvas();
+  let y = PAGE_HEIGHT - MARGIN;
+
+  if (logo) {
+    const width = Math.min(logo.width, 150);
+    const height = (logo.height / logo.width) * width;
+    canvas.image("Logo", MARGIN, y - height, width, height);
+  }
+
+  canvas.text("RECEIPT", PAGE_WIDTH - 170, y - 8, { size: 24, bold: true });
+  canvas.text(`#${receipt.receiptNumber}`, PAGE_WIDTH - 170, y - 28, {
+    size: 11,
+  });
+  if (receipt.paymentMethod) {
+    canvas.text(`Method: ${receipt.paymentMethod}`, PAGE_WIDTH - 170, y - 44, { size: 10 });
+  } else {
+    canvas.text("PAID", PAGE_WIDTH - 170, y - 44, { size: 10, bold: true });
+  }
+
+  y -= 92;
+  canvas.line(MARGIN, y, PAGE_WIDTH - MARGIN, y);
+
+  y -= 26;
+  canvas.text(receipt.business.name, MARGIN, y, { size: 14, bold: true });
+  y -= 16;
+  [
+    receipt.business.email,
+    receipt.business.phone,
+    [receipt.business.city, receipt.business.state, receipt.business.country]
+      .filter(Boolean)
+      .join(", "),
+  ]
+    .filter(Boolean)
+    .forEach((line) => {
+      canvas.text(String(line), MARGIN, y, { size: 10 });
+      y -= 14;
+    });
+
+  const clientTop = PAGE_HEIGHT - MARGIN - 118;
+  canvas.text("Billed To", PAGE_WIDTH - 220, clientTop, { size: 10, bold: true });
+  canvas.text(receipt.client.name, PAGE_WIDTH - 220, clientTop - 16, {
+    size: 12,
+    bold: true,
+  });
+  if (receipt.client.email)
+    canvas.text(receipt.client.email, PAGE_WIDTH - 220, clientTop - 32);
+  if (receipt.client.phone)
+    canvas.text(receipt.client.phone, PAGE_WIDTH - 220, clientTop - 46);
+  canvas.text(
+    `Date Paid: ${formatDate(receipt.paidAt)}`,
+    PAGE_WIDTH - 220,
+    clientTop - 66,
+  );
+
+  y = Math.min(y - 32, clientTop - 92);
+  canvas.line(MARGIN, y, PAGE_WIDTH - MARGIN, y);
+  y -= 22;
+
+  canvas.text("Description", MARGIN, y, { bold: true });
+  canvas.text("Qty", 330, y, { bold: true });
+  canvas.text("Unit", 380, y, { bold: true });
+  canvas.text("Total", 475, y, { bold: true });
+  y -= 14;
+  canvas.line(MARGIN, y, PAGE_WIDTH - MARGIN, y);
+  y -= 18;
+
+  receipt.items.forEach((item) => {
+    const lines = wrapText(item.description, 42);
+    canvas.text(lines[0] ?? "", MARGIN, y);
+    lines.slice(1, 3).forEach((line, index) => {
+      canvas.text(line, MARGIN, y - 14 * (index + 1));
+    });
+    canvas.text(String(item.quantity), 330, y);
+    canvas.text(formatMoney(item.unitPrice, receipt.currency), 380, y);
+    canvas.text(formatMoney(item.total, receipt.currency), 475, y);
+    y -= Math.max(28, lines.slice(0, 3).length * 14 + 10);
+  });
+
+  y -= 12;
+  canvas.line(330, y, PAGE_WIDTH - MARGIN, y);
+  y -= 20;
+
+  const totals: Array<[string, number | string]> = [
+    ["Subtotal", receipt.subtotal],
+    ["Tax", receipt.taxAmount],
+    ["Discount", receipt.discount],
+    ["Total", receipt.total],
+    ["Amount paid", receipt.amountPaid],
+  ];
+
+  totals.forEach(([label, value], index) => {
+    canvas.text(String(label), 360, y, { bold: index === 3 });
+    canvas.text(formatMoney(value, receipt.currency), 465, y, {
+      bold: index === 3,
+    });
+    y -= 16;
+  });
+
+  if (receipt.notes) {
+    y -= 12;
+    canvas.text("Notes", MARGIN, y, { bold: true });
+    y -= 16;
+    wrapText(receipt.notes, 84)
       .slice(0, 5)
       .forEach((line) => {
         canvas.text(line, MARGIN, y);

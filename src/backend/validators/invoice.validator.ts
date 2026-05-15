@@ -1,18 +1,9 @@
 import { z } from "zod";
-import { baseQueryValidatorSchema } from "./index.validator";
+import { baseQueryValidatorSchema, dateValidator, decimalValidator } from "./index.validator";
 
 const cuidValidator = z.string().cuid("id must be a valid cuid");
 
 const optionalCuidValidator = cuidValidator.nullable().optional();
-
-const decimalValidator = (field: string) =>
-    z.coerce
-        .number()
-        .finite(`${field} must be a finite number`)
-        .min(0, `${field} cannot be negative`);
-
-const dateValidator = (field: string) =>
-    z.coerce.date(`${field} must be a valid date`);
 
 export const invoiceStatusValidatorSchema = z.enum(
     ["DRAFT", "SENT", "PARTIALLY_PAID", "PAID", "VOID", "OVERDUE"],

@@ -24,11 +24,11 @@
         "type": "object",
         "properties": {
           "page": {
-            "default": "1",
+            "default": 1,
             "type": "string"
           },
           "size": {
-            "default": "10",
+            "default": 10,
             "type": "string"
           },
           "query": {
@@ -53,6 +53,12 @@
             "default": "desc"
           },
           "all": {
+            "type": "string"
+          },
+          "isOg": {
+            "type": "string"
+          },
+          "isMomentOg": {
             "type": "string"
           }
         },
@@ -109,10 +115,12 @@
             "default": "USD"
           },
           "latitude": {
-            "type": "number"
+            "type": "number",
+            "maximum": 90
           },
           "longitude": {
-            "type": "number"
+            "type": "number",
+            "maximum": 180
           }
         },
         "required": [
@@ -166,10 +174,12 @@
             "default": "USD"
           },
           "latitude": {
-            "type": "number"
+            "type": "number",
+            "maximum": 90
           },
           "longitude": {
-            "type": "number"
+            "type": "number",
+            "maximum": 180
           }
         },
         "required": [
@@ -217,11 +227,11 @@
         "type": "object",
         "properties": {
           "page": {
-            "default": "1",
+            "default": 1,
             "type": "string"
           },
           "size": {
-            "default": "10",
+            "default": 10,
             "type": "string"
           },
           "query": {
@@ -251,6 +261,12 @@
             "default": "desc"
           },
           "all": {
+            "type": "string"
+          },
+          "isOg": {
+            "type": "string"
+          },
+          "isMomentOg": {
             "type": "string"
           },
           "businessId": {
@@ -306,11 +322,11 @@
         "type": "object",
         "properties": {
           "page": {
-            "default": "1",
+            "default": 1,
             "type": "string"
           },
           "size": {
-            "default": "10",
+            "default": 10,
             "type": "string"
           },
           "query": {
@@ -340,6 +356,12 @@
             "default": "desc"
           },
           "all": {
+            "type": "string"
+          },
+          "isOg": {
+            "type": "string"
+          },
+          "isMomentOg": {
             "type": "string"
           },
           "businessId": {
@@ -405,9 +427,6 @@
       "InvoiceValidatorSchema": {
         "type": "object",
         "properties": {
-          "businessId": {
-            "$ref": "#/components/schemas/cuidValidator"
-          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -427,19 +446,13 @@
           "bookingId": {
             "$ref": "#/components/schemas/optionalCuidValidator"
           },
-          "invoiceNumber": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
           "status": {
             "$ref": "#/components/schemas/invoiceStatusValidatorSchema",
             "default": "DRAFT"
           },
           "currency": {
             "type": "string",
-            "minLength": 3,
-            "maxLength": 3,
+            "maxLength": 10,
             "default": "NGN"
           },
           "subtotal": {
@@ -485,10 +498,8 @@
           }
         },
         "required": [
-          "businessId",
           "name",
           "bookingId",
-          "invoiceNumber",
           "status",
           "currency",
           "subtotal",
@@ -496,15 +507,11 @@
           "discount",
           "total",
           "amountPaid"
-        ],
-        "additionalProperties": false
+        ]
       },
       "invoiceValidatorSchema": {
         "type": "object",
         "properties": {
-          "businessId": {
-            "$ref": "#/components/schemas/cuidValidator"
-          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -524,19 +531,13 @@
           "bookingId": {
             "$ref": "#/components/schemas/optionalCuidValidator"
           },
-          "invoiceNumber": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
           "status": {
             "$ref": "#/components/schemas/invoiceStatusValidatorSchema",
             "default": "DRAFT"
           },
           "currency": {
             "type": "string",
-            "minLength": 3,
-            "maxLength": 3,
+            "maxLength": 10,
             "default": "NGN"
           },
           "subtotal": {
@@ -582,10 +583,8 @@
           }
         },
         "required": [
-          "businessId",
           "name",
           "bookingId",
-          "invoiceNumber",
           "status",
           "currency",
           "subtotal",
@@ -593,12 +592,7 @@
           "discount",
           "total",
           "amountPaid"
-        ],
-        "additionalProperties": false
-      },
-      "mongoIdValidator": {
-        "type": "string",
-        "pattern": "^[0-9a-fA-F]{24}$"
+        ]
       },
       "nextAuthPathParamValidator": {
         "type": "object",
@@ -690,17 +684,6 @@
         "type": "string",
         "format": "cuid"
       },
-      "paramValidator": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "$ref": "#/components/schemas/mongoIdValidator"
-          }
-        },
-        "required": [
-          "id"
-        ]
-      },
       "paymentMethodValidatorSchema": {
         "type": "string",
         "enum": [
@@ -710,15 +693,45 @@
           "BANK_TRANSFER"
         ]
       },
+      "receiptItemValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 0,
+            "exclusiveMinimum": true,
+            "default": 1
+          },
+          "unitPrice": {
+            "type": "number",
+            "minimum": 0
+          },
+          "total": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unitPrice",
+          "total"
+        ],
+        "additionalProperties": false
+      },
       "ReceiptQueryValidatorSchema": {
         "type": "object",
         "properties": {
           "page": {
-            "default": "1",
+            "default": 1,
             "type": "string"
           },
           "size": {
-            "default": "10",
+            "default": 10,
             "type": "string"
           },
           "query": {
@@ -730,7 +743,7 @@
             "enum": [
               "receiptNumber",
               "issuedAt",
-              "clientName"
+              "name"
             ],
             "default": "issuedAt"
           },
@@ -745,24 +758,19 @@
           "all": {
             "type": "string"
           },
-          "businessId": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/cuidValidator"
-              }
-            ]
+          "isOg": {
+            "type": "string"
           },
-          "clientName": {
+          "isMomentOg": {
+            "type": "string"
+          },
+          "name": {
             "type": "string",
             "maxLength": 255
           },
-          "clientEmail": {
+          "email": {
             "type": "string",
             "format": "email",
-            "maxLength": 255
-          },
-          "receiptNumber": {
-            "type": "string",
             "maxLength": 255
           },
           "paymentId": {
@@ -785,11 +793,11 @@
         "type": "object",
         "properties": {
           "page": {
-            "default": "1",
+            "default": 1,
             "type": "string"
           },
           "size": {
-            "default": "10",
+            "default": 10,
             "type": "string"
           },
           "query": {
@@ -801,7 +809,7 @@
             "enum": [
               "receiptNumber",
               "issuedAt",
-              "clientName"
+              "name"
             ],
             "default": "issuedAt"
           },
@@ -816,24 +824,19 @@
           "all": {
             "type": "string"
           },
-          "businessId": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/cuidValidator"
-              }
-            ]
+          "isOg": {
+            "type": "string"
           },
-          "clientName": {
+          "isMomentOg": {
+            "type": "string"
+          },
+          "name": {
             "type": "string",
             "maxLength": 255
           },
-          "clientEmail": {
+          "email": {
             "type": "string",
             "format": "email",
-            "maxLength": 255
-          },
-          "receiptNumber": {
-            "type": "string",
             "maxLength": 255
           },
           "paymentId": {
@@ -855,76 +858,174 @@
       "ReceiptValidatorSchema": {
         "type": "object",
         "properties": {
-          "businessId": {
-            "$ref": "#/components/schemas/cuidValidator"
-          },
           "paymentId": {
-            "$ref": "#/components/schemas/cuidValidator"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
           },
           "receiptNumber": {
             "type": "string",
             "minLength": 1,
             "maxLength": 255
           },
-          "clientName": {
+          "name": {
             "type": "string",
             "maxLength": 255,
             "nullable": true
           },
-          "clientEmail": {
+          "email": {
             "type": "string",
             "format": "email",
             "maxLength": 255,
             "nullable": true
           },
-          "clientPhone": {
+          "phone": {
             "type": "string",
             "maxLength": 50,
             "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "default": "USD"
+          },
+          "subtotal": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "taxAmount": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "discount": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "total": {
+            "type": "number",
+            "minimum": 0
+          },
+          "amountPaid": {
+            "type": "number",
+            "minimum": 0
+          },
+          "paymentMethod": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/paymentMethodValidatorSchema"
+              }
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/receiptItemValidatorSchema"
+            }
           }
         },
         "required": [
-          "businessId",
-          "paymentId",
-          "receiptNumber"
+          "receiptNumber",
+          "currency",
+          "subtotal",
+          "taxAmount",
+          "discount",
+          "total",
+          "amountPaid"
         ],
         "additionalProperties": false
       },
       "receiptValidatorSchema": {
         "type": "object",
         "properties": {
-          "businessId": {
-            "$ref": "#/components/schemas/cuidValidator"
-          },
           "paymentId": {
-            "$ref": "#/components/schemas/cuidValidator"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
           },
           "receiptNumber": {
             "type": "string",
             "minLength": 1,
             "maxLength": 255
           },
-          "clientName": {
+          "name": {
             "type": "string",
             "maxLength": 255,
             "nullable": true
           },
-          "clientEmail": {
+          "email": {
             "type": "string",
             "format": "email",
             "maxLength": 255,
             "nullable": true
           },
-          "clientPhone": {
+          "phone": {
             "type": "string",
             "maxLength": 50,
             "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "default": "USD"
+          },
+          "subtotal": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "taxAmount": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "discount": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "total": {
+            "type": "number",
+            "minimum": 0
+          },
+          "amountPaid": {
+            "type": "number",
+            "minimum": 0
+          },
+          "paymentMethod": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/paymentMethodValidatorSchema"
+              }
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/receiptItemValidatorSchema"
+            }
           }
         },
         "required": [
-          "businessId",
-          "paymentId",
-          "receiptNumber"
+          "receiptNumber",
+          "currency",
+          "subtotal",
+          "taxAmount",
+          "discount",
+          "total",
+          "amountPaid"
         ],
         "additionalProperties": false
       },
@@ -940,12 +1041,121 @@
           "slug"
         ]
       },
+      "UpdateBusinessValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "default": "USD"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180
+          }
+        }
+      },
+      "updateBusinessValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "default": "USD"
+          },
+          "latitude": {
+            "type": "number",
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "maximum": 180
+          }
+        }
+      },
       "UpdateInvoiceValidatorSchema": {
         "type": "object",
         "properties": {
-          "businessId": {
-            "$ref": "#/components/schemas/cuidValidator"
-          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -965,19 +1175,13 @@
           "bookingId": {
             "$ref": "#/components/schemas/optionalCuidValidator"
           },
-          "invoiceNumber": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
           "status": {
             "$ref": "#/components/schemas/invoiceStatusValidatorSchema",
             "default": "DRAFT"
           },
           "currency": {
             "type": "string",
-            "minLength": 3,
-            "maxLength": 3,
+            "maxLength": 10,
             "default": "NGN"
           },
           "subtotal": {
@@ -1021,15 +1225,11 @@
               "$ref": "#/components/schemas/invoiceItemValidatorSchema"
             }
           }
-        },
-        "additionalProperties": false
+        }
       },
       "updateInvoiceValidatorSchema": {
         "type": "object",
         "properties": {
-          "businessId": {
-            "$ref": "#/components/schemas/cuidValidator"
-          },
           "name": {
             "type": "string",
             "minLength": 1,
@@ -1049,19 +1249,13 @@
           "bookingId": {
             "$ref": "#/components/schemas/optionalCuidValidator"
           },
-          "invoiceNumber": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
           "status": {
             "$ref": "#/components/schemas/invoiceStatusValidatorSchema",
             "default": "DRAFT"
           },
           "currency": {
             "type": "string",
-            "minLength": 3,
-            "maxLength": 3,
+            "maxLength": 10,
             "default": "NGN"
           },
           "subtotal": {
@@ -1105,38 +1299,82 @@
               "$ref": "#/components/schemas/invoiceItemValidatorSchema"
             }
           }
-        },
-        "additionalProperties": false
+        }
       },
       "UpdateReceiptValidatorSchema": {
         "type": "object",
         "properties": {
-          "businessId": {
-            "$ref": "#/components/schemas/cuidValidator"
-          },
           "paymentId": {
-            "$ref": "#/components/schemas/cuidValidator"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
           },
           "receiptNumber": {
             "type": "string",
             "minLength": 1,
             "maxLength": 255
           },
-          "clientName": {
+          "name": {
             "type": "string",
             "maxLength": 255,
             "nullable": true
           },
-          "clientEmail": {
+          "email": {
             "type": "string",
             "format": "email",
             "maxLength": 255,
             "nullable": true
           },
-          "clientPhone": {
+          "phone": {
             "type": "string",
             "maxLength": 50,
             "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "default": "USD"
+          },
+          "subtotal": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "taxAmount": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "discount": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "total": {
+            "type": "number",
+            "minimum": 0
+          },
+          "amountPaid": {
+            "type": "number",
+            "minimum": 0
+          },
+          "paymentMethod": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/paymentMethodValidatorSchema"
+              }
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/receiptItemValidatorSchema"
+            }
           }
         },
         "additionalProperties": false
@@ -1144,32 +1382,77 @@
       "updateReceiptValidatorSchema": {
         "type": "object",
         "properties": {
-          "businessId": {
-            "$ref": "#/components/schemas/cuidValidator"
-          },
           "paymentId": {
-            "$ref": "#/components/schemas/cuidValidator"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/cuidValidator"
+              }
+            ]
           },
           "receiptNumber": {
             "type": "string",
             "minLength": 1,
             "maxLength": 255
           },
-          "clientName": {
+          "name": {
             "type": "string",
             "maxLength": 255,
             "nullable": true
           },
-          "clientEmail": {
+          "email": {
             "type": "string",
             "format": "email",
             "maxLength": 255,
             "nullable": true
           },
-          "clientPhone": {
+          "phone": {
             "type": "string",
             "maxLength": 50,
             "nullable": true
+          },
+          "currency": {
+            "type": "string",
+            "default": "USD"
+          },
+          "subtotal": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "taxAmount": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "discount": {
+            "type": "number",
+            "minimum": 0,
+            "default": 0
+          },
+          "total": {
+            "type": "number",
+            "minimum": 0
+          },
+          "amountPaid": {
+            "type": "number",
+            "minimum": 0
+          },
+          "paymentMethod": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/paymentMethodValidatorSchema"
+              }
+            ]
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/receiptItemValidatorSchema"
+            }
           }
         },
         "additionalProperties": false
@@ -1950,7 +2233,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/BusinessValidatorSchema"
+                "$ref": "#/components/schemas/UpdateBusinessValidatorSchema"
               }
             }
           }
@@ -2001,7 +2284,7 @@
             "name": "page",
             "required": false,
             "schema": {
-              "default": "1",
+              "default": 1,
               "type": "string"
             }
           },
@@ -2010,7 +2293,7 @@
             "name": "size",
             "required": false,
             "schema": {
-              "default": "10",
+              "default": 10,
               "type": "string"
             }
           },
@@ -2058,6 +2341,22 @@
           {
             "in": "query",
             "name": "all",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isOg",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isMomentOg",
             "required": false,
             "schema": {
               "type": "string"
@@ -2338,7 +2637,7 @@
             "name": "page",
             "required": false,
             "schema": {
-              "default": "1",
+              "default": 1,
               "type": "string"
             }
           },
@@ -2347,7 +2646,7 @@
             "name": "size",
             "required": false,
             "schema": {
-              "default": "10",
+              "default": 10,
               "type": "string"
             }
           },
@@ -2369,7 +2668,7 @@
               "enum": [
                 "receiptNumber",
                 "issuedAt",
-                "clientName"
+                "name"
               ],
               "default": "issuedAt"
             }
@@ -2397,19 +2696,23 @@
           },
           {
             "in": "query",
-            "name": "businessId",
+            "name": "isOg",
             "required": false,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/cuidValidator"
-                }
-              ]
+              "type": "string"
             }
           },
           {
             "in": "query",
-            "name": "clientName",
+            "name": "isMomentOg",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
             "required": false,
             "schema": {
               "type": "string",
@@ -2418,20 +2721,11 @@
           },
           {
             "in": "query",
-            "name": "clientEmail",
+            "name": "email",
             "required": false,
             "schema": {
               "type": "string",
               "format": "email",
-              "maxLength": 255
-            }
-          },
-          {
-            "in": "query",
-            "name": "receiptNumber",
-            "required": false,
-            "schema": {
-              "type": "string",
               "maxLength": 255
             }
           },
