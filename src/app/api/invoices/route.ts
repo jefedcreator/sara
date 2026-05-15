@@ -37,218 +37,195 @@ export const runtime = "nodejs";
  */
 export const POST = withMiddleware<InvoiceValidatorSchema>(
   async (request) => {
-    let createdInvoiceId: string | null = null;
-
     try {
       const payload = request.validatedData!;
       const user = request.user!;
-
-      // const business = await db.business.findUnique({
-      //   where: { id: payload.businessId },
-      // });
-
       const business = user.business;
 
       if (!business) {
         throw new NotFoundException("Business not found");
       }
 
-      const canCreateInvoice = business.ownerId === user.id;
-
-      if (!canCreateInvoice) {
+      if (business.ownerId !== user.id) {
         throw new ForbiddenException(
           "You do not have permission to create invoices for this business",
         );
       }
 
-      const [booking, existingInvoice] = await Promise.all([
-        payload.bookingId
-          ? db.booking.findFirst({
-            where: {
-              id: payload.bookingId,
-              businessId: payload.businessId,
-            },
-          })
-          : Promise.resolve(null),
-        db.invoice.findUnique({
-          where: {
-            businessId_invoiceNumber: {
-              businessId: payload.businessId,
-              invoiceNumber: payload.invoiceNumber,
-            },
-          },
-        }),
-      ]);
-
-      if (payload.bookingId && !booking) {
-        throw new BadRequestException("Booking not found for this business");
-      }
-
-      if (existingInvoice) {
-        throw new ConflictException(
-          "Invoice with this invoice number already exists for this business",
-        );
-      }
-
-      const serviceIds = Array.from(
-        new Set(
-          (payload.items ?? [])
-            .map((item) => item.serviceId)
-            .filter((serviceId): serviceId is string => Boolean(serviceId)),
-        ),
-      );
-
-      if (serviceIds.length > 0) {
-        const services = await db.service.findMany({
-          where: {
-            id: { in: serviceIds },
-            businessId: payload.businessId,
-          },
-          select: { id: true },
+      const invoicedata = await db.$transaction(async (tx) => {
+        // Generate invoice number
+        let invoiceNumber = "";
+        const lastInvoice = await tx.invoice.findFirst({
+          where: { businessId: business.id },
+          orderBy: { createdAt: "desc" },
+          select: { invoiceNumber: true },
         });
 
-        if (services.length !== serviceIds.length) {
-          throw new BadRequestException(
-            "One or more invoice item services do not belong to this business",
+        if (lastInvoice && lastInvoice.invoiceNumber.startsWith("INV-")) {
+          const lastNumber = parseInt(lastInvoice.invoiceNumber.replace("INV-", ""), 10);
+          invoiceNumber = `INV-${isNaN(lastNumber) ? 1001 : lastNumber + 1}`;
+        } else {
+          invoiceNumber = "INV-1001";
+        }
+
+        // Check for existence and booking
+        const [booking, existingInvoice] = await Promise.all([
+          payload.bookingId
+            ? tx.booking.findFirst({
+              where: { id: payload.bookingId, businessId: business.id },
+            })
+            : Promise.resolve(null),
+          tx.invoice.findUnique({
+            where: {
+              businessId_invoiceNumber: {
+                businessId: business.id,
+                invoiceNumber,
+              },
+            },
+          }),
+        ]);
+
+        if (payload.bookingId && !booking) {
+          throw new BadRequestException("Booking not found for this business");
+        }
+
+        if (existingInvoice) {
+          throw new ConflictException(
+            `Invoice with number ${invoiceNumber} already exists for this business`,
           );
         }
-      }
 
-      const data: Prisma.InvoiceCreateInput = {
-        business: {
-          connect: {
-            id: payload.businessId,
-          },
-        },
-        slug: slugify(`${payload.name}-${payload.invoiceNumber}-${Date.now()}`, { lower: true, strict: true }),
-        clientName: payload.name,
-        clientEmail: payload.email ?? null,
-        clientPhone: payload.phone ?? null,
-        invoiceNumber: payload.invoiceNumber,
-        status: payload.status,
-        currency: payload.currency,
-        subtotal: payload.subtotal,
-        taxAmount: payload.taxAmount,
-        discount: payload.discount,
-        total: payload.total,
-        amountPaid: payload.amountPaid,
-        dueAt: payload.dueAt ?? null,
-        sentAt: payload.sentAt ?? null,
-        paidAt: payload.paidAt ?? null,
-        notes: payload.notes ?? null,
-      }
+        // Validate services
+        const serviceIds = Array.from(
+          new Set(
+            (payload.items ?? [])
+              .map((item) => item.serviceId)
+              .filter((id): id is string => Boolean(id)),
+          ),
+        );
 
-      if (payload.bookingId) {
-        data.booking = {
-          connect: {
-            id: payload.bookingId,
-          },
+        if (serviceIds.length > 0) {
+          const services = await tx.service.findMany({
+            where: { id: { in: serviceIds }, businessId: business.id },
+            select: { id: true },
+          });
+
+          if (services.length !== serviceIds.length) {
+            throw new BadRequestException(
+              "One or more invoice item services do not belong to this business",
+            );
+          }
         }
-      }
 
-      if (payload.items && payload.items.length > 0) {
-        data.items = {
-          create: payload.items.map((item) => ({
-            serviceId: item.serviceId ?? null,
+        const createData: Prisma.InvoiceCreateInput = {
+          business: { connect: { id: business.id } },
+          slug: slugify(`${business.name}-${invoiceNumber}`, { lower: true, strict: true }),
+          clientName: payload.name,
+          clientEmail: payload.email ?? null,
+          clientPhone: payload.phone ?? null,
+          invoiceNumber: invoiceNumber,
+          status: payload.status,
+          currency: payload.currency,
+          subtotal: payload.subtotal,
+          taxAmount: payload.taxAmount,
+          discount: payload.discount,
+          total: payload.total,
+          amountPaid: payload.amountPaid,
+          dueAt: payload.dueAt ?? null,
+          sentAt: payload.sentAt ?? null,
+          paidAt: payload.paidAt ?? null,
+          notes: payload.notes ?? null,
+        };
+
+        if (payload.bookingId) {
+          createData.booking = { connect: { id: payload.bookingId } };
+        }
+
+        if (payload.items && payload.items.length > 0) {
+          createData.items = {
+            create: payload.items.map((item) => ({
+              serviceId: item.serviceId ?? null,
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.total,
+            })),
+          };
+        }
+
+        const invoice = await tx.invoice.create({
+          data: createData,
+          include: { business: true, items: true },
+        });
+
+        if (!invoice.business) {
+          throw new InternalServerErrorException(
+            "Failed to retrieve business details for the invoice",
+          );
+        }
+
+        const pdfBuffer = await generateInvoicePdf({
+          invoiceNumber: invoice.invoiceNumber,
+          status: invoice.status,
+          currency: invoice.currency,
+          subtotal: invoice.subtotal.toString(),
+          taxAmount: invoice.taxAmount.toString(),
+          discount: invoice.discount.toString(),
+          total: invoice.total.toString(),
+          amountPaid: invoice.amountPaid.toString(),
+          dueAt: invoice.dueAt,
+          sentAt: invoice.sentAt,
+          paidAt: invoice.paidAt,
+          notes: invoice.notes,
+          business: {
+            name: invoice.business.name,
+            email: invoice.business.email,
+            phone: invoice.business.phone,
+            city: invoice.business.city,
+            state: invoice.business.state,
+            country: invoice.business.country,
+            logoUrl: invoice.business.logoUrl,
+          },
+          client: {
+            name: invoice.clientName,
+            email: invoice.clientEmail,
+            phone: invoice.clientPhone,
+          },
+          items: invoice.items.map((item) => ({
             description: item.description,
             quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total,
+            unitPrice: item.unitPrice.toString(),
+            total: item.total.toString(),
           })),
-        }
-      }
+        });
 
-      const invoice = await db.invoice.create({
-        data,
-        include: {
-          business: true,
-          items: true,
-        },
-      })
+        const uploadResult = await cloudinaryService.uploadImage(pdfBuffer, {
+          filename: `${invoice.invoiceNumber}.pdf`,
+          folder: `sara/businesses/${business.id}/invoices`,
+          mime_type: "application/pdf",
+          public_id: invoice.id,
+          resource_type: "raw",
+        });
 
-      createdInvoiceId = invoice.id;
+        // Update the invoice with the Cloudinary URL
+        const updatedInvoice = await tx.invoice.update({
+          where: { id: invoice.id },
+          data: { url: uploadResult.secure_url },
+        });
 
-      if (!invoice.business) {
-        throw new InternalServerErrorException(
-          "Failed to retrieve business details for the invoice",
-        );
-      }
-
-      const pdfBuffer = await generateInvoicePdf({
-        invoiceNumber: invoice.invoiceNumber,
-        status: invoice.status,
-        currency: invoice.currency,
-        subtotal: invoice.subtotal.toString(),
-        taxAmount: invoice.taxAmount.toString(),
-        discount: invoice.discount.toString(),
-        total: invoice.total.toString(),
-        amountPaid: invoice.amountPaid.toString(),
-        dueAt: invoice.dueAt,
-        sentAt: invoice.sentAt,
-        paidAt: invoice.paidAt,
-        notes: invoice.notes,
-        business: {
-          name: invoice.business.name,
-          email: invoice.business.email,
-          phone: invoice.business.phone,
-          city: invoice.business.city,
-          state: invoice.business.state,
-          country: invoice.business.country,
-          logoUrl: invoice.business.logoUrl,
-        },
-        client: {
-          name: invoice.clientName,
-          email: invoice.clientEmail,
-          phone: invoice.clientPhone,
-        },
-        items: invoice.items.map((item) => ({
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice.toString(),
-          total: item.total.toString(),
-        })),
+        return {
+          ...updatedInvoice
+        };
       });
 
-      const uploadResult = await cloudinaryService.uploadImage(pdfBuffer, {
-        filename: `${invoice.invoiceNumber}.pdf`,
-        folder: `sara/businesses/${payload.businessId}/invoices`,
-        mime_type: "application/pdf",
-        public_id: `${invoice.id}.pdf`,
-        resource_type: "raw",
-      });
-
-      const invoicedata: CreatedInvoice = {
-        ...invoice,
-        pdf: {
-          url: uploadResult.secure_url,
-          publicId: uploadResult.public_id,
-        },
-      }
-
-      const response: ApiResponse<CreatedInvoice> = {
+      const response: ApiResponse<Invoice> = {
         status: 201,
         message: "Invoice created successfully",
         data: invoicedata,
-      }
+      };
 
-      return NextResponse.json(
-        response,
-        { status: 201 },
-      );
+      return NextResponse.json(response, { status: 201 });
     } catch (error: any) {
-      if (createdInvoiceId && !error.statusCode) {
-        await db.invoice
-          .delete({
-            where: { id: createdInvoiceId },
-          })
-          .catch((cleanupError) => {
-            console.error(
-              "Failed to clean up invoice after PDF error:",
-              cleanupError,
-            );
-          });
-      }
-
       if (error.statusCode) throw error;
 
       throw new InternalServerErrorException(

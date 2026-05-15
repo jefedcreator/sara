@@ -1,4 +1,3 @@
-import { mongoIdValidator } from '@/utils';
 import z from 'zod';
 
 export const baseQueryValidatorSchema = z
@@ -14,7 +13,7 @@ export const baseQueryValidatorSchema = z
                     .int('page must be an integer')
                     .min(1, 'page must be at least 1')
             )
-            .default('1'),
+            .default(1),
 
         size: z
             .string()
@@ -28,7 +27,7 @@ export const baseQueryValidatorSchema = z
                     .min(1, 'limit must be at least 1')
                     .max(100, 'limit cannot exceed 100')
             )
-            .default('10'),
+            .default(10),
 
         query: z
             .string({
@@ -61,6 +60,24 @@ export const baseQueryValidatorSchema = z
                 })
             )
             .optional(),
+        isOg: z
+            .string()
+            .transform((val) => val === 'true')
+            .pipe(
+                z.boolean({
+                    invalid_type_error: 'isOg must be a boolean value',
+                })
+            )
+            .optional(),
+        isMomentOg: z
+            .string()
+            .transform((val) => val === 'true')
+            .pipe(
+                z.boolean({
+                    invalid_type_error: 'isMomentOg must be a boolean value',
+                })
+            )
+            .optional(),
     })
     .strict();
 
@@ -68,7 +85,7 @@ export type BaseQueryValidatorSchema = z.infer<typeof baseQueryValidatorSchema>;
 
 export type BaseQueryValidatorInput = z.input<typeof baseQueryValidatorSchema>;
 
-export const paramValidator = z.object({ id: mongoIdValidator });
+// export const paramValidator = z.object({ id: mongoIdValidator });
 
 export const slugParamValidator = z.object({
     slug: z.string().min(1, 'slug is required'),

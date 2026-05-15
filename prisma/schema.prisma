@@ -172,7 +172,7 @@ model Invoice {
   sentAt        DateTime?
   paidAt        DateTime?
   notes         String?
-  
+  url           String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -238,6 +238,7 @@ model Receipt {
   clientName    String?
   clientEmail   String?
   clientPhone   String?
+  url           String?
 
   issuedAt      DateTime @default(now())
 

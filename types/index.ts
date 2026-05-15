@@ -44,10 +44,8 @@ export type InvoiceListItem = Invoice & {
 };
 
 export type CreatedInvoice = Invoice & {
-    pdf: {
-        url: string,
-        publicId: string,
-    }
+    business: Business;
+    items: InvoiceItem[];
 }
 
 export type ReceiptListItem = Receipt & {

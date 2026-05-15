@@ -8,8 +8,11 @@ import {
   type UpdateInvoiceValidatorSchema,
 } from '@/backend/validators/invoice.validator';
 import { db } from '@/server/db';
+import { generateInvoicePdf } from "@/backend/services/pdf";
+import { cloudinaryService } from "@/backend/services/cloudinary";
 import { type ApiResponse, type InvoiceListItem } from 'types';
 import {
+  BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
@@ -38,6 +41,10 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
 
       if (!invoice) {
         throw new NotFoundException('Invoice not found');
+      }
+
+      if (invoice.status === "PAID" || invoice.status === "PARTIALLY_PAID") {
+        throw new BadRequestException('Invoice cannot be updated');
       }
 
       if (invoice.business.ownerId !== user.id) {
@@ -82,34 +89,78 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
         };
       }
 
-      const updatedInvoice = await db.invoice.update({
-        where: { slug },
-        data,
-        include: {
-          items: true,
-          business: true,
-          booking: {
-            select: {
-              id: true,
-              slug: true,
-              clientName: true,
-              startTime: true,
-            },
+      const updatedInvoicedata = await db.$transaction(async (tx) => {
+        const invoiceRecord = await tx.invoice.update({
+          where: { slug },
+          data,
+          include: {
+            business: true,
+            items: true,
           },
-          payments: true,
-          _count: {
-            select: {
-              items: true,
-              payments: true,
-            },
+        });
+
+        if (!invoiceRecord.business) {
+          throw new InternalServerErrorException(
+            "Failed to retrieve business details for the invoice",
+          );
+        }
+
+        const pdfBuffer = await generateInvoicePdf({
+          invoiceNumber: invoiceRecord.invoiceNumber,
+          status: invoiceRecord.status,
+          currency: invoiceRecord.currency,
+          subtotal: invoiceRecord.subtotal.toString(),
+          taxAmount: invoiceRecord.taxAmount.toString(),
+          discount: invoiceRecord.discount.toString(),
+          total: invoiceRecord.total.toString(),
+          amountPaid: invoiceRecord.amountPaid.toString(),
+          dueAt: invoiceRecord.dueAt,
+          sentAt: invoiceRecord.sentAt,
+          paidAt: invoiceRecord.paidAt,
+          notes: invoiceRecord.notes,
+          business: {
+            name: invoiceRecord.business.name,
+            email: invoiceRecord.business.email,
+            phone: invoiceRecord.business.phone,
+            city: invoiceRecord.business.city,
+            state: invoiceRecord.business.state,
+            country: invoiceRecord.business.country,
+            logoUrl: invoiceRecord.business.logoUrl,
           },
-        },
+          client: {
+            name: invoiceRecord.clientName,
+            email: invoiceRecord.clientEmail,
+            phone: invoiceRecord.clientPhone,
+          },
+          items: invoiceRecord.items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice.toString(),
+            total: item.total.toString(),
+          })),
+        });
+
+        const uploadResult = await cloudinaryService.uploadImage(pdfBuffer, {
+          filename: `${invoiceRecord.invoiceNumber}.pdf`,
+          folder: `sara/businesses/${invoiceRecord.business.id}/invoices`,
+          mime_type: "application/pdf",
+          public_id: invoiceRecord.id,
+          resource_type: "raw",
+        });
+
+        // Update the invoice with the Cloudinary URL (if it changed or to ensure it's set)
+        const finalInvoice = await tx.invoice.update({
+          where: { id: invoiceRecord.id },
+          data: { url: uploadResult.secure_url },
+        });
+
+        return finalInvoice;
       });
 
-      const response: ApiResponse<InvoiceListItem> = {
+      const response: ApiResponse<Invoice> = {
         status: 200,
         message: 'Invoice updated successfully',
-        data: updatedInvoice,
+        data: updatedInvoicedata,
       };
 
       return NextResponse.json(response);
