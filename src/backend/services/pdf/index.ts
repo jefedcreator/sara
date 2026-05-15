@@ -157,7 +157,10 @@ const fetchLogo = async (logoUrl?: string | null): Promise<PdfImage | null> => {
     if (error.name === "AbortError") {
       console.warn("Logo fetch timed out");
     } else {
-      console.warn("Unable to embed business logo in invoice PDF:", error.message || error);
+      console.warn(
+        "Unable to embed business logo in invoice PDF:",
+        error.message || error,
+      );
     }
     return null;
   }
@@ -415,7 +418,9 @@ export const generateReceiptPdf = async (receipt: ReceiptPdfData) => {
     size: 11,
   });
   if (receipt.paymentMethod) {
-    canvas.text(`Method: ${receipt.paymentMethod}`, PAGE_WIDTH - 170, y - 44, { size: 10 });
+    canvas.text(`Method: ${receipt.paymentMethod}`, PAGE_WIDTH - 170, y - 44, {
+      size: 10,
+    });
   } else {
     canvas.text("PAID", PAGE_WIDTH - 170, y - 44, { size: 10, bold: true });
   }
@@ -440,7 +445,10 @@ export const generateReceiptPdf = async (receipt: ReceiptPdfData) => {
     });
 
   const clientTop = PAGE_HEIGHT - MARGIN - 118;
-  canvas.text("Billed To", PAGE_WIDTH - 220, clientTop, { size: 10, bold: true });
+  canvas.text("Billed To", PAGE_WIDTH - 220, clientTop, {
+    size: 10,
+    bold: true,
+  });
   canvas.text(receipt.client.name, PAGE_WIDTH - 220, clientTop - 16, {
     size: 12,
     bold: true,

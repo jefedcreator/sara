@@ -82,13 +82,13 @@ export class AuthService {
       name: "Instagram",
       authorizationUrl: "https://api.instagram.com/oauth/authorize",
       tokenUrl: "https://api.instagram.com/oauth/access_token",
-      scope: "instagram_business_basic",  // ← replace user_profile
+      scope: "instagram_business_basic", // ← replace user_profile
       clientId: env.AUTH_INSTAGRAM_ID ?? env.INSTAGRAM_CLIENT_ID,
       clientSecret: env.AUTH_INSTAGRAM_SECRET ?? env.INSTAGRAM_CLIENT_SECRET,
     },
   };
 
-  constructor(private readonly prisma: PrismaClient = db) { }
+  constructor(private readonly prisma: PrismaClient = db) {}
 
   createAuthorizationResponse(request: NextRequest, providerId: Provider) {
     try {
@@ -109,7 +109,10 @@ export class AuthService {
         authorizationUrl.searchParams.set("scope", provider.scope);
         authorizationUrl.searchParams.set("access_type", "offline");
       } else if (provider.id === "facebook" && provider.configurationId) {
-        authorizationUrl.searchParams.set("config_id", provider.configurationId);
+        authorizationUrl.searchParams.set(
+          "config_id",
+          provider.configurationId,
+        );
       } else {
         authorizationUrl.searchParams.set("scope", provider.scope);
       }
@@ -183,7 +186,7 @@ export class AuthService {
         this.getRedirectUri(request, provider.id),
       );
       const profile = await this.fetchProviderProfile(provider.id, tokenSet);
-      console.log('profile', profile);
+      console.log("profile", profile);
 
       const user = await this.findOrCreateOAuthUser(
         provider.id,
@@ -214,7 +217,7 @@ export class AuthService {
       this.setSessionCookie(response, sessionToken);
       return response;
     } catch (error) {
-      console.log('error??', error);
+      console.log("error??", error);
       return this.oauthErrorResponse(error);
     }
   }
@@ -250,9 +253,7 @@ export class AuthService {
     ).toString();
   }
 
-  private getConfiguredProvider(
-    providerId: Provider,
-  ): ConfiguredOAuthProvider {
+  private getConfiguredProvider(providerId: Provider): ConfiguredOAuthProvider {
     const provider = this.providerConfigs[providerId];
 
     if (!provider.clientId || !provider.clientSecret) {

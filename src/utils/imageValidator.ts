@@ -1,4 +1,4 @@
-import exifr from 'exifr';
+import exifr from "exifr";
 
 interface ImageMetadata {
   dateCreated?: Date;
@@ -34,7 +34,7 @@ export class ImageMetadataValidator {
     try {
       // Check if file is an image
       if (!this.isImageFile(file)) {
-        result.errors.push('File is not a valid image type');
+        result.errors.push("File is not a valid image type");
         result.isValid = false;
         return result;
       }
@@ -43,7 +43,7 @@ export class ImageMetadataValidator {
       const exifData = await exifr.parse(file);
 
       if (!exifData) {
-        result.errors.push('No metadata found in image');
+        result.errors.push("No metadata found in image");
         result.isValid = false;
         return result;
       }
@@ -70,11 +70,11 @@ export class ImageMetadataValidator {
    */
   private isImageFile(file: File): boolean {
     const validTypes = [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/tiff',
-      'image/webp',
+      "image/jpeg",
+      "image/jpg",
+      "image/png",
+      "image/tiff",
+      "image/webp",
     ];
     return validTypes.includes(file.type.toLowerCase());
   }
@@ -125,23 +125,23 @@ export class ImageMetadataValidator {
    */
   private validateCreationDate(
     dateCreated: Date | undefined,
-    result: ValidationResult
+    result: ValidationResult,
   ): void {
     if (!dateCreated) {
-      result.errors.push('No creation date found in image metadata');
+      result.errors.push("No creation date found in image metadata");
       return;
     }
 
     const now = new Date();
-    const minDate = new Date('1990-01-01'); // Reasonable minimum date for digital photos
+    const minDate = new Date("1990-01-01"); // Reasonable minimum date for digital photos
 
     if (dateCreated > now) {
-      result.errors.push('Image creation date is in the future');
+      result.errors.push("Image creation date is in the future");
       result.isValid = false;
     }
 
     if (dateCreated < minDate) {
-      result.errors.push('Image creation date is unrealistically old');
+      result.errors.push("Image creation date is unrealistically old");
       result.isValid = false;
     }
 
@@ -150,7 +150,7 @@ export class ImageMetadataValidator {
     twoYearsAgo.setFullYear(now.getFullYear() - 2);
 
     if (dateCreated < twoYearsAgo) {
-      result.errors.push('Image is older than 2 years');
+      result.errors.push("Image is older than 2 years");
       // Note: This might be a warning rather than an error depending on your use case
     }
   }
@@ -160,10 +160,10 @@ export class ImageMetadataValidator {
    */
   private validateImageDimensions(
     dimensions: { width?: number; height?: number } | undefined,
-    result: ValidationResult
+    result: ValidationResult,
   ): void {
     if (!dimensions || !dimensions.width || !dimensions.height) {
-      result.errors.push('Could not determine image dimensions');
+      result.errors.push("Could not determine image dimensions");
       return;
     }
 
@@ -174,14 +174,14 @@ export class ImageMetadataValidator {
 
     if (dimensions.width < minWidth || dimensions.height < minHeight) {
       result.errors.push(
-        `Image too small: ${dimensions.width}x${dimensions.height} (minimum: ${minWidth}x${minHeight})`
+        `Image too small: ${dimensions.width}x${dimensions.height} (minimum: ${minWidth}x${minHeight})`,
       );
       result.isValid = false;
     }
 
     if (dimensions.width > maxWidth || dimensions.height > maxHeight) {
       result.errors.push(
-        `Image too large: ${dimensions.width}x${dimensions.height} (maximum: ${maxWidth}x${maxHeight})`
+        `Image too large: ${dimensions.width}x${dimensions.height} (maximum: ${maxWidth}x${maxHeight})`,
       );
       result.isValid = false;
     }
@@ -193,7 +193,7 @@ export class ImageMetadataValidator {
   validateDateRange(
     dateCreated: Date,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
   ): boolean {
     return dateCreated >= startDate && dateCreated <= endDate;
   }
@@ -217,12 +217,12 @@ export async function handleImageUpload(event: Event) {
   const result = await validator.validateImageMetadata(file);
 
   if (result.isValid && result.metadata) {
-    console.log('Image validation passed!');
-    console.log('Creation date:', result.metadata.dateCreated);
-    console.log('Camera:', result.metadata.camera);
-    console.log('Dimensions:', result.metadata.dimensions);
+    console.log("Image validation passed!");
+    console.log("Creation date:", result.metadata.dateCreated);
+    console.log("Camera:", result.metadata.camera);
+    console.log("Dimensions:", result.metadata.dimensions);
   } else {
-    console.log('Image validation failed:');
-    result.errors.forEach((error) => console.log('- ' + error));
+    console.log("Image validation failed:");
+    result.errors.forEach((error) => console.log("- " + error));
   }
 }
