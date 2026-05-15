@@ -1,4 +1,4 @@
-import z from 'zod';
+import { z } from 'zod';
 
 export const baseQueryValidatorSchema = z
     .object({
@@ -8,7 +8,7 @@ export const baseQueryValidatorSchema = z
             .pipe(
                 z
                     .number({
-                        invalid_type_error: 'page must be a valid number',
+                        message: 'page must be a valid number',
                     })
                     .int('page must be an integer')
                     .min(1, 'page must be at least 1')
@@ -21,7 +21,7 @@ export const baseQueryValidatorSchema = z
             .pipe(
                 z
                     .number({
-                        invalid_type_error: 'limit must be a valid number',
+                        message: 'limit must be a valid number',
                     })
                     .int('limit must be an integer')
                     .min(1, 'limit must be at least 1')
@@ -31,23 +31,19 @@ export const baseQueryValidatorSchema = z
 
         query: z
             .string({
-                invalid_type_error: 'search must be a valid string',
+                message: 'search must be a valid string',
             })
             .max(255, 'search cannot exceed 255 characters')
             .optional(),
         sortBy: z
             .enum(['name', 'createdAt', 'updatedAt'], {
-                errorMap: () => ({
-                    message: 'sortBy must be one of: name, createdAt, updatedAt',
-                }),
+                message: 'sortBy must be one of: name, createdAt, updatedAt',
             })
             .default('createdAt')
             .optional(),
         sortOrder: z
             .enum(['asc', 'desc'], {
-                errorMap: () => ({
-                    message: "sortOrder must be either 'asc' or 'desc'",
-                }),
+                message: "sortOrder must be either 'asc' or 'desc'",
             })
             .default('desc')
             .optional(),
@@ -56,7 +52,7 @@ export const baseQueryValidatorSchema = z
             .transform((val) => val === 'true')
             .pipe(
                 z.boolean({
-                    invalid_type_error: 'all must be a boolean value',
+                    message: 'all must be a boolean value',
                 })
             )
             .optional(),
@@ -65,7 +61,7 @@ export const baseQueryValidatorSchema = z
             .transform((val) => val === 'true')
             .pipe(
                 z.boolean({
-                    invalid_type_error: 'isOg must be a boolean value',
+                    message: 'isOg must be a boolean value',
                 })
             )
             .optional(),
@@ -74,7 +70,7 @@ export const baseQueryValidatorSchema = z
             .transform((val) => val === 'true')
             .pipe(
                 z.boolean({
-                    invalid_type_error: 'isMomentOg must be a boolean value',
+                    message: 'isMomentOg must be a boolean value',
                 })
             )
             .optional(),
