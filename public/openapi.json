@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.0",
   "info": {
-    "title": "API Documentation",
+    "title": "Sara Documentation",
     "version": "1.0.0",
-    "description": "This is the OpenAPI specification for your project."
+    "description": "This is the OpenAPI specification for sara."
   },
   "servers": [
     {
@@ -61,6 +61,120 @@
           "size"
         ],
         "additionalProperties": false
+      },
+      "BusinessValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "default": "USD"
+          },
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "businessValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "phone": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "address": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "country": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "default": "USD"
+          },
+          "latitude": {
+            "type": "number"
+          },
+          "longitude": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "cuidValidator": {
         "type": "string",
@@ -507,7 +621,8 @@
         "properties": {
           "callbackUrl": {
             "type": "string",
-            "format": "uri"
+            "format": "uri",
+            "default": "http://localhost:3000/api/auth/facebook/callback"
           },
           "redirect": {
             "type": "string",
@@ -524,7 +639,8 @@
         "properties": {
           "callbackUrl": {
             "type": "string",
-            "format": "uri"
+            "format": "uri",
+            "default": "http://localhost:3000/api/auth/facebook/callback"
           },
           "redirect": {
             "type": "string",
@@ -1264,7 +1380,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "format": "uri"
+              "format": "uri",
+              "default": "http://localhost:3000/api/auth/facebook/callback"
             }
           },
           {
@@ -1303,7 +1420,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "format": "uri"
+              "format": "uri",
+              "default": "http://localhost:3000/api/auth/facebook/callback"
             }
           },
           {
@@ -1344,7 +1462,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "format": "uri"
+              "format": "uri",
+              "default": "http://localhost:3000/api/auth/facebook/callback"
             }
           },
           {
@@ -1383,7 +1502,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "format": "uri"
+              "format": "uri",
+              "default": "http://localhost:3000/api/auth/facebook/callback"
             }
           },
           {
@@ -1424,7 +1544,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "format": "uri"
+              "format": "uri",
+              "default": "http://localhost:3000/api/auth/facebook/callback"
             }
           },
           {
@@ -1463,7 +1584,8 @@
             "required": false,
             "schema": {
               "type": "string",
-              "format": "uri"
+              "format": "uri",
+              "default": "http://localhost:3000/api/auth/facebook/callback"
             }
           },
           {
@@ -1747,6 +1869,114 @@
             }
           }
         },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/business": {
+      "get": {
+        "operationId": "get-business",
+        "summary": "",
+        "description": "Gets the business for the authenticated user.",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-business",
+        "summary": "",
+        "description": "Creates a new business for the authenticated user.",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-business",
+        "summary": "",
+        "description": "Updates the existing business for the authenticated user.",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-business",
+        "summary": "",
+        "description": "Deletes the business for the authenticated user.",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {
           "400": {
             "$ref": "#/components/responses/400"
@@ -2398,6 +2628,9 @@
   "tags": [
     {
       "name": "Auth"
+    },
+    {
+      "name": "Business"
     },
     {
       "name": "Invoices"

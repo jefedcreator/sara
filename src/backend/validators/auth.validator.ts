@@ -2,7 +2,7 @@ import z from 'zod';
 
 export const oauthAuthorizationQueryValidatorSchema = z
     .object({
-        callbackUrl: z.string().url().optional(),
+        callbackUrl: z.string().url().optional().default("http://localhost:3000/api/auth/facebook/callback"),
         redirect: z.enum(['true', 'false']).optional(),
     })
     .strict();

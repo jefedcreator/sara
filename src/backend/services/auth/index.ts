@@ -94,10 +94,9 @@ export class AuthService {
     try {
       const provider = this.getConfiguredProvider(providerId);
       const redirectUri = this.getRedirectUri(request, provider.id);
-      const callbackUrl = request.nextUrl.searchParams.get("callbackUrl");
       const shouldRedirect =
         request.nextUrl.searchParams.get("redirect") === "true";
-      const state = this.encodeState({ callbackUrl });
+      const state = this.encodeState({});
 
       const authorizationUrl = new URL(provider.authorizationUrl);
       authorizationUrl.searchParams.set("client_id", provider.clientId);
@@ -121,7 +120,6 @@ export class AuthService {
       return NextResponse.json({
         provider: provider.id,
         authorizationUrl: authorizationUrl.toString(),
-        callbackUrl: redirectUri,
       });
     } catch (error) {
       return this.oauthErrorResponse(error);
