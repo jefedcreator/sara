@@ -12,8 +12,11 @@ export const businessValidatorSchema = z.object({
   country: z.string().optional(),
   logoUrl: z.string().url('Invalid logo URL').optional(),
   currency: z.string().length(3).default('USD').optional(),
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
+  latitude: z.coerce.number().min(-90).max(90).optional(),
+  longitude: z.coerce.number().min(-180).max(180).optional(),
 });
 
+export const updateBusinessValidatorSchema = businessValidatorSchema.partial().strict();
+
 export type BusinessValidatorSchema = z.infer<typeof businessValidatorSchema>;
+export type UpdateBusinessValidatorSchema = z.infer<typeof updateBusinessValidatorSchema>;

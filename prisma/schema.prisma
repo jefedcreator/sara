@@ -70,8 +70,8 @@ model Business {
   state       String?
   country     String?
   logoUrl     String?
-  latitude    Decimal? @db.Decimal(9, 6)
-  longitude   Decimal? @db.Decimal(9, 6)
+  latitude    Decimal? @db.Decimal(12, 9)
+  longitude   Decimal? @db.Decimal(12, 9)
   currency    String   @default("USD")
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -129,8 +129,8 @@ model Booking {
   clientPhone String?
 
   // OSM Routing fields
-  clientLat     Decimal? @db.Decimal(9, 6)
-  clientLong    Decimal? @db.Decimal(9, 6)
+  clientLat     Decimal? @db.Decimal(12, 9)
+  clientLong    Decimal? @db.Decimal(12, 9)
   distanceKm    Decimal? @db.Decimal(10, 2)
   durationMin   Int?
   routePolyline String?  @db.Text // Encoded polyline for mapping

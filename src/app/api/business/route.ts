@@ -5,7 +5,9 @@ import {
 } from "@/backend/middleware";
 import {
   businessValidatorSchema,
+  updateBusinessValidatorSchema,
   type BusinessValidatorSchema,
+  type UpdateBusinessValidatorSchema,
 } from "@/backend/validators/business.validator";
 import { db } from "@/server/db";
 import {
@@ -110,7 +112,7 @@ export const POST = withMiddleware<BusinessValidatorSchema>(
  * @contentType application/json
  * @auth bearer
  */
-export const PUT = withMiddleware<BusinessValidatorSchema>(
+export const PUT = withMiddleware<UpdateBusinessValidatorSchema>(
   async (request) => {
     try {
       const payload = request.validatedData!;
@@ -120,16 +122,24 @@ export const PUT = withMiddleware<BusinessValidatorSchema>(
         throw new NotFoundException("No business found to update");
       }
 
-      const slug =
-        payload.slug || slugify(payload.name, { lower: true, strict: true });
+      let slug = user.business.slug;
 
-      // Check if new slug is taken by someone else
-      if (slug !== user.business.slug) {
-        const existingBusinessWithSlug = await db.business.findUnique({
-          where: { slug },
-        });
-        if (existingBusinessWithSlug) {
-          throw new ConflictException("A business with this slug already exists");
+      if (payload.name || payload.slug) {
+        if (payload.name) {
+          slug = slugify(payload.name, { lower: true, strict: true });
+        } else if (payload.slug) {
+          slug = payload.slug;
+        }
+        // Check if new slug is taken by someone else
+        if (slug !== user.business.slug) {
+          const existingBusinessWithSlug = await db.business.findUnique({
+            where: { slug },
+          });
+          if (existingBusinessWithSlug) {
+            throw new ConflictException(
+              "A business with this slug already exists",
+            );
+          }
         }
       }
 
@@ -155,7 +165,7 @@ export const PUT = withMiddleware<BusinessValidatorSchema>(
       );
     }
   },
-  [authMiddleware, bodyValidatorMiddleware(businessValidatorSchema)],
+  [authMiddleware, bodyValidatorMiddleware(updateBusinessValidatorSchema)],
 );
 
 /**
