@@ -61,3 +61,5 @@ export type ReceiptListItem = Receipt & {
   business: Business;
   services: (ReceiptService & { service: Service })[];
 };
+
+export type ServiceListItem = Service;

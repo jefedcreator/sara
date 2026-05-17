@@ -1012,6 +1012,202 @@
         ],
         "additionalProperties": false
       },
+      "ServiceQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "default": 1,
+            "type": "string"
+          },
+          "size": {
+            "default": 10,
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "name",
+              "price",
+              "duration",
+              "createdAt",
+              "updatedAt"
+            ],
+            "default": "createdAt"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "all": {
+            "type": "string"
+          },
+          "isOg": {
+            "type": "string"
+          },
+          "isMomentOg": {
+            "type": "string"
+          },
+          "isActive": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          }
+        },
+        "additionalProperties": false
+      },
+      "serviceQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "default": 1,
+            "type": "string"
+          },
+          "size": {
+            "default": 10,
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "name",
+              "price",
+              "duration",
+              "createdAt",
+              "updatedAt"
+            ],
+            "default": "createdAt"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "all": {
+            "type": "string"
+          },
+          "isOg": {
+            "type": "string"
+          },
+          "isMomentOg": {
+            "type": "string"
+          },
+          "isActive": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "boolean"
+              }
+            ]
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          }
+        },
+        "additionalProperties": false
+      },
+      "ServiceValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "price": {
+            "type": "object"
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "price",
+          "duration",
+          "isActive"
+        ]
+      },
+      "serviceValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "price": {
+            "type": "object"
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "price",
+          "duration",
+          "isActive"
+        ]
+      },
       "slugParamValidator": {
         "type": "object",
         "properties": {
@@ -1421,6 +1617,70 @@
           }
         },
         "additionalProperties": false
+      },
+      "UpdateServiceValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "price": {
+            "type": "object"
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "updateServiceValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          },
+          "price": {
+            "type": "object"
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        }
       }
     },
     "responses": {
@@ -2882,6 +3142,276 @@
           }
         }
       }
+    },
+    "/services": {
+      "get": {
+        "operationId": "get-services",
+        "summary": "",
+        "description": "Retrieves services for the authenticated user's business. Supports search, pagination, and filtering.",
+        "tags": [
+          "Services"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "price",
+                "duration",
+                "createdAt",
+                "updatedAt"
+              ],
+              "default": "createdAt"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "all",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isOg",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isMomentOg",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isActive",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "boolean"
+                }
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "name",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-services",
+        "summary": "",
+        "description": "Creates a new service for the user's business.",
+        "tags": [
+          "Services"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/serviceValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/services/{slug}": {
+      "get": {
+        "operationId": "get-services-{slug}",
+        "summary": "",
+        "description": "Retrieves a single service by slug for the authenticated user's business.",
+        "tags": [
+          "Services"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "slug"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-services-{slug}",
+        "summary": "",
+        "description": "Updates an existing service for the authenticated user's business.",
+        "tags": [
+          "Services"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "slug"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateServiceValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-services-{slug}",
+        "summary": "",
+        "description": "Deletes or deactivates an existing service for the authenticated user's business.",
+        "tags": [
+          "Services"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "slug"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
     }
   },
   "tags": [
@@ -2896,6 +3426,9 @@
     },
     {
       "name": "Receipts"
+    },
+    {
+      "name": "Services"
     }
   ]
 }
