@@ -17,7 +17,7 @@ import {
 import { type Service, type Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
-import type { ApiResponse } from "types";
+import type { ApiResponse, ServiceDetail, TimeSlot } from "types";
 
 /**
  * @body UpdateServiceValidatorSchema
@@ -83,15 +83,23 @@ export const PUT = withMiddleware<UpdateServiceValidatorSchema>(
           }
         }
 
-        if (payload.description !== undefined) data.description = payload.description;
+        if (payload.description !== undefined)
+          data.description = payload.description;
         if (payload.image instanceof File) {
-          const uploadResult = await cloudinaryService.uploadFile(payload.image, {
-            folder: `sara/${business.id}/services`,
-          });
+          const uploadResult = await cloudinaryService.uploadFile(
+            payload.image,
+            {
+              folder: `sara/${business.id}/services`,
+            },
+          );
           data.image = uploadResult.secure_url;
         }
         if (payload.price !== undefined) data.price = payload.price;
         if (payload.duration !== undefined) data.duration = payload.duration;
+        if (payload.availableFrom !== undefined)
+          data.availableFrom = payload.availableFrom;
+        if (payload.availableTo !== undefined)
+          data.availableTo = payload.availableTo;
         if (payload.isActive !== undefined) data.isActive = payload.isActive;
 
         return await tx.service.update({
@@ -192,8 +200,40 @@ export const DELETE = withMiddleware<unknown>(
 );
 
 /**
+ * Generates all possible time slots for a given date based on the
+ * service's availability window and duration.
+ */
+function generateTimeSlots(
+  date: string,
+  availableFrom: string,
+  availableTo: string,
+  durationMinutes: number,
+): { startTime: Date; endTime: Date }[] {
+  const slots: { startTime: Date; endTime: Date }[] = [];
+
+  const dayStart = new Date(`${date}T${availableFrom}:00.000Z`);
+  const dayEnd = new Date(`${date}T${availableTo}:00.000Z`);
+  const durationMs = durationMinutes * 60 * 1000;
+
+  let current = dayStart.getTime();
+
+  while (current + durationMs <= dayEnd.getTime()) {
+    slots.push({
+      startTime: new Date(current),
+      endTime: new Date(current + durationMs),
+    });
+    current += durationMs;
+  }
+
+  return slots;
+}
+
+/**
  * @pathParams slugParamValidator
- * @description Retrieves a single service by slug for the authenticated user's business.
+ * @queryParams date (optional, YYYY-MM-DD, defaults to today)
+ * @description Retrieves a single service by slug with computed available
+ *              time slots for the requested date. Slots that overlap with
+ *              existing PENDING or CONFIRMED bookings are marked as unavailable.
  * @auth bearer
  */
 export const GET = withMiddleware<unknown>(
@@ -201,6 +241,16 @@ export const GET = withMiddleware<unknown>(
     try {
       const user = request.user!;
       const { slug } = params;
+
+      // Parse optional date query param (defaults to today)
+      const url = new URL(request.url);
+      const dateParam = url.searchParams.get("date");
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+      const targetDate =
+        dateParam && dateRegex.test(dateParam)
+          ? dateParam
+          : new Date().toISOString().split("T")[0]!;
 
       const service = await db.service.findUnique({
         where: { slug },
@@ -217,10 +267,50 @@ export const GET = withMiddleware<unknown>(
         );
       }
 
-      const response: ApiResponse<Service> = {
+      // Generate all possible slots for the target date
+      const allSlots = generateTimeSlots(
+        targetDate,
+        service.availableFrom,
+        service.availableTo,
+        service.duration,
+      );
+
+      // Fetch active bookings for this service that fall on the target date
+      const dayStart = new Date(`${targetDate}T00:00:00.000Z`);
+      const dayEnd = new Date(`${targetDate}T23:59:59.999Z`);
+
+      const existingBookings = await db.booking.findMany({
+        where: {
+          serviceId: service.id,
+          status: { in: ["PENDING", "CONFIRMED"] },
+          startTime: { lt: dayEnd },
+          endTime: { gt: dayStart },
+        },
+        select: { startTime: true, endTime: true },
+      });
+
+      // Mark each slot's availability by checking for overlapping bookings
+      const slots: TimeSlot[] = allSlots.map((slot) => {
+        const isBooked = existingBookings.some(
+          (booking) =>
+            booking.startTime < slot.endTime &&
+            booking.endTime > slot.startTime,
+        );
+
+        return {
+          startTime: slot.startTime.toISOString(),
+          endTime: slot.endTime.toISOString(),
+          isAvailable: !isBooked,
+        };
+      });
+
+      const response: ApiResponse<ServiceDetail> = {
         status: 200,
         message: "Service retrieved successfully",
-        data: service,
+        data: {
+          ...service,
+          slots,
+        },
       };
 
       return NextResponse.json(response);
@@ -233,3 +323,4 @@ export const GET = withMiddleware<unknown>(
   },
   [authMiddleware],
 );
+

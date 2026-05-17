@@ -7,7 +7,7 @@ import type {
   AuthRequest,
   MiddlewareFunction,
   MiddlewareResponse,
-  QueryParameters
+  QueryParameters,
 } from "./types";
 
 /**

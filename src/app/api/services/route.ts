@@ -45,8 +45,6 @@ export const POST = withMiddleware<ServiceValidatorSchema>(
         );
       }
 
-
-
       const serviceResult = await db.$transaction(async (tx) => {
         let slug = slugify(`${payload.name}`, {
           lower: true,
@@ -71,26 +69,31 @@ export const POST = withMiddleware<ServiceValidatorSchema>(
         const data: Prisma.ServiceCreateInput = {
           business: {
             connect: {
-              id: business.id
-            }
+              id: business.id,
+            },
           },
           slug,
           name: payload.name,
           description: payload.description,
           price: payload.price,
           duration: payload.duration,
+          availableFrom: payload.availableFrom,
+          availableTo: payload.availableTo,
           isActive: payload.isActive,
         };
 
         if (payload.image instanceof File) {
-          const uploadResult = await cloudinaryService.uploadFile(payload.image, {
-            folder: `sara/${business.id}/services`,
-          });
+          const uploadResult = await cloudinaryService.uploadFile(
+            payload.image,
+            {
+              folder: `sara/${business.id}/services`,
+            },
+          );
           data.image = uploadResult.secure_url;
         }
 
         const service = await tx.service.create({
-          data
+          data,
         });
 
         return service;

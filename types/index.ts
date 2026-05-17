@@ -63,3 +63,13 @@ export type ReceiptListItem = Receipt & {
 };
 
 export type ServiceListItem = Service;
+
+export interface TimeSlot {
+  startTime: string; // ISO 8601
+  endTime: string; // ISO 8601
+  isAvailable: boolean;
+}
+
+export type ServiceDetail = Service & {
+  slots: TimeSlot[];
+};

@@ -99,6 +99,8 @@ model Service {
   image String?
   price       Decimal  @db.Decimal(10, 2)
   duration    Int // Duration in minutes
+  availableFrom String @default("08:00") // Start of availability window (24hr, e.g. "08:00")
+  availableTo   String @default("17:00") // End of availability window (24hr, e.g. "17:00")
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
