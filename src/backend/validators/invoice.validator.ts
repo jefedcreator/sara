@@ -16,11 +16,13 @@ export const invoiceStatusValidatorSchema = z.enum(
 
 export const invoiceItemValidatorSchema = z
   .object({
-    serviceId: optionalCuidValidator,
+    serviceId: cuidValidator,
     description: z
       .string()
       .min(1, "description cannot be empty")
-      .max(1000, "description cannot exceed 1000 characters"),
+      .max(1000, "description cannot exceed 1000 characters")
+      .nullable()
+      .optional(),
     quantity: z.coerce
       .number()
       .int("quantity must be an integer")
@@ -72,7 +74,7 @@ export const invoiceValidatorSchema = z.object({
     .max(2000, "notes cannot exceed 2000 characters")
     .nullable()
     .optional(),
-  items: z.array(invoiceItemValidatorSchema).optional(),
+  services: z.array(invoiceItemValidatorSchema).optional(),
 });
 
 export const updateInvoiceValidatorSchema = invoiceValidatorSchema
@@ -123,9 +125,6 @@ export const invoiceQueryValidatorSchema = baseQueryValidatorSchema
 
 export type InvoiceStatusValidatorSchema = z.infer<
   typeof invoiceStatusValidatorSchema
->;
-export type InvoiceItemValidatorSchema = z.infer<
-  typeof invoiceItemValidatorSchema
 >;
 export type InvoiceValidatorSchema = z.infer<typeof invoiceValidatorSchema>;
 export type UpdateInvoiceValidatorSchema = z.infer<

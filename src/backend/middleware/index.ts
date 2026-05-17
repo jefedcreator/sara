@@ -2,14 +2,12 @@ import { db } from "@/server/db";
 import { parseHttpError } from "@/utils";
 import { HttpException, UnauthorizedException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import * as Sentry from "@sentry/nextjs";
 import { type z } from "zod";
 import type {
   AuthRequest,
-  I_JwtPayload,
   MiddlewareFunction,
   MiddlewareResponse,
-  QueryParameters,
+  QueryParameters
 } from "./types";
 
 /**

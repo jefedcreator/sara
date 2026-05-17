@@ -77,11 +77,11 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
           : { disconnect: true };
       }
 
-      if (payload.items) {
-        data.items = {
+      if (payload.services) {
+        data.services = {
           deleteMany: {},
-          create: payload.items.map((item) => ({
-            serviceId: item.serviceId ?? null,
+          create: payload.services.map((item) => ({
+            serviceId: item.serviceId,
             description: item.description,
             quantity: item.quantity,
             unitPrice: item.unitPrice,
@@ -96,7 +96,7 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
           data,
           include: {
             business: true,
-            items: true,
+            services: { include: { service: true } },
           },
         });
 
@@ -133,8 +133,8 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
             email: invoiceRecord.clientEmail,
             phone: invoiceRecord.clientPhone,
           },
-          items: invoiceRecord.items.map((item) => ({
-            description: item.description,
+          items: invoiceRecord.services.map((item) => ({
+            description: item.description || item.service.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice.toString(),
             total: item.total.toString(),
@@ -236,7 +236,7 @@ export const GET = withMiddleware<unknown>(
       const invoice = await db.invoice.findUnique({
         where: { slug },
         include: {
-          items: true,
+          services: { include: { service: true } },
           business: true,
           booking: {
             select: {
@@ -249,7 +249,6 @@ export const GET = withMiddleware<unknown>(
           payments: true,
           _count: {
             select: {
-              items: true,
               payments: true,
             },
           },

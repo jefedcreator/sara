@@ -1,10 +1,11 @@
 import type {
   Invoice,
-  InvoiceItem,
+  Service,
   Business,
   Payment,
   Receipt,
-  ReceiptItem,
+  InvoiceService,
+  ReceiptService,
 } from "@prisma/client";
 
 export interface PaginationMeta {
@@ -28,7 +29,7 @@ export interface PaginatedApiResponse<T = unknown>
   extends ApiResponse<T>, PaginationMeta {}
 
 export type InvoiceListItem = Invoice & {
-  items: InvoiceItem[];
+  services: (InvoiceService & { service: Service })[];
   business: Business;
   booking: {
     id: string;
@@ -38,14 +39,13 @@ export type InvoiceListItem = Invoice & {
   } | null;
   payments: Payment[];
   _count: {
-    items: number;
     payments: number;
   };
 };
 
 export type CreatedInvoice = Invoice & {
   business: Business;
-  items: InvoiceItem[];
+  services: (InvoiceService & { service: Service })[];
 };
 
 export type ReceiptListItem = Receipt & {
@@ -59,5 +59,5 @@ export type ReceiptListItem = Receipt & {
       })
     | null;
   business: Business;
-  items: ReceiptItem[];
+  services: (ReceiptService & { service: Service })[];
 };

@@ -49,6 +49,8 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
       }
 
       const receiptResult = await db.$transaction(async (tx) => {
+        let servicesToCreate = payload.services || [];
+
         // Validate that the payment belongs to this business and doesn't already have a receipt
         if (payload.paymentId) {
           const payment = await tx.payment.findFirst({
@@ -56,7 +58,10 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
               id: payload.paymentId,
               businessId: business.id,
             },
-            include: { receipt: { select: { id: true } } },
+            include: {
+              receipt: { select: { id: true } },
+              invoice: { include: { services: true } },
+            },
           });
 
           if (!payment) {
@@ -68,6 +73,34 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
           if (payment.receipt) {
             throw new ConflictException(
               "A receipt already exists for this payment",
+            );
+          }
+
+          // If services are not explicitly provided in payload, infer from invoice
+          if (servicesToCreate.length === 0 && payment.invoice?.services) {
+            servicesToCreate = payment.invoice.services.map((s) => ({
+              serviceId: s.serviceId,
+              description: s.description || undefined,
+              quantity: s.quantity,
+              unitPrice: Number(s.unitPrice),
+              total: Number(s.total),
+            }));
+          }
+        }
+
+        // Validate services belong to business
+        if (servicesToCreate.length > 0) {
+          const serviceIds = Array.from(
+            new Set(servicesToCreate.map((s) => s.serviceId)),
+          );
+          const services = await tx.service.findMany({
+            where: { id: { in: serviceIds }, businessId: business.id },
+            select: { id: true },
+          });
+
+          if (services.length !== serviceIds.length) {
+            throw new BadRequestException(
+              "One or more services do not belong to this business",
             );
           }
         }
@@ -117,9 +150,10 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
           };
         }
 
-        if (payload.items && payload.items.length > 0) {
-          createData.items = {
-            create: payload.items.map((item) => ({
+        if (servicesToCreate.length > 0) {
+          createData.services = {
+            create: servicesToCreate.map((item) => ({
+              serviceId: item.serviceId,
               description: item.description,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
@@ -130,7 +164,7 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
 
         const receipt = await tx.receipt.create({
           data: createData,
-          include: { business: true, items: true },
+          include: { business: true, services: { include: { service: true } } },
         });
 
         if (!receipt.business) {
@@ -165,8 +199,8 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
             email: receipt.email,
             phone: receipt.phone,
           },
-          items: receipt.items.map((item) => ({
-            description: item.description,
+          items: receipt.services.map((item) => ({
+            description: item.description || item.service.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice.toString(),
             total: item.total.toString(),
@@ -280,15 +314,15 @@ export const GET = withMiddleware<ReceiptQueryValidatorSchema>(
           },
         },
         business: true,
-        items: true,
+        services: { include: { service: true } },
       };
 
       if (payload.all) {
-        const data = await db.receipt.findMany({
+        const data = (await db.receipt.findMany({
           where,
           include,
           orderBy,
-        });
+        })) as unknown as ReceiptListItem[];
 
         const response: PaginatedApiResponse<ReceiptListItem[]> = {
           status: 200,
@@ -315,7 +349,7 @@ export const GET = withMiddleware<ReceiptQueryValidatorSchema>(
           skip,
           orderBy,
           include,
-        }),
+        }) as unknown as Promise<ReceiptListItem[]>,
       ]);
 
       const response: PaginatedApiResponse<ReceiptListItem[]> = {
