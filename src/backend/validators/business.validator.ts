@@ -14,6 +14,7 @@ export const businessValidatorSchema = z.object({
   currency: z.string().length(3).default("USD").optional(),
   latitude: z.coerce.number().min(-90).max(90).optional(),
   longitude: z.coerce.number().min(-180).max(180).optional(),
+  monoCode: z.string().min(1, "Mono authorization code is required").optional(),
 });
 
 export const updateBusinessValidatorSchema = businessValidatorSchema

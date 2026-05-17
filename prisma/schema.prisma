@@ -76,6 +76,13 @@ model Business {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // Payment Settlement (Mono + Paystack)
+  settlementBank         String?  // Bank code (e.g. "044" for Access Bank)
+  settlementAccount      String?  // NUBAN account number
+  settlementAccountName  String?  // Verified account holder name
+  paystackSubaccountCode String?  @unique // Paystack subaccount code (e.g. "ACCT_xxxxx")
+  monoAccountId          String?  // Mono linked account ID
+
   owner    User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   services Service[]
   bookings Booking[]
@@ -149,7 +156,6 @@ model Booking {
   @@index([serviceId])
   @@index([slug])
 }
-
 
 model Invoice {
   id            String        @id @default(cuid())

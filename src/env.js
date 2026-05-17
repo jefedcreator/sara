@@ -30,6 +30,9 @@ export const env = createEnv({
     INSTAGRAM_CLIENT_ID: z.string().optional(),
     INSTAGRAM_CLIENT_SECRET: z.string().optional(),
     CONFIGURATION_ID: z.string().optional(),
+    MONO_SECRET_KEY: z.string().optional(),
+    PAYSTACK_SECRET_KEY: z.string().optional(),
+    PAYSTACK_WEBHOOK_SECRET: z.string().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -70,6 +73,9 @@ export const env = createEnv({
     INSTAGRAM_CLIENT_SECRET: process.env.INSTAGRAM_CLIENT_SECRET,
     NODE_ENV: process.env.NODE_ENV,
     CONFIGURATION_ID: process.env.CONFIGURATION_ID,
+    MONO_SECRET_KEY: process.env.MONO_SECRET_KEY,
+    PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY,
+    PAYSTACK_WEBHOOK_SECRET: process.env.PAYSTACK_WEBHOOK_SECRET,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
