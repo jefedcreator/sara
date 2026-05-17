@@ -96,6 +96,7 @@ model Service {
   businessId  String
   name        String
   description String?
+  image String?
   price       Decimal  @db.Decimal(10, 2)
   duration    Int // Duration in minutes
   isActive    Boolean  @default(true)
@@ -104,7 +105,8 @@ model Service {
 
   business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
   bookings     Booking[]
-  invoiceItems InvoiceItem[]
+  invoices     InvoiceService[]
+  receipts     ReceiptService[]
 
   @@index([businessId])
   @@index([slug])
@@ -146,6 +148,7 @@ model Booking {
   @@index([slug])
 }
 
+
 model Invoice {
   id            String        @id @default(cuid())
   slug          String        @unique
@@ -175,56 +178,15 @@ model Invoice {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  booking  Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  items    InvoiceItem[]
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  services InvoiceService[]
   payments Payment[]
 
   @@unique([businessId, invoiceNumber])
   @@index([businessId])
   @@index([bookingId])
   @@index([slug])
-}
-
-model InvoiceItem {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  serviceId   String?
-  description String
-  quantity    Int      @default(1)
-  unitPrice   Decimal  @db.Decimal(10, 2)
-  total       Decimal  @db.Decimal(10, 2)
-  createdAt   DateTime @default(now())
-
-  invoice Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  service Service? @relation(fields: [serviceId], references: [id], onDelete: SetNull)
-
-  @@index([invoiceId])
-  @@index([serviceId])
-}
-
-model Payment {
-  id         String        @id @default(cuid())
-  businessId String
-  invoiceId  String?
-  amount     Decimal       @db.Decimal(10, 2)
-  method     PaymentMethod
-  reference  String?       @unique // External transaction ID
-
-  // Client Details (Snapshot)
-  clientName  String?
-  clientEmail String?
-  clientPhone String?
-
-  createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
-
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  invoice  Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  receipt  Receipt?
-
-  @@index([businessId])
-  @@index([invoiceId])
 }
 
 model Receipt {
@@ -254,9 +216,9 @@ model Receipt {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  payment  Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  items    ReceiptItem[]
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  payment  Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  services ReceiptService[]
 
   @@unique([businessId, receiptNumber])
   @@index([businessId])
@@ -264,19 +226,64 @@ model Receipt {
   @@index([slug])
 }
 
-model ReceiptItem {
-  id          String   @id @default(cuid())
-  receiptId   String
-  description String
+model InvoiceService {
+  invoiceId   String
+  serviceId   String
+  description String?
   quantity    Int      @default(1)
   unitPrice   Decimal  @db.Decimal(10, 2)
   total       Decimal  @db.Decimal(10, 2)
-  createdAt   DateTime @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@id([invoiceId, serviceId])
+  @@index([invoiceId])
+  @@index([serviceId])
+}
+
+model ReceiptService {
+  receiptId   String
+  serviceId   String
+  description String?
+  quantity    Int      @default(1)
+  unitPrice   Decimal  @db.Decimal(10, 2)
+  total       Decimal  @db.Decimal(10, 2)
 
   receipt Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
 
+  @@id([receiptId, serviceId])
   @@index([receiptId])
+  @@index([serviceId])
 }
+
+model Payment {
+  id         String        @id @default(cuid())
+  businessId String
+  invoiceId  String?
+  amount     Decimal       @db.Decimal(10, 2)
+  method     PaymentMethod
+  reference  String?       @unique // External transaction ID
+
+  // Client Details (Snapshot)
+  clientName  String?
+  clientEmail String?
+  clientPhone String?
+
+  createdAt DateTime @default(now())
+updatedAt DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoice  Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  receipt  Receipt?
+
+  @@index([businessId])
+  @@index([invoiceId])
+}
+
+
+
 
 model GalleryItem {
   id         String   @id @default(cuid())

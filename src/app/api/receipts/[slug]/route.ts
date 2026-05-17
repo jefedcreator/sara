@@ -32,7 +32,7 @@ const receiptInclude: Prisma.ReceiptInclude = {
     },
   },
   business: true,
-  items: true,
+  services: { include: { service: true } },
 };
 
 /**
@@ -87,28 +87,23 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
           data.payment = { disconnect: true };
         }
 
-        if (payload.items) {
-          // Delete existing items and create new ones for a full replacement
-          await tx.receiptItem.deleteMany({
-            where: { receiptId: existingReceipt.id },
-          });
-
-          if (payload.items && payload.items.length > 0) {
-            data.items = {
-              create: payload.items.map((item) => ({
-                description: item.description,
-                quantity: item.quantity,
-                unitPrice: item.unitPrice,
-                total: item.total,
-              })),
-            };
-          }
+        if (payload.services) {
+          data.services = {
+            deleteMany: {},
+            create: payload.services.map((item) => ({
+              serviceId: item.serviceId,
+              description: item.description,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              total: item.total,
+            })),
+          };
         }
 
         const receipt = await tx.receipt.update({
           where: { id: existingReceipt.id },
           data,
-          include: { business: true, items: true },
+          include: { business: true, services: { include: { service: true } } },
         });
 
         // Regenerate PDF with updated data
@@ -137,8 +132,8 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
             email: receipt.email,
             phone: receipt.phone,
           },
-          items: receipt.items.map((item) => ({
-            description: item.description,
+          items: receipt.services.map((item) => ({
+            description: item.description || item.service.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice.toString(),
             total: item.total.toString(),

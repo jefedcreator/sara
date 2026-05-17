@@ -97,7 +97,7 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         // Validate services
         const serviceIds = Array.from(
           new Set(
-            (payload.items ?? [])
+            (payload.services ?? [])
               .map((item) => item.serviceId)
               .filter((id): id is string => Boolean(id)),
           ),
@@ -143,10 +143,10 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
           createData.booking = { connect: { id: payload.bookingId } };
         }
 
-        if (payload.items && payload.items.length > 0) {
-          createData.items = {
-            create: payload.items.map((item) => ({
-              serviceId: item.serviceId ?? null,
+        if (payload.services && payload.services.length > 0) {
+          createData.services = {
+            create: payload.services.map((item) => ({
+              serviceId: item.serviceId,
               description: item.description,
               quantity: item.quantity,
               unitPrice: item.unitPrice,
@@ -157,7 +157,7 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
 
         const invoice = await tx.invoice.create({
           data: createData,
-          include: { business: true, items: true },
+          include: { business: true, services: { include: { service: true } } },
         });
 
         if (!invoice.business) {
@@ -193,8 +193,8 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
             email: invoice.clientEmail,
             phone: invoice.clientPhone,
           },
-          items: invoice.items.map((item) => ({
-            description: item.description,
+          items: invoice.services.map((item) => ({
+            description: item.description || item.service.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice.toString(),
             total: item.total.toString(),
@@ -328,7 +328,7 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
       };
 
       const include: Prisma.InvoiceInclude = {
-        items: true,
+        services: { include: { service: true } },
         booking: {
           select: {
             id: true,
@@ -339,18 +339,17 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
         },
         _count: {
           select: {
-            items: true,
             payments: true,
           },
         },
       };
 
       if (payload.all) {
-        const data = await db.invoice.findMany({
+        const data = (await db.invoice.findMany({
           where,
           include,
           orderBy,
-        });
+        })) as unknown as InvoiceListItem[];
 
         const response: PaginatedApiResponse<InvoiceListItem[]> = {
           status: 200,
@@ -377,7 +376,7 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
           skip,
           orderBy,
           include,
-        }),
+        }) as unknown as Promise<InvoiceListItem[]>,
       ]);
 
       const response: PaginatedApiResponse<InvoiceListItem[]> = {
