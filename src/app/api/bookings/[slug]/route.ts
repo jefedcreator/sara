@@ -16,7 +16,7 @@ import {
 } from "@/utils/exceptions";
 import { type Booking, type Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
+import type { ApiResponse, IBooking } from "types";
 
 /**
  * @pathParams slug
@@ -56,7 +56,7 @@ export const GET = withMiddleware<unknown>(
         );
       }
 
-      const response: ApiResponse<typeof booking> = {
+      const response: ApiResponse<IBooking> = {
         status: 200,
         message: "Booking retrieved successfully",
         data: booking,
