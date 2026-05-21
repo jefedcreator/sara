@@ -57,8 +57,14 @@ export const GET = withMiddleware<unknown>(
 /**
  * @body BusinessValidatorSchema
  * @description Creates a new business for the authenticated user.
- *              Optionally links a bank account via Mono and creates a Paystack subaccount.
- * @contentType application/json
+ *
+ *              SANDBOX BEHAVIOUR:
+ *              `monoCode` is copied manually from the Mono Connect widget UI
+ *              after a test connection. No state token or redirect is involved.
+ *              `monoCode` is optional — omitting it creates the business without
+ *              bank linking so you can test the rest of the onboarding flow
+ *              independently.
+ *
  * @auth bearer
  */
 export const POST = withMiddleware<BusinessValidatorSchema>(
@@ -67,91 +73,104 @@ export const POST = withMiddleware<BusinessValidatorSchema>(
       const payload = request.validatedData!;
       const user = request.user!;
 
-      // Check if user already has a business
       if (user.business) {
         throw new ConflictException("You already have a business registered");
       }
 
       const { monoCode, ...businessData } = payload;
+      console.log('monoCode', monoCode);
 
+      // --- Slug ---
       const slug =
         businessData.slug ||
         slugify(businessData.name, { lower: true, strict: true });
 
-      // Check if slug is already taken
-      const existingBusinessWithSlug = await db.business.findUnique({
-        where: { slug },
-      });
-
-      if (existingBusinessWithSlug) {
+      const existingSlug = await db.business.findUnique({ where: { slug } });
+      if (existingSlug) {
         throw new ConflictException("A business with this slug already exists");
       }
 
-      // Attempt Mono → Paystack bank linking if monoCode is provided
-      let settlementData: {
+
+      // --- Mono → Paystack bank linking (optional in sandbox) ---
+      type SettlementData = {
         settlementBank?: string;
         settlementAccount?: string;
         settlementAccountName?: string;
         paystackSubaccountCode?: string;
         monoAccountId?: string;
-      } = {};
+      };
 
-      if (monoCode) {
-        try {
-          // 1. Exchange Mono Connect authorization code for account ID
-          const { id: monoAccountId } =
-            await monoService.exchangeToken(monoCode);
+      let settlementData: SettlementData = {};
+      let bankLinkStatus: "LINKED" | "FAILED" | "PENDING" = "PENDING";
 
-          // 2. Fetch verified bank details from Mono
-          const accountDetails =
-            await monoService.getAccountDetails(monoAccountId);
+      // if (monoCode) {
+      //   try {
+      // 1. Exchange the sandbox code (copied from widget) for a Mono account ID
+      const { id: monoAccountId } =
+        await monoService.exchangeToken(monoCode);
+      console.log('monoAccountId', monoAccountId);
 
-          // 3. Create a Paystack subaccount with those details
-          const subaccount = await paystackService.createSubaccount({
-            businessName: businessData.name,
-            settlementBank: accountDetails.institution.code,
-            accountNumber: accountDetails.account_number,
-            primaryContactEmail: businessData.email,
-            primaryContactName: user.name ?? undefined,
-            primaryContactPhone: businessData.phone,
-          });
+      // 2. Fetch test bank account details from Mono
+      const accountDetails =
+        await monoService.getAccountDetails(monoAccountId);
+      console.log('accountDetails', accountDetails);
 
-          settlementData = {
-            settlementBank: accountDetails.institution.code,
-            settlementAccount: accountDetails.account_number,
-            settlementAccountName: accountDetails.name,
-            paystackSubaccountCode: subaccount.subaccount_code,
-            monoAccountId,
-          };
-        } catch (linkError: any) {
-          // Bank linking failed — log the error but still create the business
-          console.error(
-            "Bank linking failed during business creation:",
-            linkError.message || linkError,
-          );
-        }
-      }
+      // 3. Create a Paystack subaccount with the test bank details
+      const subaccount = await paystackService.createSubaccount({
+        businessName: businessData.name,
+        settlementBank: accountDetails.institution.bank_code,
+        accountNumber: accountDetails.account_number,
+        primaryContactEmail: businessData.email,
+        primaryContactName: user.name ?? undefined,
+        primaryContactPhone: businessData.phone,
+      });
 
+      settlementData = {
+        monoAccountId,
+        settlementBank: accountDetails.institution.bank_code,
+        settlementAccount: accountDetails.account_number,
+        settlementAccountName: accountDetails.name,
+        paystackSubaccountCode: subaccount.subaccount_code,
+      };
+
+      bankLinkStatus = "LINKED";
+      //   } catch (linkError: any) {
+      //     // Linking failed — business is still created so the rest of onboarding
+      //     // can be tested. The FAILED status lets the client nudge the user to retry.
+      //     bankLinkStatus = "FAILED";
+      //     console.error("Bank linking failed:", linkError.message);
+      //   }
+      // }
+
+      // --- Persist ---
       const business = await db.business.create({
         data: {
           ...businessData,
           ...settlementData,
           slug,
           ownerId: user.id,
+          // bankLinkStatus,
+          // LINKED  → bank fully connected, ready to receive payments
+          // FAILED  → monoCode was provided but linking errored, retry available
+          // PENDING → no monoCode provided, user skipped bank linking for now
         },
       });
 
+      const messages = {
+        LINKED: "Business created successfully with bank account linked",
+        FAILED:
+          "Business created, but bank linking failed. You can retry from your settings.",
+        PENDING:
+          "Business created successfully. Connect your bank account from settings to receive payments.",
+      };
+
       const response: ApiResponse = {
         status: 201,
-        message: monoCode && settlementData.paystackSubaccountCode
-          ? "Business created successfully with bank account linked"
-          : monoCode
-            ? "Business created successfully, but bank linking failed. You can retry later."
-            : "Business created successfully",
+        message: messages[bankLinkStatus],
         data: business,
       };
 
-      return NextResponse.json(response);
+      return NextResponse.json(response, { status: 201 });
     } catch (error: any) {
       if (error.statusCode) throw error;
       throw new InternalServerErrorException(

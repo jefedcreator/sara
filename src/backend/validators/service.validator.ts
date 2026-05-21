@@ -37,7 +37,9 @@ const serviceBaseSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
-const availabilityWindowRefine = <T extends { availableFrom?: string; availableTo?: string }>(
+const availabilityWindowRefine = <
+  T extends { availableFrom?: string; availableTo?: string },
+>(
   schema: z.ZodType<T>,
 ) =>
   schema.refine(
@@ -53,7 +55,8 @@ const availabilityWindowRefine = <T extends { availableFrom?: string; availableT
     },
   );
 
-export const serviceValidatorSchema = availabilityWindowRefine(serviceBaseSchema);
+export const serviceValidatorSchema =
+  availabilityWindowRefine(serviceBaseSchema);
 
 export const updateServiceValidatorSchema = availabilityWindowRefine(
   serviceBaseSchema.partial().strict(),

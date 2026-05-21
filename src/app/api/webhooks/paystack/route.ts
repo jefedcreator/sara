@@ -57,9 +57,10 @@ export async function POST(request: Request) {
               amount: amount / 100, // Convert from smallest unit (kobo/cents) to main unit
               method: "PAYSTACK",
               reference,
-              clientName: [customer.first_name, customer.last_name]
-                .filter(Boolean)
-                .join(" ") || undefined,
+              clientName:
+                [customer.first_name, customer.last_name]
+                  .filter(Boolean)
+                  .join(" ") || undefined,
               clientEmail: customer.email,
             },
           });

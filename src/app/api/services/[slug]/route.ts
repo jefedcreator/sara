@@ -323,4 +323,3 @@ export const GET = withMiddleware<unknown>(
   },
   [authMiddleware],
 );
-
