@@ -27,7 +27,7 @@ export interface ApiError {
 }
 
 export interface PaginatedApiResponse<T = unknown>
-  extends ApiResponse<T>, PaginationMeta {}
+  extends ApiResponse<T>, PaginationMeta { }
 
 export type InvoiceListItem = Invoice & {
   services: (InvoiceService & { service: Service })[];
@@ -51,14 +51,14 @@ export type CreatedInvoice = Invoice & {
 
 export type ReceiptListItem = Receipt & {
   payment:
-    | (Payment & {
-        invoice?: {
-          id: string;
-          slug: string;
-          invoiceNumber: string;
-        } | null;
-      })
-    | null;
+  | (Payment & {
+    invoice?: {
+      id: string;
+      slug: string;
+      invoiceNumber: string;
+    } | null;
+  })
+  | null;
   business: Business;
   services: (ReceiptService & { service: Service })[];
 };
@@ -79,3 +79,9 @@ export type CreatedBooking = Booking & {
   paymentUrl: string;
   paymentReference: string;
 }
+
+export type IBooking = Booking & {
+  business: Pick<Business, "ownerId">;
+  service: Pick<Service, "id" | "name" | "price" | "duration" | "slug" | "image">;
+};
+
