@@ -33,6 +33,9 @@ export const env = createEnv({
     MONO_SECRET_KEY: z.string().optional(),
     PAYSTACK_SECRET_KEY: z.string().optional(),
     PAYSTACK_WEBHOOK_SECRET: z.string().optional(),
+    PAYSTACK_API_URL: z.string().url().optional(),
+    MONO_CLIENT_ID: z.string().optional(),
+    MONO_REDIRECT_URL: z.string().url().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -45,6 +48,7 @@ export const env = createEnv({
    */
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
+    NEXT_PUBLIC_MONO_PUBLIC_KEY: z.string().optional(),
   },
 
   /**
@@ -76,6 +80,12 @@ export const env = createEnv({
     MONO_SECRET_KEY: process.env.MONO_SECRET_KEY,
     PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY,
     PAYSTACK_WEBHOOK_SECRET: process.env.PAYSTACK_WEBHOOK_SECRET,
+    PAYSTACK_API_URL: process.env.PAYSTACK_API_URL,
+    MONO_CLIENT_ID: process.env.MONO_CLIENT_ID,
+    MONO_REDIRECT_URL: process.env.MONO_REDIRECT_URL,
+    NEXT_PUBLIC_MONO_PUBLIC_KEY: process.env.NEXT_PUBLIC_MONO_PUBLIC_KEY,
+    // NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
