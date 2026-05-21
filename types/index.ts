@@ -6,6 +6,7 @@ import type {
   Receipt,
   InvoiceService,
   ReceiptService,
+  Booking,
 } from "@prisma/client";
 
 export interface PaginationMeta {
@@ -73,3 +74,8 @@ export interface TimeSlot {
 export type ServiceDetail = Service & {
   slots: TimeSlot[];
 };
+
+export type CreatedBooking = Booking & {
+  paymentUrl: string;
+  paymentReference: string;
+}

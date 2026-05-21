@@ -153,8 +153,6 @@ class PaystackService {
         result?.message ?? `Paystack API error (${response.status})`;
       throw new Error(message);
     }
-    console.log('Paystack Response', result.data);
-
     return result.data;
   }
 
