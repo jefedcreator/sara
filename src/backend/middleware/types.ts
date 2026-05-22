@@ -4,6 +4,11 @@ import type z from "zod";
 import type { BaseQueryValidatorSchema } from "../validators/index.validator";
 import type { InvoiceQueryValidatorSchema } from "../validators/invoice.validator";
 import type { ReceiptQueryValidatorSchema } from "../validators/receipt.validator";
+import type {
+  AtlasGeocodeQueryValidatorSchema,
+  AtlasReverseQueryValidatorSchema,
+  AtlasSearchQueryValidatorSchema,
+} from "../validators/atlas.validator";
 
 export type MiddlewareResponse = {
   message: string;
@@ -28,9 +33,12 @@ type Prettify<T> = {
 } & {};
 
 export type QueryParameters = Prettify<
-  BaseQueryValidatorSchema &
-    InvoiceQueryValidatorSchema &
-    ReceiptQueryValidatorSchema
+  Partial<BaseQueryValidatorSchema> &
+    Partial<InvoiceQueryValidatorSchema> &
+    Partial<ReceiptQueryValidatorSchema> &
+    AtlasSearchQueryValidatorSchema &
+    Partial<AtlasGeocodeQueryValidatorSchema> &
+    Partial<AtlasReverseQueryValidatorSchema>
 >;
 
 export type AuthenticatedUser = User & {
