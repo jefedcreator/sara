@@ -20,6 +20,280 @@
       }
     },
     "schemas": {
+      "AtlasGeocodeQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "default": 5,
+            "type": "number"
+          },
+          "country": {
+            "type": "string",
+            "default": "NG"
+          },
+          "lang": {
+            "type": "string",
+            "default": "en"
+          }
+        },
+        "required": [
+          "q"
+        ]
+      },
+      "atlasGeocodeQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 1
+          },
+          "limit": {
+            "default": 5,
+            "type": "number"
+          },
+          "country": {
+            "type": "string",
+            "default": "NG"
+          },
+          "lang": {
+            "type": "string",
+            "default": "en"
+          }
+        },
+        "required": [
+          "q"
+        ]
+      },
+      "AtlasReverseQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number",
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "maximum": 180
+          },
+          "limit": {
+            "default": 5,
+            "type": "number"
+          },
+          "lang": {
+            "type": "string",
+            "default": "en"
+          }
+        },
+        "required": [
+          "lat",
+          "lon"
+        ]
+      },
+      "atlasReverseQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number",
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "maximum": 180
+          },
+          "limit": {
+            "default": 5,
+            "type": "number"
+          },
+          "lang": {
+            "type": "string",
+            "default": "en"
+          }
+        },
+        "required": [
+          "lat",
+          "lon"
+        ]
+      },
+      "AtlasRouteBodyValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "maximum": 90
+              },
+              "lon": {
+                "type": "number",
+                "maximum": 180
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ]
+          },
+          "destination": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "maximum": 90
+              },
+              "lon": {
+                "type": "number",
+                "maximum": 180
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ]
+          },
+          "profile": {
+            "type": "string",
+            "enum": [
+              "car",
+              "motorcycle",
+              "bicycle",
+              "foot"
+            ],
+            "default": "car"
+          }
+        },
+        "required": [
+          "origin",
+          "destination"
+        ]
+      },
+      "atlasRouteBodyValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "origin": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "maximum": 90
+              },
+              "lon": {
+                "type": "number",
+                "maximum": 180
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ]
+          },
+          "destination": {
+            "type": "object",
+            "properties": {
+              "lat": {
+                "type": "number",
+                "maximum": 90
+              },
+              "lon": {
+                "type": "number",
+                "maximum": 180
+              }
+            },
+            "required": [
+              "lat",
+              "lon"
+            ]
+          },
+          "profile": {
+            "type": "string",
+            "enum": [
+              "car",
+              "motorcycle",
+              "bicycle",
+              "foot"
+            ],
+            "default": "car"
+          }
+        },
+        "required": [
+          "origin",
+          "destination"
+        ]
+      },
+      "AtlasSearchQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "default": ""
+          },
+          "lat": {
+            "type": "number",
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "maximum": 180
+          },
+          "category": {
+            "type": "string"
+          },
+          "radius_km": {
+            "type": "number"
+          },
+          "limit": {
+            "default": 10,
+            "type": "number"
+          },
+          "country": {
+            "type": "string",
+            "default": "NG"
+          }
+        },
+        "required": [
+          "lat",
+          "lon"
+        ]
+      },
+      "atlasSearchQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "default": ""
+          },
+          "lat": {
+            "type": "number",
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "maximum": 180
+          },
+          "category": {
+            "type": "string"
+          },
+          "radius_km": {
+            "type": "number"
+          },
+          "limit": {
+            "default": 10,
+            "type": "number"
+          },
+          "country": {
+            "type": "string",
+            "default": "NG"
+          }
+        },
+        "required": [
+          "lat",
+          "lon"
+        ]
+      },
       "baseQueryValidatorSchema": {
         "type": "object",
         "properties": {
@@ -67,6 +341,210 @@
           "size"
         ],
         "additionalProperties": false
+      },
+      "BookingQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "default": 1,
+            "type": "string"
+          },
+          "size": {
+            "default": 10,
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "startTime",
+              "createdAt",
+              "updatedAt",
+              "status"
+            ],
+            "default": "createdAt"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "all": {
+            "type": "string"
+          },
+          "isOg": {
+            "type": "string"
+          },
+          "isMomentOg": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "serviceId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "bookingQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "default": 1,
+            "type": "string"
+          },
+          "size": {
+            "default": 10,
+            "type": "string"
+          },
+          "query": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "sortBy": {
+            "type": "string",
+            "enum": [
+              "startTime",
+              "createdAt",
+              "updatedAt",
+              "status"
+            ],
+            "default": "createdAt"
+          },
+          "sortOrder": {
+            "type": "string",
+            "enum": [
+              "asc",
+              "desc"
+            ],
+            "default": "desc"
+          },
+          "all": {
+            "type": "string"
+          },
+          "isOg": {
+            "type": "string"
+          },
+          "isMomentOg": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "serviceId": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "BookingValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "startTime": {
+            "type": "object"
+          },
+          "endTime": {
+            "type": "object"
+          },
+          "clientName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "clientPhone": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "clientLat": {
+            "type": "number",
+            "maximum": 90
+          },
+          "clientLong": {
+            "type": "number",
+            "maximum": 180
+          }
+        },
+        "required": [
+          "serviceId",
+          "startTime",
+          "endTime",
+          "clientName"
+        ]
+      },
+      "bookingValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "$ref": "#/components/schemas/cuidValidator"
+          },
+          "startTime": {
+            "type": "object"
+          },
+          "endTime": {
+            "type": "object"
+          },
+          "clientName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "clientPhone": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "clientLat": {
+            "type": "number",
+            "maximum": 90
+          },
+          "clientLong": {
+            "type": "number",
+            "maximum": 180
+          }
+        },
+        "required": [
+          "serviceId",
+          "startTime",
+          "endTime",
+          "clientName"
+        ]
       },
       "BusinessValidatorSchema": {
         "type": "object",
@@ -121,10 +599,15 @@
           "longitude": {
             "type": "number",
             "maximum": 180
+          },
+          "monoCode": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
-          "name"
+          "name",
+          "monoCode"
         ]
       },
       "businessValidatorSchema": {
@@ -180,16 +663,22 @@
           "longitude": {
             "type": "number",
             "maximum": 180
+          },
+          "monoCode": {
+            "type": "string",
+            "minLength": 1
           }
         },
         "required": [
-          "name"
+          "name",
+          "monoCode"
         ]
       },
       "cuidValidator": {
         "type": "string",
         "format": "cuid"
       },
+      "date": {},
       "invoiceItemValidatorSchema": {
         "type": "object",
         "properties": {
@@ -684,6 +1173,40 @@
         "type": "string",
         "format": "cuid"
       },
+      "OverviewQuerySchema": {
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "overviewQuerySchema": {
+        "type": "object",
+        "properties": {
+          "serviceId": {
+            "type": "string"
+          },
+          "from": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "to": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "additionalProperties": false
+      },
       "paymentMethodValidatorSchema": {
         "type": "string",
         "enum": [
@@ -1012,6 +1535,56 @@
         ],
         "additionalProperties": false
       },
+      "serviceBaseSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "nullable": true
+          },
+          "price": {
+            "type": "object"
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "availableFrom": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "default": "08:00"
+          },
+          "availableTo": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "default": "17:00"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "price",
+          "duration",
+          "availableFrom",
+          "availableTo",
+          "isActive"
+        ]
+      },
       "ServiceQueryValidatorSchema": {
         "type": "object",
         "properties": {
@@ -1133,80 +1706,13 @@
         "additionalProperties": false
       },
       "ServiceValidatorSchema": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "description": {
-            "type": "string",
-            "maxLength": 1000,
-            "nullable": true
-          },
-          "image": {
-            "type": "string",
-            "maxLength": 2000,
-            "nullable": true
-          },
-          "price": {
-            "type": "object"
-          },
-          "duration": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
-          },
-          "isActive": {
-            "type": "boolean",
-            "default": true
-          }
-        },
-        "required": [
-          "name",
-          "price",
-          "duration",
-          "isActive"
-        ]
+        "type": "object"
       },
       "serviceValidatorSchema": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "description": {
-            "type": "string",
-            "maxLength": 1000,
-            "nullable": true
-          },
-          "image": {
-            "type": "string",
-            "maxLength": 2000,
-            "nullable": true
-          },
-          "price": {
-            "type": "object"
-          },
-          "duration": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
-          },
-          "isActive": {
-            "type": "boolean",
-            "default": true
-          }
-        },
-        "required": [
-          "name",
-          "price",
-          "duration",
-          "isActive"
-        ]
+        "type": "object"
+      },
+      "slug": {
+        "type": "object"
       },
       "slugParamValidator": {
         "type": "object",
@@ -1219,6 +1725,82 @@
         "required": [
           "slug"
         ]
+      },
+      "UpdateBookingValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "startTime": {
+            "type": "object"
+          },
+          "endTime": {
+            "type": "object"
+          },
+          "clientName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "clientPhone": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
+      },
+      "updateBookingValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "CONFIRMED",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "startTime": {
+            "type": "object"
+          },
+          "endTime": {
+            "type": "object"
+          },
+          "clientName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "clientPhone": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "additionalProperties": false
       },
       "UpdateBusinessValidatorSchema": {
         "type": "object",
@@ -1273,6 +1855,10 @@
           "longitude": {
             "type": "number",
             "maximum": 180
+          },
+          "monoCode": {
+            "type": "string",
+            "minLength": 1
           }
         }
       },
@@ -1329,6 +1915,10 @@
           "longitude": {
             "type": "number",
             "maximum": 180
+          },
+          "monoCode": {
+            "type": "string",
+            "minLength": 1
           }
         }
       },
@@ -1619,68 +2209,10 @@
         "additionalProperties": false
       },
       "UpdateServiceValidatorSchema": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "description": {
-            "type": "string",
-            "maxLength": 1000,
-            "nullable": true
-          },
-          "image": {
-            "type": "string",
-            "maxLength": 2000,
-            "nullable": true
-          },
-          "price": {
-            "type": "object"
-          },
-          "duration": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
-          },
-          "isActive": {
-            "type": "boolean",
-            "default": true
-          }
-        }
+        "type": "object"
       },
       "updateServiceValidatorSchema": {
-        "type": "object",
-        "properties": {
-          "name": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 255
-          },
-          "description": {
-            "type": "string",
-            "maxLength": 1000,
-            "nullable": true
-          },
-          "image": {
-            "type": "string",
-            "maxLength": 2000,
-            "nullable": true
-          },
-          "price": {
-            "type": "object"
-          },
-          "duration": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 9007199254740991
-          },
-          "isActive": {
-            "type": "boolean",
-            "default": true
-          }
-        }
+        "type": "object"
       }
     },
     "responses": {
@@ -1807,6 +2339,227 @@
     }
   },
   "paths": {
+    "/atlas/geocode": {
+      "get": {
+        "operationId": "get-atlas-geocode",
+        "summary": "",
+        "description": "Proxy to Atlas forward-geocode. Returns address suggestions",
+        "tags": [
+          "Atlas"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "country",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "NG"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/atlas/reverse": {
+      "get": {
+        "operationId": "get-atlas-reverse",
+        "summary": "",
+        "description": "Proxy to Atlas reverse-geocode. Converts coordinates to address.",
+        "tags": [
+          "Atlas"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "lat",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 90
+            }
+          },
+          {
+            "in": "query",
+            "name": "lon",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 180
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 5,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "lang",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "en"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/atlas/route": {
+      "post": {
+        "operationId": "post-atlas-route",
+        "summary": "",
+        "description": "Proxy to Atlas routing engine. Returns distance, duration,",
+        "tags": [
+          "Atlas"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AtlasRouteBodyValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/atlas/search": {
+      "get": {
+        "operationId": "get-atlas-search",
+        "summary": "",
+        "description": "Proxy to Atlas POI search. Returns nearby places/businesses",
+        "tags": [
+          "Atlas"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": ""
+            }
+          },
+          {
+            "in": "query",
+            "name": "lat",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 90
+            }
+          },
+          {
+            "in": "query",
+            "name": "lon",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "maximum": 180
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "radius_km",
+            "required": false,
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "country",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "NG"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
     "/auth/{nextauth}": {
       "get": {
         "operationId": "get-auth-{nextauth}",
@@ -2387,6 +3140,240 @@
         }
       }
     },
+    "/bookings": {
+      "get": {
+        "operationId": "get-bookings",
+        "summary": "",
+        "description": "Retrieves bookings for the authenticated user's business.",
+        "tags": [
+          "Bookings"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "size",
+            "required": false,
+            "schema": {
+              "default": 10,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 255
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortBy",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "startTime",
+                "createdAt",
+                "updatedAt",
+                "status"
+              ],
+              "default": "createdAt"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc"
+            }
+          },
+          {
+            "in": "query",
+            "name": "all",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isOg",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "isMomentOg",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "PENDING",
+                "CONFIRMED",
+                "COMPLETED",
+                "CANCELLED"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "serviceId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-bookings",
+        "summary": "",
+        "description": "Creates a new booking for a service and initializes a Paystack",
+        "tags": [
+          "Bookings"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/bookingValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/bookings/{slug}": {
+      "get": {
+        "operationId": "get-bookings-{slug}",
+        "summary": "",
+        "description": "Retrieves a single booking by slug with its associated service details.",
+        "tags": [
+          "Bookings"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-bookings-{slug}",
+        "summary": "",
+        "description": "Updates an existing booking. Supports status transitions,",
+        "tags": [
+          "Bookings"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateBookingValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-bookings-{slug}",
+        "summary": "",
+        "description": "Cancels a booking by transitioning its status to CANCELLED.",
+        "tags": [
+          "Bookings"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
     "/business": {
       "get": {
         "operationId": "get-business",
@@ -2476,6 +3463,30 @@
         "operationId": "delete-business",
         "summary": "",
         "description": "Deletes the business for the authenticated user.",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/business/mono-url": {
+      "get": {
+        "operationId": "get-business-mono-url",
+        "summary": "",
+        "description": "Returns the Mono Connect public key so the client can initialise",
         "tags": [
           "Business"
         ],
@@ -2831,6 +3842,57 @@
               "minLength": 1
             },
             "example": "slug"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/overview": {
+      "get": {
+        "operationId": "get-overview",
+        "summary": "",
+        "description": "Returns revenue overview per service for the authenticated user's",
+        "tags": [
+          "Overview"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "serviceId",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
           }
         ],
         "security": [
@@ -3288,7 +4350,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/serviceValidatorSchema"
+                "$ref": "#/components/schemas/ServiceValidatorSchema"
               }
             }
           }
@@ -3307,7 +4369,7 @@
       "get": {
         "operationId": "get-services-{slug}",
         "summary": "",
-        "description": "Retrieves a single service by slug for the authenticated user's business.",
+        "description": "Retrieves a single service by slug with computed available",
         "tags": [
           "Services"
         ],
@@ -3412,11 +4474,72 @@
           }
         }
       }
+    },
+    "/webhooks/paystack": {
+      "post": {
+        "operationId": "post-webhooks-paystack",
+        "summary": "",
+        "description": "Paystack webhook endpoint for payment event notifications.",
+        "tags": [
+          "Webhooks"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "401": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
     }
   },
   "tags": [
     {
+      "name": "Atlas"
+    },
+    {
       "name": "Auth"
+    },
+    {
+      "name": "Bookings"
     },
     {
       "name": "Business"
@@ -3425,10 +4548,16 @@
       "name": "Invoices"
     },
     {
+      "name": "Overview"
+    },
+    {
       "name": "Receipts"
     },
     {
       "name": "Services"
+    },
+    {
+      "name": "Webhooks"
     }
   ]
 }

@@ -71,8 +71,8 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         const [booking, existingInvoice] = await Promise.all([
           payload.bookingId
             ? tx.booking.findFirst({
-                where: { id: payload.bookingId, businessId: business.id },
-              })
+              where: { id: payload.bookingId, businessId: business.id },
+            })
             : Promise.resolve(null),
           tx.invoice.findUnique({
             where: {
@@ -327,7 +327,9 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
         [payload.sortBy ?? "createdAt"]: payload.sortOrder ?? "desc",
       };
 
-      const include: Prisma.InvoiceInclude = {
+      const include = {
+        business: true,
+        payments: true,
         services: { include: { service: true } },
         booking: {
           select: {
@@ -349,7 +351,7 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
           where,
           include,
           orderBy,
-        })) as unknown as InvoiceListItem[];
+        }));
 
         const response: PaginatedApiResponse<InvoiceListItem[]> = {
           status: 200,
@@ -376,7 +378,7 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
           skip,
           orderBy,
           include,
-        }) as unknown as Promise<InvoiceListItem[]>,
+        }),
       ]);
 
       const response: PaginatedApiResponse<InvoiceListItem[]> = {

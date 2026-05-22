@@ -8,10 +8,10 @@ import { optionalAuthMiddleware, queryValidatorMiddleware } from "@/backend/midd
 import { atlasReverseQueryValidatorSchema, type AtlasReverseQueryValidatorSchema } from "@/backend/validators/atlas.validator";
 
 /**
- * @queryParams lat (required), lon (required), limit, lang
+ * @queryParams AtlasReverseQueryValidatorSchema
  * @description Proxy to Atlas reverse-geocode. Converts coordinates to address.
  */
-export const GET = withMiddleware<unknown, AtlasReverseQueryValidatorSchema>(
+export const GET = withMiddleware<AtlasReverseQueryValidatorSchema>(
   async (request) => {
     try {
       const payload = request.query!;

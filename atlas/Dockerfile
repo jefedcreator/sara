@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /build
 
 # Clone Atlas at a specific commit / branch (pin for reproducibility)
-RUN git clone --depth 1 https://github.com/Augani/atlas.git .
+RUN git clone --depth 1 https://github.com/jefedcreator/atlas.git .
 
 # Build release binaries
 RUN cargo build --release -p atlas-server -p atlas-ingest

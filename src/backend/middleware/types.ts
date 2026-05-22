@@ -34,11 +34,11 @@ type Prettify<T> = {
 
 export type QueryParameters = Prettify<
   Partial<BaseQueryValidatorSchema> &
-    Partial<InvoiceQueryValidatorSchema> &
-    Partial<ReceiptQueryValidatorSchema> &
-    AtlasSearchQueryValidatorSchema &
-    Partial<AtlasGeocodeQueryValidatorSchema> &
-    Partial<AtlasReverseQueryValidatorSchema>
+  Partial<InvoiceQueryValidatorSchema> &
+  Partial<ReceiptQueryValidatorSchema> &
+  AtlasSearchQueryValidatorSchema &
+  AtlasGeocodeQueryValidatorSchema &
+  AtlasReverseQueryValidatorSchema
 >;
 
 export type AuthenticatedUser = User & {
