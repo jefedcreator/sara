@@ -3,6 +3,7 @@ import {
   bodyValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
+import { atlasService } from "@/backend/services/atlas";
 import { monoService } from "@/backend/services/mono";
 import { paystackService } from "@/backend/services/paystack";
 import {
@@ -88,6 +89,23 @@ export const POST = withMiddleware<BusinessValidatorSchema>(
       const existingSlug = await db.business.findUnique({ where: { slug } });
       if (existingSlug) {
         throw new ConflictException("A business with this slug already exists");
+      }
+
+      // --- Atlas auto-geocoding (address → lat/lng) ---
+      if (businessData.address && !businessData.latitude && !businessData.longitude) {
+        try {
+          const parts = [businessData.address, businessData.city, businessData.state, businessData.country]
+            .filter(Boolean)
+            .join(", ");
+          const results = await atlasService.geocode(parts, { limit: 1, country: "NG" });
+          if (results.length > 0) {
+            businessData.latitude = results[0]!.lat;
+            businessData.longitude = results[0]!.lon;
+          }
+        } catch (geoError: any) {
+          // Geocoding failure is non-fatal — business is still created without coordinates
+          console.warn("Atlas geocoding failed:", geoError.message);
+        }
       }
 
 

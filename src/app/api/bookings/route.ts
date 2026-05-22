@@ -4,6 +4,7 @@ import {
   queryValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
+import { atlasService } from "@/backend/services/atlas";
 import { paystackService } from "@/backend/services/paystack";
 import {
   bookingQueryValidatorSchema,
@@ -144,6 +145,44 @@ export const POST = withMiddleware<BookingValidatorSchema>(
 
         return await tx.booking.create({ data });
       });
+
+      // 5b. Compute Atlas route if client + business coordinates are available
+      const businessCoords = await db.business.findUnique({
+        where: { id: service.business.id },
+        select: { latitude: true, longitude: true },
+      });
+
+      if (
+        payload.clientLat != null &&
+        payload.clientLong != null &&
+        businessCoords?.latitude != null &&
+        businessCoords?.longitude != null
+      ) {
+        try {
+          const routeResult = await atlasService.route(
+            { lat: payload.clientLat, lon: payload.clientLong },
+            {
+              lat: Number(businessCoords.latitude),
+              lon: Number(businessCoords.longitude),
+            },
+            "car",
+          );
+
+          await db.booking.update({
+            where: { id: booking.id },
+            data: {
+              clientLat: payload.clientLat,
+              clientLong: payload.clientLong,
+              distanceKm: routeResult.distance_m / 1000,
+              durationMin: Math.ceil(routeResult.duration_s / 60),
+              routePolyline: JSON.stringify(routeResult.geometry),
+            },
+          });
+        } catch (routeError: any) {
+          // Routing failure is non-fatal — booking is still created without route data
+          console.warn("Atlas routing failed:", routeError.message);
+        }
+      }
 
       // 6. Initialize Paystack transaction with split payment
       const amountInSmallestUnit = Math.round(

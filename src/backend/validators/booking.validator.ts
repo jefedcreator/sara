@@ -23,6 +23,18 @@ export const bookingValidatorSchema = z.object({
     .string()
     .max(1000, "notes cannot exceed 1000 characters")
     .optional(),
+
+  // Client geolocation (optional — used for Atlas routing)
+  clientLat: z.coerce
+    .number()
+    .min(-90, "clientLat must be ≥ -90")
+    .max(90, "clientLat must be ≤ 90")
+    .optional(),
+  clientLong: z.coerce
+    .number()
+    .min(-180, "clientLong must be ≥ -180")
+    .max(180, "clientLong must be ≤ 180")
+    .optional(),
 });
 
 export const bookingQueryValidatorSchema = baseQueryValidatorSchema
