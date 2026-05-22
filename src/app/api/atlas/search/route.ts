@@ -1,14 +1,13 @@
+import { optionalAuthMiddleware, queryValidatorMiddleware, withMiddleware } from "@/backend/middleware";
 import { atlasService } from "@/backend/services/atlas";
+import { atlasSearchQueryValidatorSchema, type AtlasSearchQueryValidatorSchema } from "@/backend/validators/atlas.validator";
 import { InternalServerErrorException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import type { ApiResponse } from "types";
 import type { AtlasSearchResponse } from "types/atlas";
-import { withMiddleware } from "@/backend/middleware";
-import { optionalAuthMiddleware, queryValidatorMiddleware } from "@/backend/middleware";
-import { atlasSearchQueryValidatorSchema, type AtlasSearchQueryValidatorSchema } from "@/backend/validators/atlas.validator";
 
 /**
- * @queryParams q, lat (required), lon (required), category, radius_km, limit, country
+ * @queryParams AtlasSearchQueryValidatorSchema
  * @description Proxy to Atlas POI search. Returns nearby places/businesses
  *              ranked by distance from the given coordinates.
  */

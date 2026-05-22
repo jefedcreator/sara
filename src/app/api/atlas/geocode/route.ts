@@ -8,11 +8,11 @@ import { optionalAuthMiddleware, queryValidatorMiddleware } from "@/backend/midd
 import { atlasGeocodeQueryValidatorSchema, type AtlasGeocodeQueryValidatorSchema } from "@/backend/validators/atlas.validator";
 
 /**
- * @queryParams q (required), limit, country, lang
+ * @queryParams AtlasGeocodeQueryValidatorSchema
  * @description Proxy to Atlas forward-geocode. Returns address suggestions
  *              with lat/lon for the autocomplete component.
  */
-export const GET = withMiddleware<unknown, AtlasGeocodeQueryValidatorSchema>(
+export const GET = withMiddleware<AtlasGeocodeQueryValidatorSchema>(
   async (request) => {
     try {
       const payload = request.query!;

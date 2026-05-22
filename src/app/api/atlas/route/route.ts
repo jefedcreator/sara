@@ -8,7 +8,7 @@ import { optionalAuthMiddleware, bodyValidatorMiddleware } from "@/backend/middl
 import { atlasRouteBodyValidatorSchema, type AtlasRouteBodyValidatorSchema } from "@/backend/validators/atlas.validator";
 
 /**
- * @body { origin: { lat, lon }, destination: { lat, lon }, profile?: string }
+ * @body AtlasRouteBodyValidatorSchema
  * @description Proxy to Atlas routing engine. Returns distance, duration,
  *              GeoJSON geometry, and turn-by-turn instructions.
  * @contentType application/json
