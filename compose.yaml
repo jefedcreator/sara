@@ -15,6 +15,7 @@ services:
       AUTH_DISCORD_SECRET: local-development-discord-secret
       NEXTAUTH_URL: http://localhost:3000
       NEXT_PUBLIC_APP_URL: http://localhost:3000
+      ATLAS_API_URL: http://atlas:3001
       WATCHPACK_POLLING: "true"
     extra_hosts:
       - "host.docker.internal:host-gateway"
@@ -23,6 +24,29 @@ services:
       - app_node_modules:/app/node_modules
       - app_next:/app/.next
       - app_generated:/app/generated
+    depends_on:
+      atlas:
+        condition: service_healthy
+    restart: unless-stopped
+
+  atlas:
+    build:
+      context: ./atlas
+    ports:
+      - "3001:3001"
+    environment:
+      ATLAS_TILE_SOURCE: local
+      ATLAS_TILE_DIR: /data/tiles
+      ATLAS_OSM_DIR: /data/osm
+      ATLAS_INDEX_DIR: /data/indices
+      ATLAS_PORT: 3001
+      ATLAS_AUTH_ENABLED: "false"
+      RUST_LOG: info
+    volumes:
+      - atlas_osm:/data/osm
+      - atlas_tiles:/data/tiles
+      - atlas_indices:/data/indices
+      - atlas_contributions:/data/contributions
     restart: unless-stopped
 
   postgres:
@@ -49,3 +73,8 @@ volumes:
   app_next:
   app_generated:
   postgres_data:
+  atlas_osm:
+  atlas_tiles:
+  atlas_indices:
+  atlas_contributions:
+

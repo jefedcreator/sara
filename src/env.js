@@ -36,6 +36,7 @@ export const env = createEnv({
     PAYSTACK_API_URL: z.string().url().optional(),
     MONO_CLIENT_ID: z.string().optional(),
     MONO_REDIRECT_URL: z.string().url().optional(),
+    ATLAS_API_URL: z.string().url().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -84,6 +85,7 @@ export const env = createEnv({
     MONO_CLIENT_ID: process.env.MONO_CLIENT_ID,
     MONO_REDIRECT_URL: process.env.MONO_REDIRECT_URL,
     NEXT_PUBLIC_MONO_PUBLIC_KEY: process.env.NEXT_PUBLIC_MONO_PUBLIC_KEY,
+    ATLAS_API_URL: process.env.ATLAS_API_URL,
     // NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
 
   },
