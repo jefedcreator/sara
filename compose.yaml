@@ -26,7 +26,7 @@ services:
       - app_generated:/app/generated
     depends_on:
       atlas:
-        condition: service_healthy
+        condition: service_started
     restart: unless-stopped
 
   atlas:
@@ -38,7 +38,14 @@ services:
       ATLAS_TILE_SOURCE: local
       ATLAS_TILE_DIR: /data/tiles
       ATLAS_OSM_DIR: /data/osm
-      ATLAS_INDEX_DIR: /data/indices
+      ATLAS_GEOCODE_INDEX_DIR: /data/indices/geocode-index
+      ATLAS_SEARCH_INDEX_DIR: /data/indices/search-index
+      ATLAS_ROUTE_DIR: /data/indices
+      ATLAS_LANDMARK_PATH: /data/indices/landmarks.bin
+      ATLAS_PLACES_PATH: /data/indices/places.bin
+      ATLAS_SPEED_DATA_PATH: /data/indices/speed_data.bin
+      ATLAS_CONTRIBUTIONS_DIR: /data/contributions
+      ATLAS_TELEMETRY_DIR: /data/telemetry
       ATLAS_PORT: 3001
       ATLAS_AUTH_ENABLED: "false"
       RUST_LOG: info
@@ -47,6 +54,12 @@ services:
       - atlas_tiles:/data/tiles
       - atlas_indices:/data/indices
       - atlas_contributions:/data/contributions
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 900s
+      retries: 30
     restart: unless-stopped
 
   postgres:

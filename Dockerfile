@@ -9,10 +9,16 @@ FROM base AS deps
 
 COPY package.json yarn.lock ./
 COPY prisma ./prisma
-RUN for i in 1 2 3 4 5; do \
-    yarn install --frozen-lockfile --network-timeout 600000 --cache-folder /tmp/yarn-cache && break || \
-    (echo "Yarn install failed, retrying in 5s..." && sleep 5); \
-    done && rm -rf /tmp/yarn-cache
+RUN set -e && \
+    installed=false && \
+    for i in 1 2 3 4 5; do \
+      if yarn install --frozen-lockfile --network-timeout 600000 --cache-folder /tmp/yarn-cache; then \
+        installed=true; break; \
+      fi; \
+      echo "Yarn install failed (attempt $i/5), retrying in 5s..." && sleep 5; \
+    done && \
+    rm -rf /tmp/yarn-cache && \
+    if [ "$installed" = false ]; then echo "All yarn install attempts failed" && exit 1; fi
 
 FROM base AS dev
 
