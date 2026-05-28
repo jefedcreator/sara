@@ -48,7 +48,10 @@ class AtlasService {
         params: {
           q: query,
           limit: options?.limit ?? 5,
-          country: options?.country ?? "NG",
+          // Only send country when caller explicitly provides it.
+          // Atlas uses it as a hard Must filter; most OSM places lack addr:country
+          // so defaulting to "NG" silently drops all results.
+          ...(options?.country != null && { country: options.country }),
           lang: options?.lang ?? "en",
         },
       },
