@@ -59,7 +59,7 @@ export default function AddressAutocomplete({
     setIsLoading(true);
     try {
       const res = await fetch(
-        `/api/atlas/geocode?q=${encodeURIComponent(q)}&limit=5&country=NG`,
+        `/api/atlas/geocode?q=${encodeURIComponent(q)}&limit=5`,
       );
       const json = await res.json();
       const data: AtlasGeocodeResult[] = json.data ?? [];

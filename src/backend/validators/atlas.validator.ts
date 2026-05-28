@@ -7,14 +7,14 @@ export const atlasSearchQueryValidatorSchema = z.object({
   category: z.string().optional(),
   radius_km: z.coerce.number().optional(),
   limit: z.coerce.number().optional().default(10),
-  country: z.string().optional().default("NG"),
+  country: z.string().optional(),
 });
 export type AtlasSearchQueryValidatorSchema = z.infer<typeof atlasSearchQueryValidatorSchema>;
 
 export const atlasGeocodeQueryValidatorSchema = z.object({
   q: z.string().min(1, "Missing required query parameter: q"),
   limit: z.coerce.number().optional().default(5),
-  country: z.string().optional().default("NG"),
+  country: z.string().optional(),
   lang: z.string().optional().default("en"),
 });
 export type AtlasGeocodeQueryValidatorSchema = z.infer<typeof atlasGeocodeQueryValidatorSchema>;
