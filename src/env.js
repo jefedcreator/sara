@@ -40,6 +40,13 @@ export const env = createEnv({
     ATLAS_API_URL: z.string().url().optional(),
     RESEND_API_KEY: z.string().optional(),
     CRON_SECRET: z.string().optional(),
+    WHATSAPP_VERIFY_TOKEN: z.string().optional(),
+    WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
+    WHATSAPP_TOKEN: z.string().optional(),
+    META_APP_SECRET: z.string().optional(),
+    INSTAGRAM_VERIFY_TOKEN: z.string().optional(),
+    INSTAGRAM_IG_ID: z.string().optional(),
+    INSTAGRAM_PAGE_TOKEN: z.string().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -92,6 +99,13 @@ export const env = createEnv({
     ATLAS_API_URL: process.env.ATLAS_API_URL,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     CRON_SECRET: process.env.CRON_SECRET,
+    WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN,
+    WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
+    WHATSAPP_TOKEN: process.env.WHATSAPP_TOKEN,
+    META_APP_SECRET: process.env.META_APP_SECRET,
+    INSTAGRAM_VERIFY_TOKEN: process.env.INSTAGRAM_VERIFY_TOKEN,
+    INSTAGRAM_IG_ID: process.env.INSTAGRAM_IG_ID,
+    INSTAGRAM_PAGE_TOKEN: process.env.INSTAGRAM_PAGE_TOKEN,
     // NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
 
   },
