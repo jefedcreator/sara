@@ -92,3 +92,22 @@ Then verify the CLI:
 docker compose version
 docker buildx version
 ```
+
+## Appointment scheduling
+
+Bookings carry their own availability rules. A business sets its weekly working hours and one-off closures via `GET`/`PUT /api/business/hours` and `GET`/`POST /api/business/closures` + `DELETE /api/business/closures/[id]`; `GET /api/services/[slug]?date=YYYY-MM-DD` returns the service together with that day's slots, each flagged `isAvailable` after accounting for working hours, closures, existing bookings, and (if connected) the owner's Google Calendar. A business with no configured hours or closures is simply open by default — none of this requires setup before bookings work.
+
+Booking confirmation, cancellation, reschedule, and a 24-hours-ahead reminder are sent by email (via Resend — set `RESEND_API_KEY`). Reminders are dispatched by `GET /api/cron/booking-reminders`, which your scheduler must call periodically (hourly is a reasonable default). The route checks the `Authorization: Bearer <CRON_SECRET>` header itself rather than going through normal user auth — set `CRON_SECRET` and configure whichever scheduler your deployment uses (Vercel Cron, system cron, a Docker sidecar, a k8s CronJob) to call the endpoint with that header.
+
+### Connecting Google Calendar
+
+A business owner connects their Google Calendar from `GET /api/business/google-calendar/connect` (and disconnects via `DELETE /api/business/google-calendar`). This reuses the existing `AUTH_GOOGLE_ID`/`AUTH_GOOGLE_SECRET` OAuth client — no separate credentials are needed — but it is a one-time setup step in the Google Cloud Console for that OAuth client:
+
+1. Enable the **Google Calendar API** for the project.
+2. Add a second authorized redirect URI (the login flow already uses one for `/api/auth/google/callback`):
+   ```
+   http://localhost:3000/api/business/google-calendar/callback
+   ```
+   (swap the host for your deployed domain in production).
+
+Once connected, confirmed bookings appear as events on the owner's calendar, cancellations remove them, and reschedules move them. Availability calculation also excludes anything already busy on that calendar. None of this is required for bookings to work — a business with no calendar connected behaves exactly as one always has.
