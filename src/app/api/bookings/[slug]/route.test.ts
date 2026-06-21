@@ -18,12 +18,21 @@ vi.mock("@/server/db", () => {
   return { db };
 });
 
+vi.mock("@/backend/services/email", () => ({
+  emailService: {
+    sendBookingCancellationEmail: vi.fn().mockResolvedValue({ success: true }),
+    sendBookingRescheduledEmail: vi.fn().mockResolvedValue({ success: true }),
+  },
+}));
+
+import { emailService } from "@/backend/services/email";
 import { db } from "@/server/db";
-import { PUT } from "./route";
+import { DELETE, PUT } from "./route";
 
 const mockedDb = db as any;
+const mockedEmail = emailService as any;
 
-const BUSINESS = { id: "biz_1", ownerId: "user_1" };
+const BUSINESS = { id: "biz_1", ownerId: "user_1", name: "Acme Salon" };
 const USER = { id: "user_1", name: "Owner", email: "owner@example.com" };
 
 const NEW_START = new Date(Date.now() + 48 * 60 * 60 * 1000);
@@ -35,10 +44,11 @@ const EXISTING_BOOKING = {
   businessId: BUSINESS.id,
   serviceId: "cservice0000000000000001",
   status: "PENDING",
+  clientEmail: "jane@example.com",
   startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
   endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-  business: { ownerId: USER.id },
-  service: { duration: 60 },
+  business: { ownerId: USER.id, name: BUSINESS.name },
+  service: { duration: 60, name: "Haircut" },
 };
 
 beforeEach(() => {
@@ -46,15 +56,18 @@ beforeEach(() => {
   mockAuthenticatedSession(mockedDb, { user: USER, business: BUSINESS });
   mockedDb.booking.findUnique.mockResolvedValue(EXISTING_BOOKING);
   mockedDb.booking.findFirst.mockResolvedValue(null);
-  mockedDb.booking.update.mockImplementation(
-    async (args: { data: Record<string, unknown> }) => ({
-      ...EXISTING_BOOKING,
-      ...args.data,
-    }),
-  );
 });
 
-describe("PUT /api/bookings/[slug] reschedule overlap check", () => {
+describe("PUT /api/bookings/[slug]", () => {
+  beforeEach(() => {
+    mockedDb.booking.update.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => ({
+        ...EXISTING_BOOKING,
+        ...args.data,
+      }),
+    );
+  });
+
   it("scopes the overlap check by businessId, not serviceId", async () => {
     const request = createMockRequest({
       method: "PUT",
@@ -99,5 +112,113 @@ describe("PUT /api/bookings/[slug] reschedule overlap check", () => {
 
     expect(response.status).toBe(400);
     expect(mockedDb.booking.update).not.toHaveBeenCalled();
+  });
+
+  it("sends a reschedule email when startTime/endTime change", async () => {
+    const request = createMockRequest({
+      method: "PUT",
+      cookies: authenticatedCookies(),
+      headers: { "content-type": "application/json" },
+      body: {
+        startTime: NEW_START.toISOString(),
+        endTime: NEW_END.toISOString(),
+      },
+    });
+
+    await PUT(request, { params: Promise.resolve({ slug: EXISTING_BOOKING.slug }) });
+
+    expect(mockedEmail.sendBookingRescheduledEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: EXISTING_BOOKING.clientEmail,
+        businessName: BUSINESS.name,
+        serviceName: EXISTING_BOOKING.service.name,
+      }),
+    );
+    expect(mockedEmail.sendBookingCancellationEmail).not.toHaveBeenCalled();
+  });
+
+  it("sends a cancellation email (not a reschedule email) when status transitions to CANCELLED", async () => {
+    const request = createMockRequest({
+      method: "PUT",
+      cookies: authenticatedCookies(),
+      headers: { "content-type": "application/json" },
+      body: { status: "CANCELLED" },
+    });
+
+    await PUT(request, { params: Promise.resolve({ slug: EXISTING_BOOKING.slug }) });
+
+    expect(mockedEmail.sendBookingCancellationEmail).toHaveBeenCalledWith(
+      expect.objectContaining({ to: EXISTING_BOOKING.clientEmail }),
+    );
+    expect(mockedEmail.sendBookingRescheduledEmail).not.toHaveBeenCalled();
+  });
+
+  it("still returns success when the notification email throws", async () => {
+    mockedEmail.sendBookingRescheduledEmail.mockRejectedValue(
+      new Error("Resend down"),
+    );
+
+    const request = createMockRequest({
+      method: "PUT",
+      cookies: authenticatedCookies(),
+      headers: { "content-type": "application/json" },
+      body: {
+        startTime: NEW_START.toISOString(),
+        endTime: NEW_END.toISOString(),
+      },
+    });
+
+    const response = await PUT(request, {
+      params: Promise.resolve({ slug: EXISTING_BOOKING.slug }),
+    });
+
+    expect(response.status).toBe(200);
+  });
+});
+
+describe("DELETE /api/bookings/[slug]", () => {
+  beforeEach(() => {
+    mockedDb.booking.update.mockResolvedValue({
+      ...EXISTING_BOOKING,
+      status: "CANCELLED",
+    });
+  });
+
+  it("sends a cancellation email on successful cancellation", async () => {
+    const request = createMockRequest({
+      method: "DELETE",
+      cookies: authenticatedCookies(),
+    });
+
+    const response = await DELETE(request, {
+      params: Promise.resolve({ slug: EXISTING_BOOKING.slug }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockedEmail.sendBookingCancellationEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: EXISTING_BOOKING.clientEmail,
+        businessName: BUSINESS.name,
+        serviceName: EXISTING_BOOKING.service.name,
+      }),
+    );
+  });
+
+  it("still cancels successfully when the notification email throws", async () => {
+    mockedEmail.sendBookingCancellationEmail.mockRejectedValue(
+      new Error("Resend down"),
+    );
+
+    const request = createMockRequest({
+      method: "DELETE",
+      cookies: authenticatedCookies(),
+    });
+
+    const response = await DELETE(request, {
+      params: Promise.resolve({ slug: EXISTING_BOOKING.slug }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockedDb.booking.update).toHaveBeenCalled();
   });
 });

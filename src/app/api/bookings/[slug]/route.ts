@@ -3,6 +3,7 @@ import {
   bodyValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
+import { emailService } from "@/backend/services/email";
 import {
   updateBookingValidatorSchema,
   type UpdateBookingValidatorSchema,
@@ -103,8 +104,8 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
       const booking = await db.booking.findUnique({
         where: { slug },
         include: {
-          business: { select: { ownerId: true } },
-          service: { select: { duration: true } },
+          business: { select: { ownerId: true, name: true } },
+          service: { select: { duration: true, name: true } },
         },
       });
 
@@ -117,6 +118,8 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
           "You are not authorized to update this booking",
         );
       }
+
+      const previousStartTime = booking.startTime;
 
       // Validate status transition
       if (payload.status) {
@@ -203,6 +206,33 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
         });
       });
 
+      // Best-effort: a failed notification must never fail the update itself.
+      const clientEmail = updatedBooking.clientEmail;
+      if (clientEmail) {
+        try {
+          if (updatedBooking.status === "CANCELLED") {
+            await emailService.sendBookingCancellationEmail({
+              to: clientEmail,
+              businessName: booking.business.name,
+              serviceName: booking.service.name,
+              startTime: updatedBooking.startTime,
+            });
+          } else if (
+            updatedBooking.startTime.getTime() !== previousStartTime.getTime()
+          ) {
+            await emailService.sendBookingRescheduledEmail({
+              to: clientEmail,
+              businessName: booking.business.name,
+              serviceName: booking.service.name,
+              previousStartTime,
+              newStartTime: updatedBooking.startTime,
+            });
+          }
+        } catch (err) {
+          console.warn("[Bookings] Notification email failed:", err);
+        }
+      }
+
       const response: ApiResponse<Booking> = {
         status: 200,
         message: "Booking updated successfully",
@@ -235,7 +265,8 @@ export const DELETE = withMiddleware<unknown>(
       const booking = await db.booking.findUnique({
         where: { slug },
         include: {
-          business: { select: { ownerId: true } },
+          business: { select: { ownerId: true, name: true } },
+          service: { select: { name: true } },
         },
       });
 
@@ -261,6 +292,20 @@ export const DELETE = withMiddleware<unknown>(
         where: { id: booking.id },
         data: { status: "CANCELLED" },
       });
+
+      // Best-effort: a failed notification must never fail the cancellation.
+      if (booking.clientEmail) {
+        try {
+          await emailService.sendBookingCancellationEmail({
+            to: booking.clientEmail,
+            businessName: booking.business.name,
+            serviceName: booking.service.name,
+            startTime: booking.startTime,
+          });
+        } catch (err) {
+          console.warn("[Bookings] Cancellation email failed:", err);
+        }
+      }
 
       const response: ApiResponse<Booking> = {
         status: 200,
