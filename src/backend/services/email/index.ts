@@ -2,10 +2,18 @@ import { Resend } from 'resend';
 // import InviteEmail from './templates/InviteNotification';
 
 class EmailService {
-  private resend: Resend;
+  private resendClient: Resend | null = null;
 
-  constructor() {
-    this.resend = new Resend(process.env.RESEND_API_KEY);
+  /**
+   * Constructed lazily — Resend's constructor throws synchronously if the
+   * API key is missing, and RESEND_API_KEY is an optional integration (same
+   * as Paystack/Mono). Constructing eagerly would throw at module-evaluation
+   * time for any code path that merely imports this module, including
+   * Next.js's build-time route analysis.
+   */
+  private get resend(): Resend {
+    this.resendClient ??= new Resend(process.env.RESEND_API_KEY);
+    return this.resendClient;
   }
 
   async sendInviteEmail({
