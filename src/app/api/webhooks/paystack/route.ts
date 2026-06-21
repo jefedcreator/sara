@@ -1,9 +1,12 @@
 import { emailService } from "@/backend/services/email";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
+import { formatMoney } from "@/backend/services/messaging/engine/amount";
+import { ownerNotifier } from "@/backend/services/messaging/notify";
 import {
   paystackService,
   type PaystackWebhookEvent,
 } from "@/backend/services/paystack";
+import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
 import { NextResponse } from "next/server";
 
@@ -112,6 +115,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
         select: {
           id: true,
           name: true,
+          currency: true,
           googleCalendarId: true,
           googleCalendarAccessToken: true,
           googleCalendarRefreshToken: true,
@@ -170,6 +174,49 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
   console.log(
     `[Paystack Webhook] Booking ${bookingId} confirmed. Payment ref: ${reference}, amount: ${amount / 100}, channel: ${channel}`,
   );
+
+  // Best-effort: auto-create a receipt for the paid booking.
+  let receiptUrl: string | null = null;
+  try {
+    const payment = await db.payment.findUnique({
+      where: { reference },
+      select: { id: true },
+    });
+    const receipt = await receiptService.create({
+      businessId,
+      paymentId: payment?.id ?? null,
+      name: booking.clientName ?? null,
+      email: booking.clientEmail ?? null,
+      phone: booking.clientPhone ?? null,
+      currency: booking.business.currency,
+      subtotal: amount / 100,
+      taxAmount: 0,
+      discount: 0,
+      total: amount / 100,
+      amountPaid: amount / 100,
+      paymentMethod: "PAYSTACK",
+    });
+    receiptUrl = receipt.url;
+  } catch (err) {
+    console.warn("[Paystack Webhook] Receipt creation failed:", err);
+  }
+
+  // Best-effort: notify the owner on their linked chat channel(s).
+  try {
+    const when = booking.startTime.toLocaleString("en-US", {
+      weekday: "short",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+    const paidLine = `💰 ${booking.clientName ?? "A customer"} paid ${formatMoney(
+      amount / 100,
+      booking.business.currency,
+    )} for ${booking.service.name} (${when}).`;
+    const text = receiptUrl ? `${paidLine}\nReceipt: ${receiptUrl}` : paidLine;
+    await ownerNotifier.notify(businessId, text);
+  } catch (err) {
+    console.warn("[Paystack Webhook] Owner notification failed:", err);
+  }
 
   // Best-effort: a failed confirmation email must never fail the webhook.
   const clientEmail = booking.clientEmail ?? customer.email;
