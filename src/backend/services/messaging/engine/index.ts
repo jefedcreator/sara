@@ -49,7 +49,6 @@ class ConversationEngine {
     }
 
     const session = await chatSessionService.getOrCreateSession(identity.id);
-    if (session.lastProcessedMsgId === message.messageId) return null;
 
     let state = session.state;
     let context = (session.context as Draft | null) ?? {};
@@ -57,6 +56,12 @@ class ConversationEngine {
       state = "MAIN_MENU";
       context = {};
     }
+
+    // Atomically claim this messageId before doing any work. A concurrent or
+    // duplicate Meta delivery of the same messageId loses the race and is dropped,
+    // so write flows (invoice/receipt) can never run twice for one message.
+    const claimed = await chatSessionService.claimMessage(session.id, message.messageId);
+    if (!claimed) return null;
 
     const trimmed = message.text.trim();
     const lower = trimmed.toLowerCase();

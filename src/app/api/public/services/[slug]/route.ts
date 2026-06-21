@@ -15,7 +15,14 @@ export async function GET(
   try {
     const { slug } = await context.params;
     const url = new URL(request.url);
-    const date = url.searchParams.get("date") ?? new Date().toISOString().split("T")[0]!;
+    const dateParam = url.searchParams.get("date");
+    if (dateParam !== null && !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) {
+      return NextResponse.json(
+        { status: 422, message: "date must be in YYYY-MM-DD format" },
+        { status: 422 },
+      );
+    }
+    const date = dateParam ?? new Date().toISOString().split("T")[0]!;
 
     const service = await db.service.findFirst({
       where: { slug, isActive: true },
