@@ -4,6 +4,7 @@ import {
   queryValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
+import { receiptService } from "@/backend/services/receipt";
 import {
   receiptValidatorSchema,
   receiptQueryValidatorSchema,
@@ -12,18 +13,13 @@ import {
 } from "@/backend/validators/receipt.validator";
 import { db } from "@/server/db";
 import {
-  BadRequestException,
-  ConflictException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
 } from "@/utils/exceptions";
 import { Prisma, type Receipt } from "@prisma/client";
 import { NextResponse } from "next/server";
-import slugify from "slugify";
 import type { ApiResponse, ReceiptListItem, PaginatedApiResponse } from "types";
-import { cloudinaryService } from "@/backend/services/cloudinary";
-import { generateReceiptPdf } from "@/backend/services/pdf";
 
 /**
  * @body ReceiptValidatorSchema
@@ -48,181 +44,21 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
         );
       }
 
-      const receiptResult = await db.$transaction(async (tx) => {
-        let servicesToCreate = payload.services || [];
-
-        // Validate that the payment belongs to this business and doesn't already have a receipt
-        if (payload.paymentId) {
-          const payment = await tx.payment.findFirst({
-            where: {
-              id: payload.paymentId,
-              businessId: business.id,
-            },
-            include: {
-              receipt: { select: { id: true } },
-              invoice: { include: { services: true } },
-            },
-          });
-
-          if (!payment) {
-            throw new BadRequestException(
-              "Payment not found for this business",
-            );
-          }
-
-          if (payment.receipt) {
-            throw new ConflictException(
-              "A receipt already exists for this payment",
-            );
-          }
-
-          // If services are not explicitly provided in payload, infer from invoice
-          if (servicesToCreate.length === 0 && payment.invoice?.services) {
-            servicesToCreate = payment.invoice.services.map((s) => ({
-              serviceId: s.serviceId,
-              description: s.description || undefined,
-              quantity: s.quantity,
-              unitPrice: Number(s.unitPrice),
-              total: Number(s.total),
-            }));
-          }
-        }
-
-        // Validate services belong to business
-        if (servicesToCreate.length > 0) {
-          const serviceIds = Array.from(
-            new Set(servicesToCreate.map((s) => s.serviceId)),
-          );
-          const services = await tx.service.findMany({
-            where: { id: { in: serviceIds }, businessId: business.id },
-            select: { id: true },
-          });
-
-          if (services.length !== serviceIds.length) {
-            throw new BadRequestException(
-              "One or more services do not belong to this business",
-            );
-          }
-        }
-
-        let receiptNumber = "";
-        const lastReceipt = await tx.receipt.findFirst({
-          where: { businessId: business.id },
-          orderBy: { createdAt: "desc" },
-          select: { receiptNumber: true },
-        });
-
-        if (lastReceipt && lastReceipt.receiptNumber.startsWith("RCP-")) {
-          const lastNumber = parseInt(
-            lastReceipt.receiptNumber.replace("RCP-", ""),
-            10,
-          );
-          receiptNumber = `RCP-${isNaN(lastNumber) ? 1001 : lastNumber + 1}`;
-        } else {
-          receiptNumber = "RCP-1001";
-        }
-
-        const createData: Prisma.ReceiptCreateInput = {
-          business: {
-            connect: { id: business.id },
-          },
-          slug: slugify(`${business.name}-${receiptNumber}`, {
-            lower: true,
-            strict: true,
-          }),
-          receiptNumber,
-          name: payload.name,
-          email: payload.email,
-          phone: payload.phone,
-          currency: payload.currency,
-          subtotal: payload.subtotal,
-          taxAmount: payload.taxAmount,
-          discount: payload.discount,
-          total: payload.total,
-          amountPaid: payload.amountPaid,
-          paymentMethod: payload.paymentMethod,
-          notes: payload.notes,
-        };
-
-        if (payload.paymentId) {
-          createData.payment = {
-            connect: { id: payload.paymentId },
-          };
-        }
-
-        if (servicesToCreate.length > 0) {
-          createData.services = {
-            create: servicesToCreate.map((item) => ({
-              serviceId: item.serviceId,
-              description: item.description,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              total: item.total,
-            })),
-          };
-        }
-
-        const receipt = await tx.receipt.create({
-          data: createData,
-          include: { business: true, services: { include: { service: true } } },
-        });
-
-        if (!receipt.business) {
-          throw new InternalServerErrorException(
-            "Failed to retrieve business details for the receipt",
-          );
-        }
-
-        // Generate PDF
-        const pdfBuffer = await generateReceiptPdf({
-          receiptNumber: receipt.receiptNumber,
-          paymentMethod: receipt.paymentMethod,
-          currency: receipt.currency,
-          subtotal: receipt.subtotal.toString(),
-          taxAmount: receipt.taxAmount.toString(),
-          discount: receipt.discount.toString(),
-          total: receipt.total.toString(),
-          amountPaid: receipt.amountPaid.toString(),
-          paidAt: receipt.createdAt, // Using createdAt as paidAt
-          notes: receipt.notes,
-          business: {
-            name: receipt.business.name,
-            email: receipt.business.email,
-            phone: receipt.business.phone,
-            city: receipt.business.city,
-            state: receipt.business.state,
-            country: receipt.business.country,
-            logoUrl: receipt.business.logoUrl,
-          },
-          client: {
-            name: receipt.name || "Client",
-            email: receipt.email,
-            phone: receipt.phone,
-          },
-          items: receipt.services.map((item) => ({
-            description: item.description || item.service.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice.toString(),
-            total: item.total.toString(),
-          })),
-        });
-
-        // Upload to Cloudinary
-        const uploadResult = await cloudinaryService.uploadImage(pdfBuffer, {
-          filename: `${receipt.receiptNumber}.pdf`,
-          folder: `sara/businesses/${business.id}/receipts`,
-          mime_type: "application/pdf",
-          public_id: receipt.id,
-          resource_type: "raw",
-        });
-
-        // Update receipt with URL
-        const updatedReceipt = await tx.receipt.update({
-          where: { id: receipt.id },
-          data: { url: uploadResult.secure_url },
-        });
-
-        return updatedReceipt;
+      const receiptResult = await receiptService.create({
+        businessId: business.id,
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+        currency: payload.currency,
+        subtotal: payload.subtotal,
+        taxAmount: payload.taxAmount,
+        discount: payload.discount,
+        total: payload.total,
+        amountPaid: payload.amountPaid,
+        paymentMethod: payload.paymentMethod,
+        notes: payload.notes,
+        paymentId: payload.paymentId,
+        services: payload.services,
       });
 
       const response: ApiResponse<Receipt> = {
