@@ -4,6 +4,7 @@ import type z from "zod";
 import type { BaseQueryValidatorSchema } from "../validators/index.validator";
 import type { InvoiceQueryValidatorSchema } from "../validators/invoice.validator";
 import type { ReceiptQueryValidatorSchema } from "../validators/receipt.validator";
+import type { ServiceDetailQueryValidatorSchema } from "../validators/service.validator";
 import type {
   AtlasGeocodeQueryValidatorSchema,
   AtlasReverseQueryValidatorSchema,
@@ -36,6 +37,7 @@ export type QueryParameters = Prettify<
   Partial<BaseQueryValidatorSchema> &
   Partial<InvoiceQueryValidatorSchema> &
   Partial<ReceiptQueryValidatorSchema> &
+  Partial<ServiceDetailQueryValidatorSchema> &
   AtlasSearchQueryValidatorSchema &
   AtlasGeocodeQueryValidatorSchema &
   AtlasReverseQueryValidatorSchema

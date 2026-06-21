@@ -1,11 +1,15 @@
 import {
   authMiddleware,
   bodyValidatorMiddleware,
+  queryValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
+import { availabilityService } from "@/backend/services/availability";
 import { cloudinaryService } from "@/backend/services/cloudinary";
 import {
+  serviceDetailQueryValidatorSchema,
   updateServiceValidatorSchema,
+  type ServiceDetailQueryValidatorSchema,
   type UpdateServiceValidatorSchema,
 } from "@/backend/validators/service.validator";
 import { db } from "@/server/db";
@@ -200,57 +204,21 @@ export const DELETE = withMiddleware<unknown>(
 );
 
 /**
- * Generates all possible time slots for a given date based on the
- * service's availability window and duration.
- */
-function generateTimeSlots(
-  date: string,
-  availableFrom: string,
-  availableTo: string,
-  durationMinutes: number,
-): { startTime: Date; endTime: Date }[] {
-  const slots: { startTime: Date; endTime: Date }[] = [];
-
-  const dayStart = new Date(`${date}T${availableFrom}:00.000Z`);
-  const dayEnd = new Date(`${date}T${availableTo}:00.000Z`);
-  const durationMs = durationMinutes * 60 * 1000;
-
-  let current = dayStart.getTime();
-
-  while (current + durationMs <= dayEnd.getTime()) {
-    slots.push({
-      startTime: new Date(current),
-      endTime: new Date(current + durationMs),
-    });
-    current += durationMs;
-  }
-
-  return slots;
-}
-
-/**
  * @pathParams slugParamValidator
- * @queryParams date (optional, YYYY-MM-DD, defaults to today)
+ * @queryParams ServiceDetailQueryValidatorSchema
  * @description Retrieves a single service by slug with computed available
- *              time slots for the requested date. Slots that overlap with
- *              existing PENDING or CONFIRMED bookings are marked as unavailable.
+ *              time slots for the requested date (defaults to today). Slots
+ *              are excluded by business hours, closures, existing bookings
+ *              across the whole business, and (if connected) Google Calendar.
  * @auth bearer
  */
-export const GET = withMiddleware<unknown>(
+export const GET = withMiddleware<unknown, ServiceDetailQueryValidatorSchema>(
   async (request, { params }) => {
     try {
       const user = request.user!;
       const { slug } = params;
-
-      // Parse optional date query param (defaults to today)
-      const url = new URL(request.url);
-      const dateParam = url.searchParams.get("date");
-      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-
       const targetDate =
-        dateParam && dateRegex.test(dateParam)
-          ? dateParam
-          : new Date().toISOString().split("T")[0]!;
+        request.query?.date ?? new Date().toISOString().split("T")[0]!;
 
       const service = await db.service.findUnique({
         where: { slug },
@@ -267,42 +235,17 @@ export const GET = withMiddleware<unknown>(
         );
       }
 
-      // Generate all possible slots for the target date
-      const allSlots = generateTimeSlots(
-        targetDate,
-        service.availableFrom,
-        service.availableTo,
-        service.duration,
-      );
-
-      // Fetch active bookings for this service that fall on the target date
-      const dayStart = new Date(`${targetDate}T00:00:00.000Z`);
-      const dayEnd = new Date(`${targetDate}T23:59:59.999Z`);
-
-      const existingBookings = await db.booking.findMany({
-        where: {
-          serviceId: service.id,
-          status: { in: ["PENDING", "CONFIRMED"] },
-          startTime: { lt: dayEnd },
-          endTime: { gt: dayStart },
-        },
-        select: { startTime: true, endTime: true },
+      const availableSlots = await availabilityService.getAvailableSlots({
+        businessId: service.businessId,
+        serviceId: service.id,
+        date: targetDate,
       });
 
-      // Mark each slot's availability by checking for overlapping bookings
-      const slots: TimeSlot[] = allSlots.map((slot) => {
-        const isBooked = existingBookings.some(
-          (booking) =>
-            booking.startTime < slot.endTime &&
-            booking.endTime > slot.startTime,
-        );
-
-        return {
-          startTime: slot.startTime.toISOString(),
-          endTime: slot.endTime.toISOString(),
-          isAvailable: !isBooked,
-        };
-      });
+      const slots: TimeSlot[] = availableSlots.map((slot) => ({
+        startTime: slot.startTime.toISOString(),
+        endTime: slot.endTime.toISOString(),
+        isAvailable: slot.isAvailable,
+      }));
 
       const response: ApiResponse<ServiceDetail> = {
         status: 200,
@@ -321,5 +264,5 @@ export const GET = withMiddleware<unknown>(
       );
     }
   },
-  [authMiddleware],
+  [authMiddleware, queryValidatorMiddleware(serviceDetailQueryValidatorSchema)],
 );
