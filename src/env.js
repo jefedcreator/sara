@@ -25,6 +25,7 @@ export const env = createEnv({
     CLOUDINARY_API_SECRET: z.string(),
     CLOUDINARY_CLOUD_NAME: z.string(),
     DATABASE_URL: z.string().url(),
+    DIRECT_URL: z.string().url().optional(),
     FACEBOOK_CLIENT_ID: z.string().optional(),
     FACEBOOK_CLIENT_SECRET: z.string().optional(),
     INSTAGRAM_CLIENT_ID: z.string().optional(),
@@ -37,6 +38,8 @@ export const env = createEnv({
     MONO_CLIENT_ID: z.string().optional(),
     MONO_REDIRECT_URL: z.string().url().optional(),
     ATLAS_API_URL: z.string().url().optional(),
+    RESEND_API_KEY: z.string().optional(),
+    CRON_SECRET: z.string().optional(),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -72,6 +75,7 @@ export const env = createEnv({
     CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET,
     CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
     DATABASE_URL: process.env.DATABASE_URL,
+    DIRECT_URL: process.env.DIRECT_URL,
     FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID,
     FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET,
     INSTAGRAM_CLIENT_ID: process.env.INSTAGRAM_CLIENT_ID,
@@ -86,6 +90,8 @@ export const env = createEnv({
     MONO_REDIRECT_URL: process.env.MONO_REDIRECT_URL,
     NEXT_PUBLIC_MONO_PUBLIC_KEY: process.env.NEXT_PUBLIC_MONO_PUBLIC_KEY,
     ATLAS_API_URL: process.env.ATLAS_API_URL,
+    RESEND_API_KEY: process.env.RESEND_API_KEY,
+    CRON_SECRET: process.env.CRON_SECRET,
     // NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
 
   },
