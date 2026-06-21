@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // --- Enums ---
@@ -83,16 +84,54 @@ model Business {
   paystackSubaccountCode String?  @unique // Paystack subaccount code (e.g. "ACCT_xxxxx")
   monoAccountId          String?  // Mono linked account ID
 
-  owner    User          @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  services Service[]
-  bookings Booking[]
-  invoices Invoice[]
-  payments Payment[]
-  receipts Receipt[]
-  gallery  GalleryItem[]
+  // Google Calendar Sync
+  googleCalendarId           String? // Calendar to sync to; defaults to "primary" when connected
+  googleCalendarAccessToken  String? // Short-lived; refreshed on demand
+  googleCalendarRefreshToken String? // Long-lived; obtained once at connect time
+  googleCalendarTokenExpiry  DateTime?
+  googleCalendarConnectedAt  DateTime?
+
+  owner            User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  services         Service[]
+  bookings         Booking[]
+  invoices         Invoice[]
+  payments         Payment[]
+  receipts         Receipt[]
+  gallery          GalleryItem[]
+  businessHours    BusinessHours[]
+  businessClosures BusinessClosure[]
 
   @@index([ownerId])
   @@index([slug])
+}
+
+// --- Scheduling ---
+
+model BusinessHours {
+  id         String  @id @default(cuid())
+  businessId String
+  dayOfWeek  Int // 0 = Sunday .. 6 = Saturday
+  startTime  String // "HH:mm", 24hr
+  endTime    String // "HH:mm", 24hr
+  isClosed   Boolean @default(false)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, dayOfWeek])
+  @@index([businessId])
+}
+
+model BusinessClosure {
+  id         String   @id @default(cuid())
+  businessId String
+  date       DateTime @db.Date
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  @@unique([businessId, date])
+  @@index([businessId])
 }
 
 // --- Business Entities ---
@@ -144,6 +183,10 @@ model Booking {
   distanceKm    Decimal? @db.Decimal(10, 2)
   durationMin   Int?
   routePolyline String?  @db.Text // Encoded polyline for mapping
+
+  // Scheduling & Calendar Sync
+  reminderSentAt DateTime? // Set once the 24h-ahead reminder email has been sent
+  googleEventId  String? // The synced Google Calendar event id, if the business has Calendar connected
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
