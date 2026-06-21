@@ -92,10 +92,12 @@ export const POST = withMiddleware<BookingValidatorSchema>(
         );
       }
 
-      // 4. Check for overlapping bookings (PENDING or CONFIRMED)
+      // 4. Check for overlapping bookings (PENDING or CONFIRMED). Scoped by
+      // businessId, not serviceId — one business is one provider with one
+      // calendar, so a booking on any service blocks the same time slot.
       const overlapping = await db.booking.findFirst({
         where: {
-          serviceId: service.id,
+          businessId: service.business.id,
           status: { in: ["PENDING", "CONFIRMED"] },
           startTime: { lt: endTime },
           endTime: { gt: startTime },
