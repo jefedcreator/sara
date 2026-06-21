@@ -174,10 +174,12 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
             );
           }
 
-          // Check for overlapping bookings (exclude the current booking)
+          // Check for overlapping bookings (exclude the current booking).
+          // Scoped by businessId, not serviceId — one business is one
+          // provider with one calendar.
           const overlapping = await tx.booking.findFirst({
             where: {
-              serviceId: booking.serviceId,
+              businessId: booking.businessId,
               id: { not: booking.id },
               status: { in: ["PENDING", "CONFIRMED"] },
               startTime: { lt: newEndTime },
