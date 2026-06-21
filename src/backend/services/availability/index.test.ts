@@ -11,6 +11,11 @@ vi.mock("@/server/db", () => ({
   },
 }));
 
+vi.mock("@/backend/services/googleCalendar", () => ({
+  googleCalendarService: { getBusyIntervals: vi.fn().mockResolvedValue([]) },
+}));
+
+import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { db } from "@/server/db";
 import { availabilityService } from "./index";
 
@@ -23,6 +28,9 @@ type MockedDb = {
 };
 
 const mockedDb = db as unknown as MockedDb;
+const mockedCalendar = googleCalendarService as unknown as {
+  getBusyIntervals: ReturnType<typeof vi.fn>;
+};
 
 const BUSINESS_ID = "biz_1";
 const SERVICE_ID = "svc_1";
@@ -31,6 +39,7 @@ const DATE = "2026-06-22";
 const at = (time: string) => new Date(`${DATE}T${time}:00.000Z`);
 
 const NO_CALENDAR_BUSINESS = {
+  id: BUSINESS_ID,
   googleCalendarId: null,
   googleCalendarAccessToken: null,
   googleCalendarRefreshToken: null,
@@ -64,6 +73,7 @@ function setup({
 describe("availabilityService.getAvailableSlots", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockedCalendar.getBusyIntervals.mockResolvedValue([]);
   });
 
   it("throws NotFoundException when the service doesn't exist", async () => {
@@ -217,5 +227,30 @@ describe("availabilityService.getAvailableSlots", () => {
     });
 
     expect(slots.every((s) => s.isAvailable)).toBe(true);
+    expect(mockedCalendar.getBusyIntervals).not.toHaveBeenCalled();
   });
+
+  it("excludes a slot that overlaps a Google Calendar busy interval", async () => {
+    setup();
+    mockedCalendar.getBusyIntervals.mockResolvedValue([
+      { start: at("10:00"), end: at("11:00") },
+    ]);
+
+    const slots = await availabilityService.getAvailableSlots({
+      businessId: BUSINESS_ID,
+      serviceId: SERVICE_ID,
+      date: DATE,
+    });
+
+    const nineToTen = slots.find(
+      (s) => s.startTime.getTime() === at("09:00").getTime(),
+    );
+    const tenToEleven = slots.find(
+      (s) => s.startTime.getTime() === at("10:00").getTime(),
+    );
+
+    expect(nineToTen?.isAvailable).toBe(true);
+    expect(tenToEleven?.isAvailable).toBe(false);
+  });
+
 });

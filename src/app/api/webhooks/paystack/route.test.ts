@@ -20,23 +20,40 @@ vi.mock("@/backend/services/email", () => ({
   },
 }));
 
+vi.mock("@/backend/services/googleCalendar", () => ({
+  googleCalendarService: {
+    createEvent: vi.fn().mockResolvedValue(null),
+  },
+}));
+
 import { emailService } from "@/backend/services/email";
+import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { db } from "@/server/db";
 import { POST } from "./route";
 
 const mockedDb = db as any;
 const mockedEmail = emailService as any;
+const mockedCalendar = googleCalendarService as any;
 
 const BOOKING = {
   id: "bkg_1",
   status: "PENDING",
   businessId: "biz_1",
   startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+  endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+  notes: null,
   clientName: "Jane Doe",
   clientEmail: "jane@example.com",
   clientPhone: null,
   service: { name: "Haircut" },
-  business: { name: "Acme Salon" },
+  business: {
+    id: "biz_1",
+    name: "Acme Salon",
+    googleCalendarId: null,
+    googleCalendarAccessToken: null,
+    googleCalendarRefreshToken: "refresh-1",
+    googleCalendarTokenExpiry: new Date(Date.now() + 60 * 60 * 1000),
+  },
 };
 
 function buildEvent() {
@@ -108,5 +125,32 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     await POST(buildRequest(event));
 
     expect(mockedEmail.sendBookingConfirmationEmail).not.toHaveBeenCalled();
+  });
+
+  it("creates a Calendar event and persists the returned googleEventId", async () => {
+    mockedCalendar.createEvent.mockResolvedValue({ googleEventId: "evt_1" });
+
+    await POST(buildRequest(buildEvent()));
+
+    expect(mockedCalendar.createEvent).toHaveBeenCalledWith(
+      BOOKING.business,
+      expect.objectContaining({ id: BOOKING.id }),
+      BOOKING.service,
+    );
+    expect(mockedDb.booking.update).toHaveBeenCalledWith({
+      where: { id: BOOKING.id },
+      data: { googleEventId: "evt_1" },
+    });
+  });
+
+  it("still returns 200 when the Calendar sync fails", async () => {
+    mockedCalendar.createEvent.mockRejectedValue(new Error("Google API down"));
+
+    const response = await POST(buildRequest(buildEvent()));
+
+    expect(response.status).toBe(200);
+    expect(mockedDb.booking.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({ data: { googleEventId: expect.anything() } }),
+    );
   });
 });

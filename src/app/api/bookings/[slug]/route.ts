@@ -4,6 +4,7 @@ import {
   withMiddleware,
 } from "@/backend/middleware";
 import { emailService } from "@/backend/services/email";
+import { googleCalendarService } from "@/backend/services/googleCalendar";
 import {
   updateBookingValidatorSchema,
   type UpdateBookingValidatorSchema,
@@ -104,7 +105,17 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
       const booking = await db.booking.findUnique({
         where: { slug },
         include: {
-          business: { select: { ownerId: true, name: true } },
+          business: {
+            select: {
+              id: true,
+              ownerId: true,
+              name: true,
+              googleCalendarId: true,
+              googleCalendarAccessToken: true,
+              googleCalendarRefreshToken: true,
+              googleCalendarTokenExpiry: true,
+            },
+          },
           service: { select: { duration: true, name: true } },
         },
       });
@@ -206,20 +217,24 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
         });
       });
 
-      // Best-effort: a failed notification must never fail the update itself.
+      // Best-effort: a failed notification/Calendar sync must never fail
+      // the update itself.
+      const isNowCancelled = updatedBooking.status === "CANCELLED";
+      const wasRescheduled =
+        !isNowCancelled &&
+        updatedBooking.startTime.getTime() !== previousStartTime.getTime();
+
       const clientEmail = updatedBooking.clientEmail;
       if (clientEmail) {
         try {
-          if (updatedBooking.status === "CANCELLED") {
+          if (isNowCancelled) {
             await emailService.sendBookingCancellationEmail({
               to: clientEmail,
               businessName: booking.business.name,
               serviceName: booking.service.name,
               startTime: updatedBooking.startTime,
             });
-          } else if (
-            updatedBooking.startTime.getTime() !== previousStartTime.getTime()
-          ) {
+          } else if (wasRescheduled) {
             await emailService.sendBookingRescheduledEmail({
               to: clientEmail,
               businessName: booking.business.name,
@@ -230,6 +245,29 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
           }
         } catch (err) {
           console.warn("[Bookings] Notification email failed:", err);
+        }
+      }
+
+      if (updatedBooking.googleEventId) {
+        try {
+          if (isNowCancelled) {
+            await googleCalendarService.deleteEvent(
+              booking.business,
+              updatedBooking.googleEventId,
+            );
+            await db.booking.update({
+              where: { id: updatedBooking.id },
+              data: { googleEventId: null },
+            });
+          } else if (wasRescheduled) {
+            await googleCalendarService.updateEvent(
+              booking.business,
+              updatedBooking,
+              booking.service,
+            );
+          }
+        } catch (err) {
+          console.warn("[Bookings] Calendar sync failed:", err);
         }
       }
 
@@ -265,7 +303,17 @@ export const DELETE = withMiddleware<unknown>(
       const booking = await db.booking.findUnique({
         where: { slug },
         include: {
-          business: { select: { ownerId: true, name: true } },
+          business: {
+            select: {
+              id: true,
+              ownerId: true,
+              name: true,
+              googleCalendarId: true,
+              googleCalendarAccessToken: true,
+              googleCalendarRefreshToken: true,
+              googleCalendarTokenExpiry: true,
+            },
+          },
           service: { select: { name: true } },
         },
       });
@@ -304,6 +352,21 @@ export const DELETE = withMiddleware<unknown>(
           });
         } catch (err) {
           console.warn("[Bookings] Cancellation email failed:", err);
+        }
+      }
+
+      if (booking.googleEventId) {
+        try {
+          await googleCalendarService.deleteEvent(
+            booking.business,
+            booking.googleEventId,
+          );
+          await db.booking.update({
+            where: { id: booking.id },
+            data: { googleEventId: null },
+          });
+        } catch (err) {
+          console.warn("[Bookings] Calendar sync failed:", err);
         }
       }
 

@@ -1,4 +1,5 @@
 import { emailService } from "@/backend/services/email";
+import { googleCalendarService } from "@/backend/services/googleCalendar";
 import {
   paystackService,
   type PaystackWebhookEvent,
@@ -101,11 +102,22 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
       status: true,
       businessId: true,
       startTime: true,
+      endTime: true,
+      notes: true,
       clientName: true,
       clientEmail: true,
       clientPhone: true,
       service: { select: { name: true } },
-      business: { select: { name: true } },
+      business: {
+        select: {
+          id: true,
+          name: true,
+          googleCalendarId: true,
+          googleCalendarAccessToken: true,
+          googleCalendarRefreshToken: true,
+          googleCalendarTokenExpiry: true,
+        },
+      },
     },
   });
 
@@ -172,5 +184,22 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
     } catch (err) {
       console.warn("[Paystack Webhook] Confirmation email failed:", err);
     }
+  }
+
+  // Best-effort: a failed Calendar sync must never fail the webhook.
+  try {
+    const result = await googleCalendarService.createEvent(
+      booking.business,
+      booking,
+      booking.service,
+    );
+    if (result) {
+      await db.booking.update({
+        where: { id: bookingId },
+        data: { googleEventId: result.googleEventId },
+      });
+    }
+  } catch (err) {
+    console.warn("[Paystack Webhook] Calendar sync failed:", err);
   }
 }

@@ -1,17 +1,6 @@
+import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { db } from "@/server/db";
 import { NotFoundException } from "@/utils/exceptions";
-
-/**
- * TODO(chunk-10): replace with a real call to googleCalendarService.getBusyIntervals
- * once src/backend/services/googleCalendar exists. Stubbed for now so the
- * availability engine can be built and tested before Calendar sync lands.
- */
-async function getGoogleCalendarBusyIntervals(
-  _business: unknown,
-  _date: string,
-): Promise<{ start: Date; end: Date }[]> {
-  return [];
-}
 
 export type AvailabilitySlot = {
   startTime: Date;
@@ -113,6 +102,7 @@ class AvailabilityService {
         db.business.findUnique({
           where: { id: businessId },
           select: {
+            id: true,
             googleCalendarId: true,
             googleCalendarAccessToken: true,
             googleCalendarRefreshToken: true,
@@ -124,7 +114,7 @@ class AvailabilityService {
     const isClosureDay = closure !== null;
 
     const busyIntervals = business
-      ? await getGoogleCalendarBusyIntervals(business, date)
+      ? await googleCalendarService.getBusyIntervals(business, date)
       : [];
 
     return candidates.map((slot) => {
