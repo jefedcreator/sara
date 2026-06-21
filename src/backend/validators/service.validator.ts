@@ -1,13 +1,9 @@
 import { z } from "zod";
-import { baseQueryValidatorSchema, decimalValidator } from "./index.validator";
-
-const timeValidator = (field: string) =>
-  z
-    .string()
-    .regex(
-      /^([01]\d|2[0-3]):[0-5]\d$/,
-      `${field} must be in HH:MM 24-hour format (e.g. "08:00")`,
-    );
+import {
+  baseQueryValidatorSchema,
+  decimalValidator,
+  timeValidator,
+} from "./index.validator";
 
 const cuidValidator = z.string().cuid("id must be a valid cuid");
 

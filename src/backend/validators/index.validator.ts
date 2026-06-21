@@ -90,6 +90,14 @@ export const decimalValidator = (field: string) =>
 export const dateValidator = (field: string) =>
   z.coerce.date(`${field} must be a valid date`);
 
+export const timeValidator = (field: string) =>
+  z
+    .string()
+    .regex(
+      /^([01]\d|2[0-3]):[0-5]\d$/,
+      `${field} must be in HH:MM 24-hour format (e.g. "08:00")`,
+    );
+
 export const slugParamValidator = z.object({
   slug: z.string().min(1, "slug is required"),
 });
