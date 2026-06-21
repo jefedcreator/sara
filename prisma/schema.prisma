@@ -100,6 +100,7 @@ model Business {
   gallery          GalleryItem[]
   businessHours    BusinessHours[]
   businessClosures BusinessClosure[]
+  chatIdentities   ChatIdentity[]
 
   @@index([ownerId])
   @@index([slug])
@@ -385,4 +386,47 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+enum ChatChannel {
+  WHATSAPP
+  INSTAGRAM
+}
+
+model ChatIdentity {
+  id          String      @id @default(cuid())
+  businessId  String
+  channel     ChatChannel
+  externalId  String // WhatsApp phone (E.164) or Instagram-scoped user ID (IGSID)
+  displayName String?
+  linkedAt    DateTime    @default(now())
+
+  business Business     @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  session  ChatSession?
+
+  @@unique([channel, externalId])
+  @@index([businessId])
+}
+
+model ChatSession {
+  id                 String   @id @default(cuid())
+  identityId         String   @unique
+  state              String   @default("MAIN_MENU")
+  context            Json?
+  lastProcessedMsgId String?
+  lastActiveAt       DateTime @default(now())
+
+  identity ChatIdentity @relation(fields: [identityId], references: [id], onDelete: Cascade)
+}
+
+model ChatLinkToken {
+  id         String      @id @default(cuid())
+  token      String      @unique
+  channel    ChatChannel
+  externalId String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime    @default(now())
+
+  @@index([token])
 }
