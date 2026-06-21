@@ -77,10 +77,22 @@ export const serviceQueryValidatorSchema = baseQueryValidatorSchema
   })
   .strict();
 
+export const serviceDetailQueryValidatorSchema = z
+  .object({
+    date: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be in YYYY-MM-DD format")
+      .optional(),
+  })
+  .strict();
+
 export type ServiceValidatorSchema = z.infer<typeof serviceValidatorSchema>;
 export type UpdateServiceValidatorSchema = z.infer<
   typeof updateServiceValidatorSchema
 >;
 export type ServiceQueryValidatorSchema = z.infer<
   typeof serviceQueryValidatorSchema
+>;
+export type ServiceDetailQueryValidatorSchema = z.infer<
+  typeof serviceDetailQueryValidatorSchema
 >;
