@@ -36,12 +36,16 @@ vi.mock("@/backend/services/messaging/notify", () => ({
 
 import { emailService } from "@/backend/services/email";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
+import { ownerNotifier } from "@/backend/services/messaging/notify";
+import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
 import { POST } from "./route";
 
 const mockedDb = db as any;
 const mockedEmail = emailService as any;
 const mockedCalendar = googleCalendarService as any;
+const mockedReceipt = receiptService as any;
+const mockedNotifier = ownerNotifier as any;
 
 const BOOKING = {
   id: "bkg_1",
@@ -165,5 +169,45 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     expect(mockedDb.booking.update).not.toHaveBeenCalledWith(
       expect.objectContaining({ data: { googleEventId: expect.anything() } }),
     );
+  });
+
+  it("creates a receipt and notifies the owner after confirming the booking", async () => {
+    const response = await POST(buildRequest(buildEvent()));
+
+    expect(response.status).toBe(200);
+    expect(mockedReceipt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        businessId: BOOKING.businessId,
+        paymentId: "pay_1",
+        paymentMethod: "PAYSTACK",
+        currency: BOOKING.business.currency,
+        total: 50,
+        amountPaid: 50,
+      }),
+    );
+    expect(mockedNotifier.notify).toHaveBeenCalledWith(
+      BOOKING.businessId,
+      expect.stringContaining(BOOKING.service.name),
+    );
+  });
+
+  it("still returns 200 and still attempts owner notification when receipt creation fails", async () => {
+    mockedReceipt.create.mockRejectedValue(new Error("Receipt service down"));
+
+    const response = await POST(buildRequest(buildEvent()));
+
+    expect(response.status).toBe(200);
+    expect(mockedNotifier.notify).toHaveBeenCalledWith(
+      BOOKING.businessId,
+      expect.stringContaining(BOOKING.service.name),
+    );
+  });
+
+  it("still returns 200 when owner notification fails", async () => {
+    mockedNotifier.notify.mockRejectedValue(new Error("Notify channel down"));
+
+    const response = await POST(buildRequest(buildEvent()));
+
+    expect(response.status).toBe(200);
   });
 });
