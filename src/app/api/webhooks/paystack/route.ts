@@ -1,3 +1,4 @@
+import { emailService } from "@/backend/services/email";
 import {
   paystackService,
   type PaystackWebhookEvent,
@@ -99,9 +100,12 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
       id: true,
       status: true,
       businessId: true,
+      startTime: true,
       clientName: true,
       clientEmail: true,
       clientPhone: true,
+      service: { select: { name: true } },
+      business: { select: { name: true } },
     },
   });
 
@@ -154,4 +158,19 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
   console.log(
     `[Paystack Webhook] Booking ${bookingId} confirmed. Payment ref: ${reference}, amount: ${amount / 100}, channel: ${channel}`,
   );
+
+  // Best-effort: a failed confirmation email must never fail the webhook.
+  const clientEmail = booking.clientEmail ?? customer.email;
+  if (clientEmail) {
+    try {
+      await emailService.sendBookingConfirmationEmail({
+        to: clientEmail,
+        businessName: booking.business.name,
+        serviceName: booking.service.name,
+        startTime: booking.startTime,
+      });
+    } catch (err) {
+      console.warn("[Paystack Webhook] Confirmation email failed:", err);
+    }
+  }
 }
