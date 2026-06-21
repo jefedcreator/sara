@@ -6,6 +6,7 @@ vi.mock("../session", () => ({
     getOrCreateSession: vi.fn(),
     save: vi.fn(),
     isStale: vi.fn().mockReturnValue(false),
+    claimMessage: vi.fn(),
   },
 }));
 vi.mock("../linking", () => ({
@@ -48,6 +49,7 @@ beforeEach(() => {
   mockedSession.isStale.mockReturnValue(false);
   mockedSession.findIdentity.mockResolvedValue(IDENTITY);
   mockedSession.getOrCreateSession.mockResolvedValue(IDENTITY.session);
+  mockedSession.claimMessage.mockResolvedValue(true);
 });
 
 describe("linking", () => {
@@ -61,7 +63,7 @@ describe("linking", () => {
 
 describe("idempotency", () => {
   it("drops a duplicate messageId", async () => {
-    mockedSession.getOrCreateSession.mockResolvedValue({ ...IDENTITY.session, lastProcessedMsgId: "m1" });
+    mockedSession.claimMessage.mockResolvedValue(false);
     const reply = await conversationEngine.handle(inbound("1", "m1"));
     expect(reply).toBeNull();
     expect(mockedSession.save).not.toHaveBeenCalled();

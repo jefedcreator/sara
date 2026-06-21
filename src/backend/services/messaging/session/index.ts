@@ -51,6 +51,14 @@ class ChatSessionService {
   isStale(session: ChatSession): boolean {
     return Date.now() - new Date(session.lastActiveAt).getTime() > STALE_MS;
   }
+
+  async claimMessage(sessionId: string, messageId: string): Promise<boolean> {
+    const result = await db.chatSession.updateMany({
+      where: { id: sessionId, NOT: { lastProcessedMsgId: messageId } },
+      data: { lastProcessedMsgId: messageId, lastActiveAt: new Date() },
+    });
+    return result.count === 1;
+  }
 }
 
 export const chatSessionService = new ChatSessionService();
