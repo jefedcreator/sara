@@ -26,6 +26,14 @@ vi.mock("@/backend/services/googleCalendar", () => ({
   },
 }));
 
+vi.mock("@/backend/services/receipt", () => ({
+  receiptService: { create: vi.fn().mockResolvedValue({ url: "https://cdn.test/r.pdf" }) },
+}));
+
+vi.mock("@/backend/services/messaging/notify", () => ({
+  ownerNotifier: { notify: vi.fn().mockResolvedValue(undefined) },
+}));
+
 import { emailService } from "@/backend/services/email";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { db } from "@/server/db";
@@ -49,6 +57,7 @@ const BOOKING = {
   business: {
     id: "biz_1",
     name: "Acme Salon",
+    currency: "NGN",
     googleCalendarId: null,
     googleCalendarAccessToken: null,
     googleCalendarRefreshToken: "refresh-1",
@@ -83,7 +92,11 @@ function buildRequest(event: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockedDb.payment.findUnique.mockResolvedValue(null);
+  // First call: idempotency check (must return null to proceed).
+  // Second call: payment lookup inside receipt creation.
+  mockedDb.payment.findUnique
+    .mockResolvedValueOnce(null)
+    .mockResolvedValue({ id: "pay_1" });
   mockedDb.booking.findUnique.mockResolvedValue(BOOKING);
   mockedDb.$transaction.mockImplementation(async (cb: (tx: typeof mockedDb) => unknown) =>
     cb(mockedDb),
