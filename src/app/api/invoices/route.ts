@@ -4,8 +4,7 @@ import {
   queryValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
-import { cloudinaryService } from "@/backend/services/cloudinary";
-import { generateInvoicePdf } from "@/backend/services/pdf";
+import { invoiceService } from "@/backend/services/invoice";
 import {
   invoiceQueryValidatorSchema,
   invoiceValidatorSchema,
@@ -14,15 +13,12 @@ import {
 } from "@/backend/validators/invoice.validator";
 import { db } from "@/server/db";
 import {
-  BadRequestException,
-  ConflictException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
 } from "@/utils/exceptions";
 import { Prisma, type Invoice } from "@prisma/client";
 import { NextResponse } from "next/server";
-import slugify from "slugify";
 import type { ApiResponse, InvoiceListItem, PaginatedApiResponse } from "types";
 
 /**
@@ -48,176 +44,24 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         );
       }
 
-      const invoicedata = await db.$transaction(async (tx) => {
-        // Generate invoice number
-        let invoiceNumber = "";
-        const lastInvoice = await tx.invoice.findFirst({
-          where: { businessId: business.id },
-          orderBy: { createdAt: "desc" },
-          select: { invoiceNumber: true },
-        });
-
-        if (lastInvoice && lastInvoice.invoiceNumber.startsWith("INV-")) {
-          const lastNumber = parseInt(
-            lastInvoice.invoiceNumber.replace("INV-", ""),
-            10,
-          );
-          invoiceNumber = `INV-${isNaN(lastNumber) ? 1001 : lastNumber + 1}`;
-        } else {
-          invoiceNumber = "INV-1001";
-        }
-
-        // Check for existence and booking
-        const [booking, existingInvoice] = await Promise.all([
-          payload.bookingId
-            ? tx.booking.findFirst({
-              where: { id: payload.bookingId, businessId: business.id },
-            })
-            : Promise.resolve(null),
-          tx.invoice.findUnique({
-            where: {
-              businessId_invoiceNumber: {
-                businessId: business.id,
-                invoiceNumber,
-              },
-            },
-          }),
-        ]);
-
-        if (payload.bookingId && !booking) {
-          throw new BadRequestException("Booking not found for this business");
-        }
-
-        if (existingInvoice) {
-          throw new ConflictException(
-            `Invoice with number ${invoiceNumber} already exists for this business`,
-          );
-        }
-
-        // Validate services
-        const serviceIds = Array.from(
-          new Set(
-            (payload.services ?? [])
-              .map((item) => item.serviceId)
-              .filter((id): id is string => Boolean(id)),
-          ),
-        );
-
-        if (serviceIds.length > 0) {
-          const services = await tx.service.findMany({
-            where: { id: { in: serviceIds }, businessId: business.id },
-            select: { id: true },
-          });
-
-          if (services.length !== serviceIds.length) {
-            throw new BadRequestException(
-              "One or more invoice item services do not belong to this business",
-            );
-          }
-        }
-
-        const createData: Prisma.InvoiceCreateInput = {
-          business: { connect: { id: business.id } },
-          slug: slugify(`${business.name}-${invoiceNumber}`, {
-            lower: true,
-            strict: true,
-          }),
-          clientName: payload.name,
-          clientEmail: payload.email ?? null,
-          clientPhone: payload.phone ?? null,
-          invoiceNumber: invoiceNumber,
-          status: payload.status,
-          currency: payload.currency,
-          subtotal: payload.subtotal,
-          taxAmount: payload.taxAmount,
-          discount: payload.discount,
-          total: payload.total,
-          amountPaid: payload.amountPaid,
-          dueAt: payload.dueAt ?? null,
-          sentAt: payload.sentAt ?? null,
-          paidAt: payload.paidAt ?? null,
-          notes: payload.notes ?? null,
-        };
-
-        if (payload.bookingId) {
-          createData.booking = { connect: { id: payload.bookingId } };
-        }
-
-        if (payload.services && payload.services.length > 0) {
-          createData.services = {
-            create: payload.services.map((item) => ({
-              serviceId: item.serviceId,
-              description: item.description,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              total: item.total,
-            })),
-          };
-        }
-
-        const invoice = await tx.invoice.create({
-          data: createData,
-          include: { business: true, services: { include: { service: true } } },
-        });
-
-        if (!invoice.business) {
-          throw new InternalServerErrorException(
-            "Failed to retrieve business details for the invoice",
-          );
-        }
-
-        const pdfBuffer = await generateInvoicePdf({
-          invoiceNumber: invoice.invoiceNumber,
-          status: invoice.status,
-          currency: invoice.currency,
-          subtotal: invoice.subtotal.toString(),
-          taxAmount: invoice.taxAmount.toString(),
-          discount: invoice.discount.toString(),
-          total: invoice.total.toString(),
-          amountPaid: invoice.amountPaid.toString(),
-          dueAt: invoice.dueAt,
-          sentAt: invoice.sentAt,
-          paidAt: invoice.paidAt,
-          notes: invoice.notes,
-          business: {
-            name: invoice.business.name,
-            email: invoice.business.email,
-            phone: invoice.business.phone,
-            city: invoice.business.city,
-            state: invoice.business.state,
-            country: invoice.business.country,
-            logoUrl: invoice.business.logoUrl,
-          },
-          client: {
-            name: invoice.clientName,
-            email: invoice.clientEmail,
-            phone: invoice.clientPhone,
-          },
-          items: invoice.services.map((item) => ({
-            description: item.description || item.service.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice.toString(),
-            total: item.total.toString(),
-          })),
-        });
-
-        const uploadResult = await cloudinaryService.uploadImage(pdfBuffer, {
-          filename: `${invoice.invoiceNumber}.pdf`,
-          folder: `sara/businesses/${business.id}/invoices`,
-          mime_type: "application/pdf",
-          public_id: invoice.id,
-          resource_type: "raw",
-        });
-
-        // Update the invoice with the Cloudinary URL
-        const updatedInvoice = await tx.invoice.update({
-          where: { id: invoice.id },
-          data: { url: uploadResult.secure_url },
-        });
-
-        return {
-          ...updatedInvoice,
-        };
+      const invoicedata = await invoiceService.create({
+        businessId: business.id,
+        name: payload.name,
+        email: payload.email,
+        phone: payload.phone,
+        status: payload.status,
+        currency: payload.currency,
+        subtotal: payload.subtotal,
+        taxAmount: payload.taxAmount,
+        discount: payload.discount,
+        total: payload.total,
+        amountPaid: payload.amountPaid,
+        dueAt: payload.dueAt,
+        sentAt: payload.sentAt,
+        paidAt: payload.paidAt,
+        notes: payload.notes,
+        bookingId: payload.bookingId,
+        services: payload.services,
       });
 
       const response: ApiResponse<Invoice> = {
