@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import s from "./landing.module.css";
+import { cn } from "@/utils/cn";
 
 type State = "idle" | "copied" | "failed";
 
@@ -32,7 +32,12 @@ export function CopyLinkButton({ url }: { url: string }) {
 
   return (
     <button
-      className={`${s.copy} ${state !== "idle" ? s.copyDone : ""}`}
+      className={cn(
+        "ease-out-expo h-[38px] flex-none cursor-pointer rounded-full px-[18px] text-sm font-semibold transition-[background-color,scale] duration-200 active:scale-97",
+        state === "idle"
+          ? "bg-ink text-canvas hover:bg-accent-ink"
+          : "bg-accent text-on-accent",
+      )}
       type="button"
       aria-live="polite"
       onClick={() => void copy()}

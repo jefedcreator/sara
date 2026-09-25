@@ -124,7 +124,7 @@ components:
 
 # Design System: Sara
 
-<!-- Source of truth for every surface in the product (app and marketing). Established by the owner on 2026-09-25 from landing/v1/impeccable. Tokens above are mirrored in src/styles/globals.css (@theme). -->
+<!-- Source of truth for every surface in the product (app and marketing). Established by the owner on 2026-09-25 from landing/v1/impeccable. Tokens above are mirrored in src/styles/globals.css (@theme). Implementation rule: style only with Tailwind utilities on these tokens (bg-accent, text-accent-ink, rounded-panel, shadow-float, animate-rise...); no CSS modules or component stylesheets. Reference implementation: src/app/components/landing/LandingPage.tsx. -->
 
 ## Overview
 
