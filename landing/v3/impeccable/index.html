@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sara · Run your business from the chat you're already in</title>
+  <meta name="description" content="Invoices, receipts, booking links and payments for Nigerian stylists, makeup artists and gele artists, from WhatsApp or Instagram.">
+  <meta name="theme-color" content="#f2eddc">
+  <link href="fonts.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!--
+THESIS: Calm money. A warm, unhurried page where the owner's day is already handled; proof arrives as small, kind messages. Refuses cold blue fintech and hype.
+OWN-WORLD: Deep forest #173B2C on cream #F2EDDC, lighter cream paper cards, one full-bleed forest band. Switzer bold sans with a single Sentient italic word. Four-point sparkles, soft arch and blob shapes, 28px radii, pill controls.
+STORY: Feel the calm, see "payment received" land, follow share → book → paid, trust hours and calendar, start on WhatsApp.
+FIRST VIEWPORT: Left: headline with italic "already", subline, forest pill CTA and quiet link. Right: arch-topped portrait photo slot; the payment card overlaps its left edge; cream blobs with sparkles anchor two corners.
+FORM: Brief-pinned direction v3 (Warm Green Nature-Finance); seed 8a28b7ff, roll overridden by brief.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="spark" viewBox="0 0 24 24"><path d="M12 0c.7 6.4 5.6 11.3 12 12-6.4.7-11.3 5.6-12 12-.7-6.4-5.6-11.3-12-12C6.4 11.3 11.3 6.4 12 0Z"/></symbol>
+</svg>
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav">
+  <div class="nav-in">
+    <a class="brand" href="#top"><svg class="brand-spark" aria-hidden="true"><use href="#spark"/></svg>Sara</a>
+    <nav class="nav-links" aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#booking-links">Booking links</a>
+      <a href="#invoices">Invoices &amp; receipts</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-sm nav-cta" href="#start">Start on WhatsApp</a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="drawer" data-toggle><span></span><span></span><b class="sr">Menu</b></button>
+  </div>
+  <nav class="drawer" id="drawer" aria-label="Mobile" hidden>
+    <a href="#how">How it works</a><a href="#booking-links">Booking links</a><a href="#invoices">Invoices &amp; receipts</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="hero" id="top">
+    <div class="blob blob-tl" aria-hidden="true"><svg><use href="#spark"/></svg><svg><use href="#spark"/></svg></div>
+    <div class="blob blob-br" aria-hidden="true"></div>
+    <div class="hero-in">
+      <div class="hero-copy">
+        <h1>Run your business from the chat you're <em>already</em> in.</h1>
+        <p class="lede">Invoices, receipts, booking links and today's numbers, from WhatsApp or Instagram. Reply with a number and it's done.</p>
+        <div class="cta-row">
+          <a class="btn" id="start" href="https://wa.me/" rel="noopener">Start on WhatsApp</a>
+          <a class="text-link" href="#booking-links">See how booking links work</a>
+        </div>
+      </div>
+      <div class="hero-media">
+        <!-- HERO IMAGE SLOT (.photo): warm lifestyle photograph, a Lagos stylist or makeup artist between clients,
+             calmly checking her phone in her own studio chair by a window. Portrait 4:5, subject right of centre so the
+             card can overlap the left edge. Export 1200x1500. Replace with an img element of class "photo" using object-fit: cover. -->
+        <div class="photo" role="img" aria-label="A Lagos makeup artist in her studio chair by the window, checking her phone between clients"></div>
+        <div class="toast" role="note">
+          <p class="toast-meta"><svg aria-hidden="true"><use href="#spark"/></svg>Sara <span>now</span></p>
+          <p class="toast-msg">✅ Payment received: Ada paid NGN 15,000 for Gele tying. Receipt sent.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="works" aria-label="Works with">
+    <p>Works with</p>
+    <ul><li>Paystack</li><li>Mono</li><li>Google Calendar</li><li>WhatsApp</li><li>Instagram</li></ul>
+  </section>
+
+  <!-- SAMPLE FIGURES: placeholders, replace before launch -->
+  <section class="stats" aria-label="Sara in numbers">
+    <div class="stat"><p class="n">₦48.2M</p><p>collected through Sara booking links</p></div>
+    <div class="stat"><p class="n">3,100+</p><p>businesses across Lagos, Abuja and Port Harcourt</p></div>
+    <div class="stat"><p class="n">5 sec</p><p>or less from payment to receipt</p></div>
+  </section>
+
+  <section class="menu" id="how" aria-labelledby="menu-h">
+    <div class="menu-lead">
+      <div class="lead-copy">
+        <h2 id="menu-h" class="h2">Know your numbers before you close the <em>shop</em>.</h2>
+        <p>Reply 6 and Sara sends today's revenue, this week's, and who still owes you. The same six numbers run everything else. No AI, no guessing: the menu is guided, and "menu" or "0" takes you back.</p>
+      </div>
+      <div class="lead-chat">
+        <p class="b out">6</p>
+        <div class="b in summary">
+          <p class="sum-title">Business summary</p>
+          <dl>
+            <div><dt>Today</dt><dd>NGN 45,000</dd></div>
+            <div><dt>This week</dt><dd>NGN 210,000</dd></div>
+            <div><dt>Unpaid</dt><dd>3 invoices</dd></div>
+          </dl>
+          <p class="sum-split">Bridal makeup NGN 135,000<br>Gele tying NGN 75,000</p>
+        </div>
+      </div>
+      <svg class="lead-spark lead-spark-a" aria-hidden="true"><use href="#spark"/></svg>
+      <svg class="lead-spark lead-spark-b" aria-hidden="true"><use href="#spark"/></svg>
+    </div>
+
+    <div class="minis">
+      <article class="mini">
+        <p class="mini-k"><span>1</span>New invoice</p>
+        <p class="b out">Ada, gele tying, 15000</p>
+        <p class="b in">INV-0142 for Ada Okafor, NGN 15,000. Payment link ready to forward.</p>
+      </article>
+      <article class="mini">
+        <p class="mini-k"><span>2</span>New receipt</p>
+        <p class="b out">Bisi, gele tying, 15000 transfer</p>
+        <p class="b in">RCT-0391 for Bisi Ojo, NGN 15,000. PDF attached.</p>
+      </article>
+      <article class="mini">
+        <p class="mini-k"><span>4</span>Unpaid invoices</p>
+        <p class="b in">3 unpaid, NGN 70,000 outstanding.<br>Ngozi E. has paid NGN 10,000 of NGN 45,000.</p>
+      </article>
+      <article class="mini">
+        <p class="mini-k"><span>5</span>Today's bookings</p>
+        <p class="b in">09:30 Ada Okafor, Gele tying<br>12:00 Ngozi Eze, Bridal makeup<br>16:30 Funke Bello, Gele tying</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="band" id="booking-links" aria-labelledby="band-h">
+    <div class="band-in">
+      <svg class="band-spark band-spark-a" aria-hidden="true"><use href="#spark"/></svg>
+      <svg class="band-spark band-spark-b" aria-hidden="true"><use href="#spark"/></svg>
+      <h2 id="band-h" class="band-h">Share a service <span aria-hidden="true">→</span> customer books <span aria-hidden="true">→</span> you get <em>paid</em>.</h2>
+      <ol class="flow">
+        <li>
+          <p class="flow-k">Share a service</p>
+          <p class="flow-t">Reply 3, pick the service, drop the link in your bio.</p>
+          <div class="flow-ui">
+            <p class="b in on-dark">Your booking link:<br><b>app.sara.ng/book/kemi-gele-tying</b></p>
+          </div>
+        </li>
+        <li>
+          <p class="flow-k">Customer books</p>
+          <p class="flow-t">They pick a free slot in the browser and pay through Paystack.</p>
+          <div class="flow-ui book">
+            <p class="book-svc">Gele tying — NGN 15,000 (1 hr)</p>
+            <div class="book-slots"><span>10:00</span><span class="on">11:00</span><span class="off">12:00</span><span>14:00</span></div>
+            <p class="book-pay">Pay NGN 15,000 with Paystack</p>
+          </div>
+        </li>
+        <li>
+          <p class="flow-k">You get paid</p>
+          <p class="flow-t">Money settles to your Paystack subaccount. Sara confirms and sends the receipt.</p>
+          <div class="flow-ui">
+            <p class="b in on-dark">✅ New booking: Funke Bello, Gele tying, Sat 26 Sep at 11:00. NGN 15,000 paid. Receipt sent.</p>
+          </div>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="hours" aria-labelledby="hours-h">
+    <div class="hours-in">
+      <h2 id="hours-h" class="h2">Your hours. Your calendar. Your <em>rest</em> days.</h2>
+      <div class="hours-grid">
+        <div class="card week">
+          <p class="card-k">Working hours</p>
+          <ul class="days">
+            <li><span>Mon to Fri</span><span>09:00 to 18:00</span></li>
+            <li><span>Saturday</span><span>07:00 to 16:00</span></li>
+            <li class="off"><span>Sunday</span><span>Closed</span></li>
+          </ul>
+          <p class="closure"><svg aria-hidden="true"><use href="#spark"/></svg>Thu 1 Oct closed for Independence Day. Customers never see it.</p>
+        </div>
+        <div class="card cal">
+          <p class="card-k">Google Calendar, both ways</p>
+          <ul class="sync">
+            <li><b>Booking confirmed</b><span>added to your calendar</span></li>
+            <li><b>Booking cancelled</b><span>removed</span></li>
+            <li><b>Booking rescheduled</b><span>moved</span></li>
+            <li><b>Busy in your calendar</b><span>never offered</span></li>
+          </ul>
+        </div>
+        <div class="card mail">
+          <p class="card-k">What customers receive</p>
+          <p>Confirmation, reschedule and cancellation emails, and a reminder 24 hours before. Sara never messages your customers on WhatsApp; it only talks to you.</p>
+          <p class="route"><svg aria-hidden="true"><use href="#spark"/></svg>Home service: Sara works out the route and distance from the customer's address to yours.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="inv" id="invoices" aria-labelledby="inv-h">
+    <div class="inv-in">
+      <div class="inv-copy">
+        <h2 id="inv-h" class="h2">Invoices that remember who <em>still</em> owes.</h2>
+        <p>Line items, tax and discounts. Status that follows the money: Unpaid, Partially paid, Paid. Export any invoice as a PDF, and receipts create themselves when a payment lands.</p>
+      </div>
+      <div class="invoice" aria-label="Invoice example">
+        <div class="inv-top"><div><p class="inv-no">INV-0139</p><p class="inv-to">Ngozi Eze</p></div><span class="tag">Partially paid</span></div>
+        <ul class="inv-lines">
+          <li><span>Bridal makeup (wedding day)</span><span>NGN 36,000</span></li>
+          <li><span>Gele tying</span><span>NGN 6,000</span></li>
+          <li class="soft"><span>VAT 7.5%</span><span>NGN 3,150</span></li>
+          <li class="soft"><span>Discount</span><span>−NGN 150</span></li>
+          <li class="total"><span>Total</span><span>NGN 45,000</span></li>
+        </ul>
+        <p class="inv-paid"><span>NGN 10,000 paid</span><span>NGN 35,000 to go</span></p>
+        <p class="inv-pdf">Download PDF</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="onboard" aria-labelledby="ob-h">
+    <h2 id="ob-h" class="h2 center">Set up between two clients.</h2>
+    <ol class="ob">
+      <li><svg aria-hidden="true"><use href="#spark"/></svg><p><b>Message Sara</b> on its single WhatsApp number.</p></li>
+      <li><svg aria-hidden="true"><use href="#spark"/></svg><p><b>Open the one-time link</b> Sara sends you.</p></li>
+      <li><svg aria-hidden="true"><use href="#spark"/></svg><p><b>Sign in</b> with Google, Facebook or Instagram. Your chat is connected.</p></li>
+    </ol>
+  </section>
+
+  <section class="faq" id="faq" aria-labelledby="faq-h">
+    <h2 id="faq-h" class="h2">Good questions</h2>
+    <div class="faq-list">
+      <details><summary>Is Sara an AI?</summary><p>No. Sara is a guided menu. You reply with a number and Sara answers the same way every time.</p></details>
+      <details><summary>Will my customers get WhatsApp messages?</summary><p>No. Sara only replies to you. Customers get emails, including a reminder 24 hours before their appointment.</p></details>
+      <details><summary>Where does my money go?</summary><p>Straight into your business's own Paystack subaccount through split payments. Mono links your bank account for settlement.</p></details>
+      <details><summary>Can I use Instagram?</summary><p>Yes, the same menu works in your Instagram chat.</p></details>
+      <details id="pricing"><summary>What does it cost?</summary>
+        <!-- PLACEHOLDER: pricing not confirmed. Replace before launch. -->
+        <p data-placeholder>Pricing details go here before launch.</p></details>
+    </div>
+  </section>
+
+  <section class="end" aria-labelledby="end-h">
+    <div class="end-card">
+      <svg class="end-spark end-spark-a" aria-hidden="true"><use href="#spark"/></svg>
+      <svg class="end-spark end-spark-b" aria-hidden="true"><use href="#spark"/></svg>
+      <p class="brand brand-lg"><svg class="brand-spark" aria-hidden="true"><use href="#spark"/></svg>Sara</p>
+      <h2 id="end-h" class="end-h">Close the laptop you never <em>needed</em>.</h2>
+      <a class="btn btn-cream" href="https://wa.me/" rel="noopener">Start on WhatsApp</a>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <span class="brand"><svg class="brand-spark" aria-hidden="true"><use href="#spark"/></svg>Sara</span>
+  <nav aria-label="Footer"><a href="#how">How it works</a><a href="#booking-links">Booking links</a><a href="#invoices">Invoices &amp; receipts</a><a href="#faq">FAQ</a></nav>
+  <p>© 2026 Sara · Lagos</p>
+</footer>
+
+<script src="script.js" defer></script>
+<script src="../../switcher.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sara · Bookings and payments, sorted in your chat</title>
+  <meta name="description" content="Invoices, receipts, booking links and daily numbers from WhatsApp or Instagram, for Nigerian service businesses.">
+  <meta name="theme-color" content="#f3eee0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=EB+Garamond:ital,wght@1,500&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/regular/style.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/fill/style.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!--
+  Design Read: consumer-fintech-for-SMB landing for Nigerian beauty and craft owners on phones, with a warm nature-finance
+  language (Ascone reference), leaning toward native CSS + Outfit / EB Garamond italic + soft CSS blob geometry.
+  Dials: DESIGN_VARIANCE 6 · MOTION_INTENSITY 5 · VISUAL_DENSITY 3.
+  Serif justification: the brief explicitly pins one serif-italic emphasis word per headline. EB Garamond (taste pool), not Fraunces/Instrument.
+  Palette lock: forest #1D3A2E + cream #F3EEE0 with forest tints. One deliberate colour-block band (brief-mandated divider).
+-->
+<header class="top">
+  <div class="wrap top-row">
+    <a class="logo" href="#top"><i class="ph-fill ph-sparkle" aria-hidden="true"></i>Sara</a>
+    <nav class="top-nav" aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#booking-links">Booking links</a>
+      <a href="#invoices">Invoices &amp; receipts</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="btn btn-sm top-cta" href="#start">Start on WhatsApp</a>
+    <button class="top-menu" type="button" aria-expanded="false" aria-controls="panel" data-menu><i class="ph ph-list" aria-hidden="true"></i><span class="sr">Menu</span></button>
+  </div>
+  <nav class="panel" id="panel" aria-label="Mobile" hidden>
+    <a href="#how">How it works</a><a href="#booking-links">Booking links</a><a href="#invoices">Invoices &amp; receipts</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero" id="top">
+    <span class="corner corner-l" aria-hidden="true"><i class="ph-fill ph-sparkle"></i><i class="ph-fill ph-sparkle"></i></span>
+    <span class="corner corner-r" aria-hidden="true"></span>
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <h1 class="up">Bookings and payments, sorted in the chat you <em>already</em> use.</h1>
+        <p class="hero-sub up">Invoices, receipts, booking links and your daily numbers, straight from WhatsApp or Instagram. Built for Nigerian service businesses.</p>
+        <div class="hero-ctas up">
+          <a class="btn" id="start" href="https://wa.me/" rel="noopener">Start on WhatsApp <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
+          <a class="link" href="#booking-links">See how booking links work</a>
+        </div>
+      </div>
+      <div class="hero-visual">
+        <!-- HERO IMAGE SLOT (.hero-photo): warm lifestyle photo of a Lagos stylist or makeup artist between clients,
+             calmly checking her phone in her own studio chair by a window. Portrait 4:5. Export 1200x1500.
+             Keep the subject centre-right; the payment card overlaps the photo's upper-left edge.
+             Replace with an img element of class "hero-photo" (object-fit: cover). -->
+        <div class="hero-photo" role="img" aria-label="A Lagos stylist in her studio chair by the window, checking her phone between clients"></div>
+        <div class="float-card">
+          <p><span class="float-meta"><i class="ph-fill ph-sparkle" aria-hidden="true"></i> Sara</span>✅ Payment received: Ada paid NGN 15,000 for Gele tying. Receipt sent.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="brands" aria-label="Works with">
+    <div class="wrap brands-row">
+      <span class="brands-k">Works with</span>
+      <span>Paystack</span><span>Mono</span><span>Google Calendar</span><span>WhatsApp</span><span>Instagram</span>
+    </div>
+  </section>
+
+  <!-- SAMPLE FIGURES: placeholders, replace before launch -->
+  <section class="numbers">
+    <div class="wrap numbers-row">
+      <div class="num up"><p class="num-v">₦48.2M</p><p class="num-l">collected through Sara booking links</p></div>
+      <div class="num up"><p class="num-v">3,100+</p><p class="num-l">businesses across Lagos, Abuja and Port Harcourt</p></div>
+      <div class="num up"><p class="num-v">Under 5s</p><p class="num-l">from payment to receipt</p></div>
+    </div>
+  </section>
+
+  <section class="owed" id="how">
+    <div class="wrap">
+      <div class="owed-card up">
+        <div class="owed-copy">
+          <h2 class="h2 on-dark">Know who owes you, <em>always</em>.</h2>
+          <p>Reply 4 and Sara lists every unpaid invoice, with partial payments tracked to the naira. Reply 6 for today's and this week's revenue.</p>
+        </div>
+        <div class="owed-ui">
+          <p class="me">4</p>
+          <div class="reply">
+            <p class="reply-h">3 unpaid · NGN 55,000 outstanding</p>
+            <ul>
+              <li><span>Ngozi Eze · Bridal makeup</span><b>NGN 15,000 left</b></li>
+              <li><span>Bisi Ojo · Gele tying</span><b>NGN 15,000</b></li>
+              <li><span>Kemi Adeyemi · Knotless braids</span><b>NGN 25,000</b></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="pair">
+        <article class="tile tile-wide up">
+          <i class="ph ph-receipt tile-ico" aria-hidden="true"></i>
+          <h3>Receipts that write themselves</h3>
+          <p>When a payment lands, Sara creates the receipt and pings you. Cash? Reply 2.</p>
+          <p class="line"><span class="me">2</span> Chidi, low cut + beard trim, 6000 cash</p>
+          <p class="line reply-line">RCT-0388 for Chidi Eze · NGN 6,000 · PDF attached</p>
+        </article>
+        <div class="stack">
+          <article class="tile up">
+            <i class="ph ph-file-text tile-ico" aria-hidden="true"></i>
+            <h3>1 · New invoice</h3>
+            <p class="line reply-line">INV-0142 for Ada Okafor · Gele tying · NGN 15,000 · Payment link ready</p>
+          </article>
+          <article class="tile tile-sage up">
+            <i class="ph ph-calendar-dots tile-ico" aria-hidden="true"></i>
+            <h3>5 · Today's bookings</h3>
+            <p class="line reply-line">09:30 Ada Okafor, Gele tying<br>12:00 Ngozi Eze, Bridal makeup<br>16:30 Funke Bello, Gele tying</p>
+          </article>
+        </div>
+      </div>
+      <p class="menu-note">Sara is a guided menu, not an AI chatbot: 1️⃣ New invoice · 2️⃣ New receipt · 3️⃣ Share a service (booking link) · 4️⃣ Unpaid invoices · 5️⃣ Today's bookings · 6️⃣ Business summary. Send "menu" or "0" to go back.</p>
+    </div>
+  </section>
+
+  <section class="band" id="booking-links">
+    <div class="wrap">
+      <h2 class="band-title">Share a service. They book. You get <em>paid</em>.</h2>
+      <ol class="track">
+        <li class="up">
+          <span class="node"><i class="ph-fill ph-sparkle" aria-hidden="true"></i></span>
+          <h3>Share a service</h3>
+          <p>Reply 3 and pick one. Sara sends the link to drop in your bio or a chat.</p>
+          <p class="chip">app.sara.ng/book/chioma-gele-tying</p>
+        </li>
+        <li class="up">
+          <span class="node"><i class="ph-fill ph-sparkle" aria-hidden="true"></i></span>
+          <h3>Customer books</h3>
+          <p>They pick a free slot in the browser and pay with Paystack.</p>
+          <div class="mini-book">
+            <p>Gele tying — NGN 15,000 (1 hr)</p>
+            <div><span>10:00</span><span class="sel">11:00</span><span class="gone">12:00</span></div>
+          </div>
+        </li>
+        <li class="up">
+          <span class="node"><i class="ph-fill ph-sparkle" aria-hidden="true"></i></span>
+          <h3>You get paid</h3>
+          <p>It settles to your Paystack subaccount. Sara confirms, sends the receipt and pings you.</p>
+          <p class="chip chip-light">✅ New booking: Funke Bello, Sat 26 Sep, 11:00. NGN 15,000 paid.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="calendar">
+    <div class="wrap">
+      <div class="cal-panel up">
+        <div class="cal-ui" aria-label="Example week">
+          <p class="cal-h"><span>This week</span><span><i class="ph ph-google-logo" aria-hidden="true"></i> Synced</span></p>
+          <ul class="cal-days">
+            <li><b>Mon</b><span class="ev">10:00 Kemi A. · Braids</span></li>
+            <li><b>Tue</b><span class="ev ev-g">13:00 Busy (Google Calendar)</span></li>
+            <li><b>Wed</b><span class="ev">09:30 Ada O. · Gele</span></li>
+            <li class="closed"><b>Thu</b><span>Closed · Independence Day</span></li>
+            <li><b>Sat</b><span class="ev">07:00 Ngozi E. · Bridal</span></li>
+            <li class="closed"><b>Sun</b><span>Rest day</span></li>
+          </ul>
+        </div>
+        <div class="cal-copy">
+          <h2 class="h2">Only real free time gets <em>booked</em>.</h2>
+          <p>Booking links follow your weekly hours, one-off closures, bookings you already have and your Google Calendar. Sync runs both ways: confirmations added, cancellations removed, reschedules moved.</p>
+          <ul class="ticks">
+            <li><i class="ph ph-envelope-simple" aria-hidden="true"></i> Customers get confirmation emails and a 24-hour reminder</li>
+            <li><i class="ph ph-map-trifold" aria-hidden="true"></i> Home service: route and distance to the customer's address</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="invoice-sec" id="invoices">
+    <div class="wrap narrow">
+      <h2 class="h2 centered">Invoices, down to the last <em>kobo</em>.</h2>
+      <div class="doc up">
+        <div class="doc-head"><div><p class="doc-id">INV-0139</p><p class="doc-to">Ngozi Eze</p></div><span class="pill-tag">Partially paid</span></div>
+        <dl class="doc-rows">
+          <div><dt>Bridal makeup (wedding day)</dt><dd>NGN 18,000</dd></div>
+          <div><dt>Gele tying</dt><dd>NGN 6,000</dd></div>
+          <div class="sub"><dt>VAT 7.5%</dt><dd>NGN 1,800</dd></div>
+          <div class="sub"><dt>Discount</dt><dd>-NGN 800</dd></div>
+          <div class="grand"><dt>Total</dt><dd>NGN 25,000</dd></div>
+        </dl>
+        <p class="doc-foot"><span>NGN 10,000 of NGN 25,000 paid</span><a href="#invoices"><i class="ph ph-download-simple" aria-hidden="true"></i> PDF</a></p>
+      </div>
+      <p class="doc-note">Unpaid, Partially paid or Paid, updated the moment money lands. Payments settle through Paystack split payments into your own subaccount; Mono links your bank.</p>
+    </div>
+  </section>
+
+  <section class="begin">
+    <div class="wrap begin-grid">
+      <h2 class="h2">Ready before your next <em>appointment</em>.</h2>
+      <ol class="begin-list">
+        <li class="up"><i class="ph ph-chat-circle-text" aria-hidden="true"></i><p><b>Message Sara</b> on its single WhatsApp number.</p></li>
+        <li class="up"><i class="ph ph-link-simple" aria-hidden="true"></i><p><b>Open the one-time link</b> Sara sends back.</p></li>
+        <li class="up"><i class="ph ph-user-circle-check" aria-hidden="true"></i><p><b>Sign in</b> with Google, Facebook or Instagram. Done.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="faq" id="faq">
+    <div class="wrap narrow">
+      <h2 class="h2 centered">Questions, answered</h2>
+      <div class="faq-list">
+        <details><summary>Is Sara an AI chatbot?<i class="ph ph-caret-down" aria-hidden="true"></i></summary><p>No. Sara is a guided, numbered menu. The same reply always does the same thing.</p></details>
+        <details><summary>Does Sara message my customers on WhatsApp?<i class="ph ph-caret-down" aria-hidden="true"></i></summary><p>No. Sara only replies to you. Customers get emails: confirmation, reschedule, cancellation and a reminder 24 hours before.</p></details>
+        <details><summary>How do payments reach me?<i class="ph ph-caret-down" aria-hidden="true"></i></summary><p>Paystack split payments settle into your business's own subaccount, and Mono links your bank account for settlement.</p></details>
+        <details><summary>Does it work on Instagram?<i class="ph ph-caret-down" aria-hidden="true"></i></summary><p>Yes. The same menu works in your Instagram chat.</p></details>
+        <details id="pricing"><summary>How much is Sara?<i class="ph ph-caret-down" aria-hidden="true"></i></summary>
+          <!-- PLACEHOLDER: pricing not confirmed. Replace before launch. -->
+          <p data-placeholder>Pricing details go here before launch.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="closer">
+    <div class="wrap">
+      <div class="closer-card up">
+        <i class="ph-fill ph-sparkle closer-s1" aria-hidden="true"></i>
+        <i class="ph-fill ph-sparkle closer-s2" aria-hidden="true"></i>
+        <p class="logo logo-xl"><i class="ph-fill ph-sparkle" aria-hidden="true"></i>Sara</p>
+        <h2 class="closer-h">Change the way your business <em>runs</em>.</h2>
+        <a class="btn btn-cream" href="https://wa.me/" rel="noopener">Start on WhatsApp <i class="ph ph-arrow-up-right" aria-hidden="true"></i></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap footer-row">
+    <span class="logo"><i class="ph-fill ph-sparkle" aria-hidden="true"></i>Sara</span>
+    <nav aria-label="Footer"><a href="#how">How it works</a><a href="#booking-links">Booking links</a><a href="#invoices">Invoices &amp; receipts</a><a href="#faq">FAQ</a></nav>
+    <p>© 2026 Sara, Lagos</p>
+  </div>
+</footer>
+
+<script src="script.js" defer></script>
+<script src="../../switcher.js" defer></script>
+</body>
+</html>
