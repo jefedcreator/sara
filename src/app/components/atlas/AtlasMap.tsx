@@ -58,14 +58,14 @@ const PROTOMAPS_STYLE: maplibregl.StyleSpecification = {
     {
       id: "background",
       type: "background",
-      paint: { "background-color": "#0a0a0f" },
+      paint: { "background-color": "#f4f7f5" }, // surface
     },
     {
       id: "water",
       type: "fill",
       source: "protomaps",
       "source-layer": "water",
-      paint: { "fill-color": "#0d1b2a" },
+      paint: { "fill-color": "#dbe6e4" },
     },
     {
       id: "landuse-park",
@@ -73,7 +73,7 @@ const PROTOMAPS_STYLE: maplibregl.StyleSpecification = {
       source: "protomaps",
       "source-layer": "landuse",
       filter: ["==", "pmap:kind", "park"],
-      paint: { "fill-color": "#0f1f0f", "fill-opacity": 0.6 },
+      paint: { "fill-color": "#e8f9ee", "fill-opacity": 1 }, // accent-soft
     },
     {
       id: "roads-highway",
@@ -82,7 +82,7 @@ const PROTOMAPS_STYLE: maplibregl.StyleSpecification = {
       "source-layer": "roads",
       filter: ["==", "pmap:kind", "highway"],
       paint: {
-        "line-color": "#2a3a2a",
+        "line-color": "#cfd8d3",
         "line-width": ["interpolate", ["linear"], ["zoom"], 6, 0.5, 14, 3],
       },
     },
@@ -93,7 +93,7 @@ const PROTOMAPS_STYLE: maplibregl.StyleSpecification = {
       "source-layer": "roads",
       filter: ["in", "pmap:kind", "major_road", "medium_road"],
       paint: {
-        "line-color": "#1e2a1e",
+        "line-color": "#dde4e0",
         "line-width": ["interpolate", ["linear"], ["zoom"], 8, 0.3, 14, 2],
       },
     },
@@ -104,7 +104,7 @@ const PROTOMAPS_STYLE: maplibregl.StyleSpecification = {
       "source-layer": "roads",
       filter: ["==", "pmap:kind", "minor_road"],
       paint: {
-        "line-color": "#151f15",
+        "line-color": "#e5ebe7", // line
         "line-width": ["interpolate", ["linear"], ["zoom"], 12, 0.2, 16, 1],
       },
       minzoom: 11,
@@ -114,7 +114,7 @@ const PROTOMAPS_STYLE: maplibregl.StyleSpecification = {
       type: "fill",
       source: "protomaps",
       "source-layer": "buildings",
-      paint: { "fill-color": "#111818", "fill-opacity": 0.7 },
+      paint: { "fill-color": "#e9eeeb", "fill-opacity": 1 },
       minzoom: 13,
     },
     {
@@ -128,8 +128,8 @@ const PROTOMAPS_STYLE: maplibregl.StyleSpecification = {
         "text-font": ["Noto Sans Regular"],
       },
       paint: {
-        "text-color": "#6ee7b7",
-        "text-halo-color": "#0a0a0f",
+        "text-color": "#5a665f", // muted
+        "text-halo-color": "#ffffff",
         "text-halo-width": 1.5,
       },
     },
@@ -191,7 +191,7 @@ export default function AtlasMap({
 
     markers.forEach((m) => {
       const marker = new maplibregl.Marker({
-        color: m.color ?? "#10b981",
+        color: m.color ?? "#25d366", // accent
       })
         .setLngLat([m.lng, m.lat])
         .addTo(map);
@@ -199,7 +199,7 @@ export default function AtlasMap({
       if (m.popup) {
         marker.setPopup(
           new maplibregl.Popup({ offset: 25 }).setHTML(
-            `<div style="color:#000;font-size:13px;padding:4px 0">${m.popup}</div>`,
+            `<div style="color:#0f1a14;font-size:13px;padding:4px 0">${m.popup}</div>`,
           ),
         );
       }
@@ -249,9 +249,9 @@ export default function AtlasMap({
       source: "atlas-route",
       layout: { "line-join": "round", "line-cap": "round" },
       paint: {
-        "line-color": "#10b981",
+        "line-color": "#075e54", // accent-ink
         "line-width": 4,
-        "line-opacity": 0.85,
+        "line-opacity": 0.9,
       },
     });
   }, [routeGeoJson]);
@@ -263,7 +263,7 @@ export default function AtlasMap({
   return (
     <div
       ref={containerRef}
-      className={`w-full rounded-lg overflow-hidden ${className}`}
+      className={`w-full overflow-hidden rounded-card ${className}`}
       style={{ minHeight: 320 }}
     />
   );

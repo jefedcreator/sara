@@ -71,13 +71,13 @@ export default function RouteMap({
     {
       lng: origin.lng,
       lat: origin.lat,
-      color: "#3b82f6", // blue for client
+      color: "#0f1a14", // ink for the customer
       popup: "Your location",
     },
     {
       lng: destination.lng,
       lat: destination.lat,
-      color: "#10b981", // emerald for business
+      color: "#25d366", // accent for the business
       popup: businessName,
     },
   ];
@@ -93,20 +93,20 @@ export default function RouteMap({
   return (
     <div className={`space-y-3 ${className}`}>
       {/* Route stats bar */}
-      <div className="flex items-center gap-4 rounded-lg border border-white/10 bg-zinc-900/80 px-4 py-2.5 text-sm">
+      <div className="flex flex-wrap items-center gap-4 rounded-card border border-line bg-canvas px-4 py-2.5 text-sm">
         {isLoading ? (
-          <div className="flex items-center gap-2 text-zinc-400">
-            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-600 border-t-emerald-400" />
+          <div className="flex items-center gap-2 text-muted">
+            <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-line border-t-accent-ink" />
             Computing route…
           </div>
         ) : error ? (
-          <span className="text-red-400">⚠ {error}</span>
+          <span className="text-danger">⚠ {error}</span>
         ) : (
           <>
             {/* Distance */}
             <div className="flex items-center gap-1.5">
               <svg
-                className="h-4 w-4 text-emerald-400"
+                className="h-4 w-4 text-accent-ink"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -118,15 +118,15 @@ export default function RouteMap({
                   d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3"
                 />
               </svg>
-              <span className="font-medium text-zinc-100">{distanceKm} km</span>
+              <span className="font-semibold text-ink">{distanceKm} km</span>
             </div>
 
-            <div className="h-4 w-px bg-white/10" />
+            <div className="h-4 w-px bg-line" />
 
             {/* Duration */}
             <div className="flex items-center gap-1.5">
               <svg
-                className="h-4 w-4 text-emerald-400"
+                className="h-4 w-4 text-accent-ink"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -138,15 +138,15 @@ export default function RouteMap({
                   d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              <span className="font-medium text-zinc-100">
+              <span className="font-semibold text-ink">
                 {durationMin} min
               </span>
             </div>
 
-            <div className="h-4 w-px bg-white/10" />
+            <div className="h-4 w-px bg-line" />
 
             {/* Profile */}
-            <span className="text-xs text-zinc-500">by car</span>
+            <span className="text-xs text-muted">by car</span>
           </>
         )}
       </div>
@@ -160,22 +160,22 @@ export default function RouteMap({
 
       {/* Turn-by-turn instructions (collapsible) */}
       {routeData?.instructions && routeData.instructions.length > 0 && (
-        <details className="rounded-lg border border-white/10 bg-zinc-900/80">
-          <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-zinc-300 transition hover:text-emerald-300">
+        <details className="rounded-card border border-line bg-canvas">
+          <summary className="cursor-pointer px-4 py-2.5 text-sm font-semibold text-ink-2 transition-colors duration-200 ease-out-expo hover:text-accent-ink">
             Turn-by-turn directions ({routeData.instructions.length} steps)
           </summary>
           <ol className="max-h-60 overflow-y-auto px-4 pb-3">
             {routeData.instructions.map((step, i) => (
               <li
                 key={i}
-                className="flex items-start gap-3 border-t border-white/5 py-2 text-sm"
+                className="flex items-start gap-3 border-t border-line py-2 text-sm"
               >
-                <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-[10px] font-bold text-emerald-400">
+                <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-on-accent">
                   {i + 1}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-zinc-200">{step.text}</p>
-                  <p className="text-xs text-zinc-500">
+                  <p className="text-ink">{step.text}</p>
+                  <p className="text-xs text-muted">
                     {(step.distance_m / 1000).toFixed(1)} km ·{" "}
                     {Math.ceil(step.duration_s / 60)} min
                   </p>

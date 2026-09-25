@@ -32,38 +32,38 @@ export default async function HomePage() {
   const session = await auth();
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-6 py-16 text-zinc-50">
-      <section className="grid w-full max-w-5xl gap-10 lg:grid-cols-[1fr_380px] lg:items-center">
+    <main className="flex min-h-dvh items-center justify-center bg-canvas px-4 py-16 text-ink md:px-8">
+      <section className="grid w-full max-w-page gap-12 lg:grid-cols-[1fr_400px] lg:items-center lg:gap-20">
         <div className="max-w-2xl">
-          <p className="mb-4 text-sm font-medium tracking-[0.28em] text-emerald-300 uppercase">
-            Sara
+          <p className="mb-10 font-display text-[26px] leading-none font-semibold tracking-[-0.04em]">
+            sara
           </p>
-          <h1 className="text-4xl font-semibold tracking-normal text-white sm:text-6xl">
+          <h1 className="font-display text-[clamp(2.4rem,1.4rem+3.6vw,4rem)] leading-[1.04] font-[380] tracking-[-0.04em] text-balance">
             Sign in and manage your business in one place.
           </h1>
-          <p className="mt-6 max-w-xl text-lg leading-8 text-zinc-300">
+          <p className="mt-6 max-w-[46ch] text-lg text-muted">
             Use Google, Facebook, or Instagram to create your account or return
             to your workspace.
           </p>
         </div>
 
-        <div className="rounded-lg border border-white/10 bg-white p-6 text-zinc-950 shadow-2xl shadow-black/30">
+        <div className="rounded-panel bg-surface p-6 sm:p-8">
           {session?.user ? (
             <div className="space-y-6">
               <div>
-                <p className="text-sm font-medium text-zinc-500">
+                <p className="text-sm font-medium text-muted">
                   Signed in as
                 </p>
-                <p className="mt-1 text-xl font-semibold">
+                <p className="mt-1 font-display text-2xl font-medium tracking-[-0.02em]">
                   {session.user.name ?? session.user.email ?? "Your account"}
                 </p>
                 {session.user.email ? (
-                  <p className="mt-1 text-sm text-zinc-500">
+                  <p className="mt-1 text-sm text-muted">
                     {session.user.email}
                   </p>
                 ) : null}
                 {session.user.provider ? (
-                  <p className="mt-2 text-sm font-medium text-emerald-700">
+                  <p className="mt-3 inline-block rounded-full bg-accent-soft px-3 py-1.5 text-[13px] font-semibold text-accent-ink">
                     Signed in with {session.user.provider}
                   </p>
                 ) : null}
@@ -74,7 +74,7 @@ export default async function HomePage() {
                   await signOut({ redirectTo: "/" });
                 }}
               >
-                <button className="w-full rounded-md bg-zinc-950 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800">
+                <button className="h-12 w-full rounded-full border border-line bg-canvas px-6 text-[15px] font-semibold text-ink transition-colors duration-200 ease-out-expo hover:border-ink active:scale-[0.98]">
                   Sign out
                 </button>
               </form>
@@ -82,8 +82,10 @@ export default async function HomePage() {
           ) : (
             <div className="space-y-5">
               <div>
-                <h2 className="text-2xl font-semibold">Log in or sign up</h2>
-                <p className="mt-2 text-sm leading-6 text-zinc-500">
+                <h2 className="font-display text-[28px] leading-[1.1] font-normal tracking-[-0.03em]">
+                  Log in or sign up
+                </h2>
+                <p className="mt-2 text-[15px] text-muted">
                   New accounts are created automatically after provider
                   verification.
                 </p>
@@ -100,14 +102,14 @@ export default async function HomePage() {
                           await signIn(provider.id, { redirectTo: "/" });
                         }}
                       >
-                        <button className="w-full rounded-md border border-zinc-200 bg-white px-4 py-3 text-sm font-semibold text-zinc-950 transition hover:border-zinc-950 hover:bg-zinc-50">
+                        <button className="h-12 w-full rounded-full border border-line bg-canvas px-6 text-[15px] font-semibold text-ink transition-colors duration-200 ease-out-expo hover:border-ink active:scale-[0.98]">
                           {provider.label}
                         </button>
                       </form>
                     ) : (
                       <button
                         key={provider.id}
-                        className="w-full cursor-not-allowed rounded-md border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-semibold text-zinc-400"
+                        className="h-12 w-full cursor-not-allowed rounded-full bg-line px-6 text-[15px] font-semibold text-faint"
                         disabled
                         title={`Add ${provider.id} OAuth credentials to enable this provider`}
                       >
@@ -117,7 +119,7 @@ export default async function HomePage() {
                   )}
                 </div>
               ) : (
-                <p className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                <p className="rounded-card bg-canvas px-4 py-3 text-sm text-ink-2">
                   Add OAuth credentials to enable social sign-in.
                 </p>
               )}

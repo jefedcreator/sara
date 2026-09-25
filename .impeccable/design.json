@@ -1,0 +1,268 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-25T15:00:40.475393+00:00",
+  "title": "Design System: Sara",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "WhatsApp Green",
+        "tonalRamp": [
+          "#0b2b1a",
+          "#075e54",
+          "#0e7a3f",
+          "#17a24f",
+          "#25d366",
+          "#6fe09a",
+          "#c8f0d6",
+          "#e8f9ee"
+        ]
+      },
+      "accent-ink": {
+        "role": "primary",
+        "displayName": "Deep Teal-Green"
+      },
+      "on-accent": {
+        "role": "primary",
+        "displayName": "Green Ink"
+      },
+      "accent-soft": {
+        "role": "primary",
+        "displayName": "Mint Wash"
+      },
+      "accent-tint": {
+        "role": "primary",
+        "displayName": "Mint Tint"
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas White"
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Leaf Grey"
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Hairline"
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "tonalRamp": [
+          "#0f1a14",
+          "#37443c",
+          "#5a665f",
+          "#7f8a84",
+          "#a7b1ab",
+          "#e5ebe7",
+          "#f4f7f5",
+          "#ffffff"
+        ]
+      },
+      "ink-2": {
+        "role": "neutral",
+        "displayName": "Ink Soft"
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted"
+      },
+      "faint": {
+        "role": "neutral",
+        "displayName": "Faint"
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Danger"
+      },
+      "danger-soft": {
+        "role": "status",
+        "displayName": "Danger Wash"
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Page heroes only."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section and screen titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles, names, FAQ questions."
+      },
+      "stat": {
+        "displayName": "Stat",
+        "purpose": "Headline figures."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Running text, 50-60ch."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, chips, table headers."
+      }
+    },
+    "shadows": [
+      {
+        "name": "float",
+        "value": "0 28px 60px -28px rgb(7 94 84 / .34), 0 2px 8px -2px rgb(15 26 20 / .08)",
+        "purpose": "Product screenshots, booking page."
+      },
+      {
+        "name": "card",
+        "value": "0 28px 60px -34px rgb(15 26 20 / .24)",
+        "purpose": "Documents such as invoices."
+      },
+      {
+        "name": "lift",
+        "value": "0 18px 40px -18px rgb(15 26 20 / .28)",
+        "purpose": "Overlapping notification bubbles."
+      },
+      {
+        "name": "cta",
+        "value": "0 10px 24px -12px rgb(7 94 84 / .55)",
+        "purpose": "Large primary buttons."
+      },
+      {
+        "name": "bubble",
+        "value": "0 1px 2px rgb(15 26 20 / .04)",
+        "purpose": "Sara's white chat bubbles."
+      }
+    ],
+    "motion": [
+      {
+        "name": "ease-out-expo",
+        "value": "cubic-bezier(.16, 1, .3, 1)",
+        "purpose": "All entrances and state changes."
+      },
+      {
+        "name": "arrive",
+        "value": "opacity + translateY(10px) scale(.98), 500-600ms, 140ms stagger",
+        "purpose": "Chat messages arriving, owner first."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "nav",
+        "value": "960px"
+      },
+      {
+        "name": "lg",
+        "value": "1040px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action per view, e.g. Start on WhatsApp.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Start on WhatsApp<span class=\"ds-btn-arrow\"><svg viewBox=\"0 0 16 16\" width=\"16\" height=\"16\"><path d=\"M3 8h9M8.5 4.5 12 8l-3.5 3.5\" fill=\"none\" stroke=\"#075e54\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></span></a>",
+      "css": ".ds-btn-primary{display:inline-flex;align-items:center;gap:12px;height:48px;padding:0 8px 0 22px;border-radius:9999px;background:#25d366;color:#0b2b1a;font:600 16px/1 'Hanken Grotesk',sans-serif;text-decoration:none;box-shadow:0 10px 24px -12px rgb(7 94 84 / .55);transition:background .25s cubic-bezier(.16,1,.3,1),transform .25s cubic-bezier(.16,1,.3,1)}.ds-btn-primary:hover{background:#1fbf5b}.ds-btn-primary:active{transform:scale(.98)}.ds-btn-primary:focus-visible{outline:2px solid #075e54;outline-offset:3px}.ds-btn-arrow{display:grid;place-items:center;width:40px;height:40px;border-radius:50%;background:#fff}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Alternative actions such as provider sign-in.",
+      "html": "<button class=\"ds-btn-secondary\">Continue with Google</button>",
+      "css": ".ds-btn-secondary{height:48px;padding:0 22px;border-radius:9999px;border:1px solid #e5ebe7;background:#fff;color:#0f1a14;font:600 15px 'Hanken Grotesk',sans-serif;cursor:pointer;transition:border-color .2s}.ds-btn-secondary:hover{border-color:#0f1a14}.ds-btn-secondary:focus-visible{outline:2px solid #075e54;outline-offset:3px}"
+    },
+    {
+      "name": "Dark Button",
+      "kind": "button",
+      "refersTo": "button-dark",
+      "description": "Compact utility action (copy link, sign out).",
+      "html": "<button class=\"ds-btn-dark\">Copy</button>",
+      "css": ".ds-btn-dark{height:40px;padding:0 18px;border:0;border-radius:9999px;background:#0f1a14;color:#fff;font:600 14px 'Hanken Grotesk',sans-serif;cursor:pointer;transition:background .2s}.ds-btn-dark:hover{background:#075e54}.ds-btn-dark:focus-visible{outline:2px solid #075e54;outline-offset:3px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Labelled input with teal focus ring.",
+      "html": "<label class=\"ds-field\"><span>Business name</span><input placeholder=\"Tobi Beauty Studio\"></label>",
+      "css": ".ds-field{display:grid;gap:6px;font:600 14px 'Hanken Grotesk',sans-serif;color:#0f1a14}.ds-field input{height:44px;padding:0 14px;border-radius:10px;border:1px solid #e5ebe7;background:#fff;color:#0f1a14;font:400 15px 'Hanken Grotesk',sans-serif;outline:none;transition:border-color .2s,box-shadow .2s}.ds-field input::placeholder{color:#5a665f}.ds-field input:focus{border-color:#075e54;box-shadow:0 0 0 3px #c8f0d6}"
+    },
+    {
+      "name": "Chat Exchange",
+      "kind": "custom",
+      "refersTo": "bubble-owner",
+      "description": "Owner message and Sara reply; the system's illustration language.",
+      "html": "<div class=\"ds-thread\"><p class=\"ds-out\">1</p><p class=\"ds-in\">INV-0142 for Ada Okafor: Gele tying, NGN 15,000.<span class=\"ds-chip\">Payment link ready to forward</span></p></div>",
+      "css": ".ds-thread{display:grid;gap:8px;max-width:320px;font:400 14.5px/1.5 'Hanken Grotesk',sans-serif}.ds-out{justify-self:end;padding:10px 14px;border-radius:18px 18px 6px 18px;background:#25d366;color:#0b2b1a;font-weight:500;margin:0}.ds-in{padding:10px 14px;border-radius:18px 18px 18px 6px;background:#fff;border:1px solid #e5ebe7;color:#0f1a14;margin:0;box-shadow:0 1px 2px rgb(15 26 20 / .04)}.ds-chip{display:block;margin-top:8px;padding:7px 10px;border-radius:10px;background:#e8f9ee;color:#075e54;font-size:13px;font-weight:600}"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "status-pill",
+      "description": "Invoice status in product language.",
+      "html": "<span class=\"ds-status\">Partially paid</span>",
+      "css": ".ds-status{display:inline-block;padding:6px 12px;border-radius:9999px;background:#e8f9ee;color:#075e54;font:600 13px 'Hanken Grotesk',sans-serif}"
+    },
+    {
+      "name": "Feature Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Leaf-grey card holding a numbered menu item and its real reply.",
+      "html": "<article class=\"ds-card\"><header><span class=\"ds-num\">5</span><h3>Today's bookings</h3></header><p>09:30 Ada Okafor · Gele tying</p></article>",
+      "css": ".ds-card{background:#f4f7f5;border-radius:28px;padding:22px 18px 20px;max-width:320px;font:400 14.5px 'Hanken Grotesk',sans-serif;color:#0f1a14}.ds-card header{display:flex;align-items:center;gap:12px;margin-bottom:14px}.ds-card h3{margin:0;font:500 19px/1.2 'Bricolage Grotesque',sans-serif;letter-spacing:-.02em}.ds-num{display:grid;place-items:center;width:32px;height:32px;border-radius:50%;background:#25d366;color:#0b2b1a;font-weight:700}.ds-card p{margin:0}"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "button-primary",
+      "description": "Sticky white bar with wordmark, muted links and compact CTA.",
+      "html": "<nav class=\"ds-nav\"><span class=\"ds-word\">sara</span><span class=\"ds-links\"><a>How it works</a><a>Booking links</a><a>FAQ</a></span><a class=\"ds-nav-cta\">Start on WhatsApp</a></nav>",
+      "css": ".ds-nav{display:flex;align-items:center;gap:24px;height:64px;padding:0 16px;background:rgb(255 255 255 / .88);border-bottom:1px solid #e5ebe7;font-family:'Hanken Grotesk',sans-serif}.ds-word{font:600 26px/1 'Bricolage Grotesque',sans-serif;letter-spacing:-.04em;color:#0f1a14}.ds-links{display:flex;gap:24px;margin:0 auto}.ds-links a{color:#5a665f;font-size:15px;font-weight:500;cursor:pointer}.ds-links a:hover{color:#0f1a14}.ds-nav-cta{height:40px;display:inline-flex;align-items:center;padding:0 18px;border-radius:9999px;background:#25d366;color:#0b2b1a;font-weight:600;font-size:14px;cursor:pointer}.ds-nav-cta:hover{background:#1fbf5b}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Chat Is the Proof",
+    "keyCharacteristics": [
+      "Pure white canvas, soft green-grey surfaces, no dark sections.",
+      "One accent: WhatsApp green as fill, deep WhatsApp teal-green for green text.",
+      "Light display type with tight tracking; workhorse sans for everything interactive.",
+      "Pill controls, big soft radii (24-32px) on surfaces.",
+      "Real product content as the illustration: bubbles, invoices, slots, numbers.",
+      "Motion arrives like a message: owner first, reply after."
+    ],
+    "rules": [
+      {
+        "name": "The Green Fill Rule",
+        "body": "WhatsApp green is a fill, never a text colour on white. If it has to be read, it is Deep Teal-Green.",
+        "section": "colors"
+      },
+      {
+        "name": "The One Voice Rule",
+        "body": "Green belongs to actions and to the owner's own words. If more than roughly a tenth of a screen is green, something that is not an action has been coloured.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-Eyebrow Rule",
+        "body": "No small uppercase tracked labels above headings. The heading carries its own weight.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Money Rule",
+        "body": "Every naira figure uses tabular numerals and the \"NGN 15,000\" form in UI; \"₦15,000\" is reserved for marketing headlines and stats.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tinted Shadow Rule",
+        "body": "No neutral black shadows. Depth is always tinted toward the palette.",
+        "section": "elevation"
+      }
+    ]
+  }
+}

@@ -1,6 +1,89 @@
 @import "tailwindcss";
 
+/*
+ * Sara design tokens. Source of truth: /DESIGN.md (frontmatter).
+ * Every value here maps 1:1 to a DESIGN.md token; change both together.
+ *
+ * Usage: bg-canvas, bg-surface, border-line, text-ink, text-muted,
+ * bg-accent text-on-accent (fills), text-accent-ink (green text on white),
+ * rounded-bubble / rounded-card / rounded-panel, shadow-float, ease-out-expo,
+ * font-display / font-sans.
+ */
 @theme {
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif,
+  --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --font-display: var(--font-bricolage), var(--font-hanken), ui-sans-serif, sans-serif;
+
+  --color-canvas: #ffffff;
+  --color-surface: #f4f7f5;
+  --color-line: #e5ebe7;
+  --color-ink: #0f1a14;
+  --color-ink-2: #37443c;
+  --color-muted: #5a665f;
+  --color-faint: #7f8a84;
+
+  /* WhatsApp green is a fill only; text on it is on-accent. Green text on white is accent-ink. */
+  --color-accent: #25d366;
+  --color-accent-hover: #1fbf5b;
+  --color-accent-ink: #075e54;
+  --color-on-accent: #0b2b1a;
+  --color-accent-soft: #e8f9ee;
+  --color-accent-tint: #c8f0d6;
+
+  --color-danger: #b42318;
+  --color-danger-soft: #fef3f2;
+
+  --radius-chip: 10px;
+  --radius-bubble: 18px;
+  --radius-card: 24px;
+  --radius-panel: 28px;
+  --radius-shot: 32px;
+
+  --shadow-float: 0 28px 60px -28px rgb(7 94 84 / 0.34), 0 2px 8px -2px rgb(15 26 20 / 0.08);
+  --shadow-card: 0 28px 60px -34px rgb(15 26 20 / 0.24);
+  --shadow-lift: 0 18px 40px -18px rgb(15 26 20 / 0.28);
+  --shadow-cta: 0 10px 24px -12px rgb(7 94 84 / 0.55);
+  --shadow-bubble: 0 1px 2px rgb(15 26 20 / 0.04);
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --container-page: 1160px;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    scrollbar-color: var(--color-accent-tint) var(--color-canvas);
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-tint);
+    color: var(--color-ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent-ink);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }
