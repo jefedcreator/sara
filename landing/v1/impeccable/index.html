@@ -9,13 +9,14 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,300..700&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.1/src/bold/style.css" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <!--
 THESIS: Proof over promise. The page is the chat itself: every block is a real reply Sara sends. Refuses the category default of icon tiles and abstract dashboard art.
-OWN-WORLD: Pure white, adire-indigo ink (#2A3BC4) as the only colour, soft indigo tints for owner messages. Bricolage Grotesque light display, Hanken Grotesk for UI. Pill controls, 24-32px radii, one soft indigo-tinted shadow.
-STORY: See the chat, understand "reply with a number", trust the money plumbing (Paystack, Mono, Calendar), tap Start on WhatsApp.
+OWN-WORLD: Pure white, WhatsApp green (#25D366, owner-chosen 2026-09-25) as the only fill colour with #075E54 for green text, green-tinted neutrals. Bricolage Grotesque light display, Hanken Grotesk for UI. Pill controls, 24-32px radii, one soft indigo-tinted shadow.
+STORY: See real free time behind every booking link, see the six numbers at work, trust the money plumbing (Paystack, Mono, Calendar), tap Start on WhatsApp.
 FIRST VIEWPORT: Centered two-line headline, subline, indigo pill CTA with secondary link, muted Works-with row; the tall screenshot card rises beneath, the Business summary card overlapping its lower right.
 FORM: Brief-pinned direction v1 (Clean Minimal SaaS); seed 8a28b7ff, roll overridden by brief.
 FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
@@ -82,17 +83,23 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     </div>
   </section>
 
-  <section class="statement-sec" id="how">
-    <div class="wrap">
-      <p class="statement">Sara is a numbered menu inside your chat. <span>Reply 1 for an invoice, 3 for a booking link, 6 for your numbers. Nothing to install, no dashboard to learn, no laptop to open.</span></p>
-      <div class="menu-demo" data-arrive>
-        <p class="msg in menu-msg">Sara 👋 Reply with a number:<br>1️⃣ New invoice<br>2️⃣ New receipt<br>3️⃣ Share a service (booking link)<br>4️⃣ Unpaid invoices<br>5️⃣ Today's bookings<br>6️⃣ Business summary</p>
-        <p class="menu-note">Guided, never guessing. Sara is not an AI chatbot: the same number always does the same thing. Send <b>menu</b> or <b>0</b> to go back.</p>
+  <section class="free" aria-labelledby="free-h">
+    <div class="wrap free-grid">
+      <div class="free-copy">
+        <h2 id="free-h" class="h2">Booking links that only sell real free time.</h2>
+        <p class="sub">Share app.sara.ng/book/&lt;service&gt; anywhere. The customer picks a slot and pays by Paystack, then Sara confirms, sends the receipt and pings you.</p>
       </div>
+      <ul class="free-rules" data-arrive>
+        <li style="--i:0"><span class="free-ico"><i class="ph-bold ph-clock" aria-hidden="true"></i></span><div><h3>Weekly working hours</h3><p>Nothing outside your hours is ever shown.</p></div></li>
+        <li style="--i:1"><span class="free-ico"><i class="ph-bold ph-prohibit" aria-hidden="true"></i></span><div><h3>One-off closures</h3><p>Thu 1 Oct, Independence Day: closed, invisible to customers.</p></div></li>
+        <li style="--i:2"><span class="free-ico"><i class="ph-bold ph-arrows-clockwise" aria-hidden="true"></i></span><div><h3>Google Calendar, two-way</h3><p>Confirmed bookings added, cancellations removed, reschedules moved.</p></div></li>
+        <li style="--i:3"><span class="free-ico"><i class="ph-bold ph-envelope-simple" aria-hidden="true"></i></span><div><h3>Customer emails</h3><p>Confirmation, reschedule, cancellation and a 24-hour reminder. Never a WhatsApp message.</p></div></li>
+        <li style="--i:4"><span class="free-ico"><i class="ph-bold ph-map-pin-line" aria-hidden="true"></i></span><div><h3>Home service</h3><p>Route and distance from the customer's address to yours.</p></div></li>
+      </ul>
     </div>
   </section>
 
-  <section class="features" aria-labelledby="features-h">
+  <section class="features" id="how" aria-labelledby="features-h">
     <div class="wrap">
       <h2 id="features-h" class="h2">Six numbers run the whole studio.</h2>
       <p class="sub">Every card below is a real exchange with Sara, from Tobi's beauty studio in Yaba.</p>
