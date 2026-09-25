@@ -31,6 +31,7 @@
   "dependencies": {
     "@auth/prisma-adapter": "^2.7.2",
     "@mono.co/connect.js": "^2.2.0",
+    "@phosphor-icons/react": "^2.1.7",
     "@prisma/client": "^6.6.0",
     "@sentry/nextjs": "^10.51.0",
     "@t3-oss/env-nextjs": "^0.12.0",
