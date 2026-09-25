@@ -7,9 +7,10 @@
  * Usage: bg-canvas, bg-surface, border-line, text-ink, text-muted,
  * bg-accent text-on-accent (fills), text-accent-ink (green text on white),
  * rounded-bubble / rounded-card / rounded-panel, shadow-float, ease-out-expo,
- * font-display / font-sans.
+ * font-display / font-sans. CSS modules may read the same values as
+ * var(--color-*), var(--radius-*), var(--shadow-*); `static` keeps them all emitted.
  */
-@theme {
+@theme static {
   --font-sans: var(--font-hanken), ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   --font-display: var(--font-bricolage), var(--font-hanken), ui-sans-serif, sans-serif;
@@ -74,6 +75,12 @@
   :focus-visible {
     outline: 2px solid var(--color-accent-ink);
     outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
 
   @media (prefers-reduced-motion: reduce) {

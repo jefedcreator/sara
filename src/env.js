@@ -60,6 +60,11 @@ export const env = createEnv({
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
     NEXT_PUBLIC_MONO_PUBLIC_KEY: z.string().optional(),
+    // Sara's public WhatsApp number in international format without "+" (e.g. 2348012345678). Powers the landing "Start on WhatsApp" links.
+    NEXT_PUBLIC_SARA_WHATSAPP_NUMBER: z
+      .string()
+      .regex(/^\d{8,15}$/)
+      .optional(),
   },
 
   /**
@@ -107,7 +112,8 @@ export const env = createEnv({
     INSTAGRAM_IG_ID: process.env.INSTAGRAM_IG_ID,
     INSTAGRAM_PAGE_TOKEN: process.env.INSTAGRAM_PAGE_TOKEN,
     // NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
-
+    NEXT_PUBLIC_SARA_WHATSAPP_NUMBER:
+      process.env.NEXT_PUBLIC_SARA_WHATSAPP_NUMBER,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
