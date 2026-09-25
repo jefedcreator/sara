@@ -1,6 +1,5 @@
 import { getChildId } from "@/utils/getChildId";
 import bcrypt from "bcryptjs";
-import { type ClassValue, clsx } from "clsx";
 import {
   createSearchParamsCache,
   parseAsBoolean,
@@ -13,9 +12,7 @@ import { generateUsername } from "unique-username-generator";
 import z from "zod";
 import { HttpException } from "./exceptions";
 
-const cn = (...inputs: ClassValue[]) => {
-  return twMerge(clsx(inputs));
-};
+import { cn } from "./cn";
 
 const convertFileToBase64 = (file: File): Promise<string> => {
   return new Promise((resolve, reject) => {

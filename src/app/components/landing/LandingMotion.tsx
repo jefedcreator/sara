@@ -2,13 +2,13 @@
 
 import { useEffect, useRef, type ReactNode } from "react";
 
-import s from "./landing.module.css";
-
 /**
  * Page root for the landing page. Content stays visible without JS; once this
- * mounts (and reduced motion is off) groups marked [data-arrive] fade their
- * [data-item] children in order as they scroll into view, like messages
- * arriving: owner first, Sara's reply after.
+ * mounts (and reduced motion is off) it sets [data-motion] on the root, and
+ * groups marked [data-arrive] get [data-in] as they scroll into view. Children
+ * style themselves against those attributes with Tailwind arbitrary variants
+ * (see ARRIVE_ITEM in LandingPage), arriving like messages: owner first,
+ * Sara's reply after.
  */
 export function LandingMotion({ children }: { children: ReactNode }) {
   const root = useRef<HTMLDivElement>(null);
@@ -42,7 +42,7 @@ export function LandingMotion({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <div ref={root} className={s.page}>
+    <div ref={root} className="bg-canvas text-ink relative">
       {children}
     </div>
   );
