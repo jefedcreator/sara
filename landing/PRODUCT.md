@@ -43,7 +43,8 @@ A guided, deterministic numbered chat menu (not an AI chatbot) on top of serious
 
 - Primary CTA everywhere: "Start on WhatsApp". Optional hero-only secondary: "See how booking links work".
 - Calm, warm, confident, at home in Lagos. No Silicon Valley hype, no AI/chatbot language.
-- WhatsApp green is never a brand color; partner names appear only as plain text or neutral wordmarks in a "Works with" row.
+- Partner names appear only as plain text or neutral wordmarks in a "Works with" row.
+- Colour: the original brief ruled out WhatsApp green; on 2026-09-25 the owner chose WhatsApp green (#25D366) as the accent for the preferred direction (v1 Impeccable).
 
 ## Evidence on Hand
 
