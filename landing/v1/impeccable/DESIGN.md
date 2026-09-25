@@ -1,6 +1,6 @@
 # Sara v1 · Impeccable · Clean Minimal SaaS
 
-Documented from the built page (`index.html`, `style.css`).
+Documented from the built page (`index.html`, `style.css`). This page is the origin of the app-wide design language; the canonical system is the root `/DESIGN.md`.
 
 ## World
 Proof over promise. Pure white ground; the chat itself is the design material. No icon tiles, no illustration.

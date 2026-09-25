@@ -129,7 +129,7 @@ export default function AddressAutocomplete({
       {label && (
         <label
           htmlFor={id}
-          className="mb-1.5 block text-sm font-medium text-zinc-300"
+          className="mb-1.5 block text-sm font-semibold text-ink"
         >
           {label}
         </label>
@@ -145,19 +145,19 @@ export default function AddressAutocomplete({
           onKeyDown={handleKeyDown}
           onFocus={() => results.length > 0 && setIsOpen(true)}
           placeholder={placeholder}
-          className="w-full rounded-md border border-white/10 bg-zinc-900 px-3 py-2.5 text-sm text-zinc-100 placeholder:text-zinc-500 outline-none transition focus:border-emerald-500/50 focus:ring-1 focus:ring-emerald-500/25"
+          className="h-11 w-full rounded-chip border border-line bg-canvas pr-10 pl-3.5 text-[15px] text-ink outline-none transition duration-200 ease-out-expo placeholder:text-muted focus:border-accent-ink focus:ring-3 focus:ring-accent-tint"
         />
 
         {isLoading && (
           <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-emerald-400" />
+            <div className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-accent-ink" />
           </div>
         )}
 
         {/* Search icon when not loading */}
         {!isLoading && (
           <svg
-            className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500"
+            className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -174,22 +174,22 @@ export default function AddressAutocomplete({
 
       {/* ── Dropdown ───────────────────────────────────────────────────── */}
       {isOpen && (
-        <ul className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border border-white/10 bg-zinc-900 py-1 shadow-xl shadow-black/30 backdrop-blur-sm">
+        <ul className="absolute z-50 mt-1.5 max-h-60 w-full overflow-auto rounded-card border border-line bg-canvas py-1.5 shadow-lift">
           {results.map((result, i) => (
             <li key={`${result.lat}-${result.lon}-${i}`}>
               <button
                 type="button"
                 className={`flex w-full items-start gap-2.5 px-3 py-2.5 text-left text-sm transition ${
                   i === selectedIndex
-                    ? "bg-emerald-500/10 text-emerald-300"
-                    : "text-zinc-300 hover:bg-white/5"
+                    ? "bg-accent-soft text-accent-ink"
+                    : "text-ink hover:bg-surface"
                 }`}
                 onMouseEnter={() => setSelectedIndex(i)}
                 onClick={() => handleSelect(result)}
               >
                 {/* Pin icon */}
                 <svg
-                  className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-400/70"
+                  className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent-ink"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -210,7 +210,7 @@ export default function AddressAutocomplete({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{result.name}</p>
                   {result.address && (
-                    <p className="truncate text-xs text-zinc-500">
+                    <p className="truncate text-xs text-muted">
                       {[
                         result.address.street,
                         result.address.city,

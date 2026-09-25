@@ -8,7 +8,9 @@ web
 
 ## Stack
 
-Static HTML/CSS/JS, one self-contained folder per landing version (`landing/vN/<skill>/`). Not wired into the Next.js app. Hosted fonts via Google Fonts / Fontshare links.
+- App: Next.js 15 (App Router) + Tailwind CSS v4, design tokens in `src/styles/globals.css`, fonts via `next/font`.
+- Landing explorations: static HTML/CSS/JS, one self-contained folder per version (`landing/vN/<skill>/`), not wired into the app.
+- Visual language for the whole product: v1 Impeccable (Clean Minimal SaaS), recorded in root `DESIGN.md`.
 
 ## Users
 
