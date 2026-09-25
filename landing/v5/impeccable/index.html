@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sara · Serious business, run from a phone</title>
+  <meta name="description" content="Invoices, receipts, booking links and settlement for Nigerian tailors, stylists and barbers, from one WhatsApp chat.">
+  <meta name="theme-color" content="#1c1c1b">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&family=Red+Hat+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!--
+THESIS: Documentary restraint. One real photograph carries all the feeling; everything after it is plain record: numbers, steps, a transcript. Refuses decoration, icons and feature cards.
+OWN-WORLD: Grayscale photo, white and #F2F2F0 sections, near-black #161615 ink, one thread-red accent #B3261E reserved for the CTA and step numerals. Schibsted Grotesk tight display, Red Hat Mono for figures, times and transcript. 12-column hairline grid, square corners, pill CTA only.
+STORY: Feel the real shop, read the numbers, follow four steps, read an actual chat transcript, start on WhatsApp.
+FIRST VIEWPORT: The photo fills the whole viewport edge to edge; white nav floats over its top; the white headline, subline and red pill CTA sit on its bottom-left corner.
+FORM: Brief-pinned direction v5 (Monochrome Documentary); seed 8a28b7ff, roll overridden by brief.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
+<a class="skip" href="#main">Skip to content</a>
+
+<header class="nav" data-nav>
+  <div class="nav-in">
+    <a class="word" href="#top">Sara</a>
+    <nav class="links" aria-label="Primary">
+      <a href="#how">How it works</a>
+      <a href="#booking-links">Booking links</a>
+      <a href="#invoices">Invoices &amp; receipts</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <button class="nav-btn" type="button" aria-expanded="false" aria-controls="drawer" data-menu>Menu</button>
+  </div>
+  <nav class="drawer" id="drawer" aria-label="Mobile" hidden>
+    <a href="#how">How it works</a><a href="#booking-links">Booking links</a><a href="#invoices">Invoices &amp; receipts</a><a href="#pricing">Pricing</a><a href="#faq">FAQ</a>
+  </nav>
+</header>
+
+<main id="main">
+  <section class="hero" id="top">
+    <!-- HERO IMAGE SLOT (.hero-photo): one full-bleed, moody grayscale photograph, not staged stock. A tailor at a sewing
+         machine in a small Yaba shop, fabric bolts behind him, his phone face-up on the table. Fills the entire top of the page.
+         Keep the lower-left third darker/quieter for the white headline. Export 2880x1800 (16:10), crops to 3:4 on phones.
+         Apply as background: url(...) center / cover (grayscale) on .hero-photo, or an img element with object-fit: cover. -->
+    <div class="hero-photo" role="img" aria-label="A tailor at his sewing machine in a small Yaba shop, fabric bolts behind him, his phone face-up on the table"></div>
+    <div class="hero-scrim" aria-hidden="true"></div>
+    <div class="hero-copy">
+      <h1>Serious business,<br>run from a phone.</h1>
+      <p class="lede">Invoices, receipts, booking links and payments for tailors, stylists and barbers. One WhatsApp chat, a numbered menu, nothing else to learn.</p>
+      <div class="ctas">
+        <a class="btn" id="start" href="https://wa.me/" rel="noopener">Start on WhatsApp</a>
+        <a class="under" href="#booking-links">See how booking links work</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- SAMPLE FIGURES: placeholders, replace before launch -->
+  <section class="stats" aria-label="Sara in numbers">
+    <div class="stat"><p class="n">₦48.2M</p><p class="l">collected through Sara booking links</p></div>
+    <div class="stat"><p class="n">3,100+</p><p class="l">businesses across Lagos, Abuja and Port Harcourt</p></div>
+    <div class="stat"><p class="n">&lt;5s</p><p class="l">from payment to receipt</p></div>
+    <div class="stat"><p class="n">24h</p><p class="l">reminder email before every appointment</p></div>
+  </section>
+
+  <section class="works" aria-label="Works with">
+    <p>Works with</p>
+    <ul><li>Paystack</li><li>Mono</li><li>Google Calendar</li><li>WhatsApp</li><li>Instagram</li></ul>
+  </section>
+
+  <section class="process" id="how" aria-labelledby="process-h">
+    <h2 id="process-h" class="h2">How it works</h2>
+    <ol class="steps">
+      <li><span class="step-n">01</span><p>Message Sara on WhatsApp and connect your business with a one-time link.</p></li>
+      <li><span class="step-n">02</span><p>Add your services, prices and working hours.</p></li>
+      <li><span class="step-n">03</span><p>Reply "3" to get a booking link and drop it in your bio or a chat.</p></li>
+      <li><span class="step-n">04</span><p>The customer picks a slot and pays by Paystack; the receipt and your notification arrive on their own.</p></li>
+    </ol>
+  </section>
+
+  <section class="transcript" id="booking-links" aria-labelledby="tr-h">
+    <div class="tr-head">
+      <h2 id="tr-h" class="h2">One Tuesday in Chidi's chat.</h2>
+      <p class="body">Unedited. Sara is a guided menu, not an AI chatbot: numbers in, the same kind of answer out. Customers never hear from Sara on WhatsApp; they get emails.</p>
+    </div>
+    <ol class="log">
+      <li><time>08:02</time><span class="who">Chidi</span><p>menu</p></li>
+      <li class="sara"><time>08:02</time><span class="who">Sara</span><p>Sara 👋 Reply with a number: 1️⃣ New invoice · 2️⃣ New receipt · 3️⃣ Share a service (booking link) · 4️⃣ Unpaid invoices · 5️⃣ Today's bookings · 6️⃣ Business summary</p></li>
+      <li><time>08:02</time><span class="who">Chidi</span><p>3</p></li>
+      <li class="sara"><time>08:02</time><span class="who">Sara</span><p>Which service? 1. Agbada fitting — NGN 35,000 (1 hr) · 2. Senator suit — NGN 45,000 (1 hr)</p></li>
+      <li><time>08:03</time><span class="who">Chidi</span><p>1</p></li>
+      <li class="sara"><time>08:03</time><span class="who">Sara</span><p>Your booking link: app.sara.ng/book/chidi-agbada-fitting</p></li>
+      <li class="event"><time>11:47</time><span class="who">Link</span><p>Tobi opens the link, picks Friday 1:00 pm and pays NGN 35,000 through Paystack.</p></li>
+      <li class="sara"><time>11:47</time><span class="who">Sara</span><p>✅ New booking: Tobi Adewale, Agbada fitting, Fri 2 Oct at 13:00. NGN 35,000 paid. Receipt sent.</p></li>
+      <li><time>19:31</time><span class="who">Chidi</span><p>4</p></li>
+      <li class="sara"><time>19:31</time><span class="who">Sara</span><p>2 unpaid, NGN 50,000 outstanding. Kemi Adeyemi: NGN 30,000 of NGN 60,000 paid (Partially paid). Ada Okafor: NGN 20,000 (Unpaid).</p></li>
+      <li><time>19:32</time><span class="who">Chidi</span><p>6</p></li>
+      <li class="sara"><time>19:32</time><span class="who">Sara</span><p>Today NGN 65,000 · This week NGN 230,000 · Unpaid 2. Agbada fitting NGN 140,000 · Senator suit NGN 90,000</p></li>
+    </ol>
+  </section>
+
+  <section class="ledger" id="invoices" aria-labelledby="led-h">
+    <h2 id="led-h" class="h2">The invoice, on the record.</h2>
+    <div class="inv">
+      <div class="inv-head"><span>INV-0207</span><span>Kemi Adeyemi</span><span class="status">Partially paid</span></div>
+      <dl class="inv-rows">
+        <div><dt>Agbada, 3-piece, sewing</dt><dd>NGN 52,000</dd></div>
+        <div><dt>Cap (fila)</dt><dd>NGN 5,000</dd></div>
+        <div class="minor"><dt>VAT 7.5%</dt><dd>NGN 4,275</dd></div>
+        <div class="minor"><dt>Discount</dt><dd>−NGN 1,275</dd></div>
+        <div class="total"><dt>Total</dt><dd>NGN 60,000</dd></div>
+        <div class="paid"><dt>Paid</dt><dd>NGN 30,000</dd></div>
+      </dl>
+      <p class="inv-note">Status moves Unpaid → Partially paid → Paid by itself. Export as PDF. When a payment lands, the receipt is created without anyone typing it.</p>
+    </div>
+  </section>
+
+  <section class="record" aria-labelledby="rec-h">
+    <h2 id="rec-h" class="h2">What runs underneath.</h2>
+    <dl class="facts">
+      <div><dt>Availability</dt><dd>Weekly working hours, one-off closures like holidays and rest days, existing bookings and your Google Calendar.</dd></div>
+      <div><dt>Google Calendar</dt><dd>Two-way. Confirmed bookings are added, cancellations removed, reschedules moved.</dd></div>
+      <div><dt>Payments</dt><dd>Paystack split payments settle straight into your business's own subaccount. Mono links your bank account.</dd></div>
+      <div><dt>Customers</dt><dd>Confirmation, reschedule and cancellation emails, and a reminder 24 hours before.</dd></div>
+      <div><dt>Home service</dt><dd>Route and distance between the customer's address and yours.</dd></div>
+      <div><dt>Instagram</dt><dd>The same numbered menu works in your Instagram chat.</dd></div>
+    </dl>
+  </section>
+
+  <section class="faq" id="faq" aria-labelledby="faq-h">
+    <h2 id="faq-h" class="h2">FAQ</h2>
+    <div class="faq-list">
+      <details><summary>Is Sara an AI chatbot?</summary><p>No. It is a guided menu. The same number always does the same thing. Send "menu" or "0" to go back.</p></details>
+      <details><summary>Do I need a laptop?</summary><p>No. Setup and daily use happen in the chat. You sign in once with Google, Facebook or Instagram through a one-time link.</p></details>
+      <details><summary>Will my customers get WhatsApp messages?</summary><p>No. Sara only replies to you. Customers get emails.</p></details>
+      <details id="pricing"><summary>What does it cost?</summary>
+        <!-- PLACEHOLDER: pricing not confirmed. Replace before launch. -->
+        <p data-placeholder>Pricing details go here before launch.</p></details>
+    </div>
+  </section>
+
+  <section class="end" aria-labelledby="end-h">
+    <p class="end-word" aria-hidden="true">Sara</p>
+    <h2 id="end-h" class="end-h">The shop stays small. The paperwork disappears.</h2>
+    <a class="btn btn-lg" href="https://wa.me/" rel="noopener">Start on WhatsApp</a>
+  </section>
+</main>
+
+<footer class="foot">
+  <span class="word">Sara</span>
+  <nav aria-label="Footer"><a href="#how">How it works</a><a href="#booking-links">Booking links</a><a href="#invoices">Invoices &amp; receipts</a><a href="#faq">FAQ</a></nav>
+  <p>© 2026 Sara · Lagos</p>
+</footer>
+
+<script src="script.js" defer></script>
+<script src="../../switcher.js" defer></script>
+</body>
+</html>

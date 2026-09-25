@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sara Landing Versions</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root { --bg: #fafaf9; --ink: #18181b; --muted: #63636b; --line: #e4e4e7; --card: #fff; }
+    * { box-sizing: border-box; margin: 0; }
+    body { background: var(--bg); color: var(--ink); font: 400 15px/1.55 "Geist", ui-sans-serif, sans-serif; -webkit-font-smoothing: antialiased; }
+    main { max-width: 1040px; margin: 0 auto; padding: 56px 16px 96px; }
+    h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 600; letter-spacing: -0.025em; line-height: 1.1; }
+    p.lede { color: var(--muted); margin-top: 12px; max-width: 62ch; }
+    .keys { margin-top: 16px; font: 400 12px/1.6 "Geist Mono", ui-monospace, monospace; color: var(--muted); }
+    kbd { font: inherit; border: 1px solid var(--line); background: var(--card); border-radius: 4px; padding: 0 5px; color: var(--ink); }
+    ol { list-style: none; padding: 0; margin-top: 40px; border-top: 1px solid var(--line); }
+    li { display: grid; grid-template-columns: 44px 1fr; gap: 4px 16px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+    .num { font: 500 13px/1.9 "Geist Mono", ui-monospace, monospace; color: var(--muted); grid-row: span 3; }
+    h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+    .desc { color: var(--muted); font-size: 14px; max-width: 64ch; }
+    .links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .links a { display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: var(--card); color: var(--ink); text-decoration: none; font-weight: 500; font-size: 14px; transition: border-color .2s, transform .2s; }
+    .links a:hover { border-color: var(--ink); }
+    .links a:active { transform: scale(.98); }
+    .links a:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+    .links small { font: 400 11px "Geist Mono", ui-monospace, monospace; color: var(--muted); }
+    footer { margin-top: 40px; color: var(--muted); font-size: 13px; }
+    @media (min-width: 720px) {
+      li { grid-template-columns: 56px 1fr auto; align-items: center; }
+      .num { grid-row: span 2; }
+      .links { grid-column: 3; grid-row: 1 / span 2; margin-top: 0; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Sara landing page, five directions</h1>
+    <p class="lede">Each direction is built twice: once following the Impeccable skill and once following Taste v2. Hero slots are flat placeholders sized for the final photography. Stats are sample figures.</p>
+    <p class="keys">On any page: <kbd>[</kbd> previous direction, <kbd>]</kbd> next direction, <kbd>\</kbd> swap Impeccable / Taste. The switcher sits bottom-left.</p>
+    <ol>
+      <li>
+        <span class="num">v1</span>
+        <h2>Clean Minimal SaaS</h2>
+        <p class="desc">Centered hero on pure white, pill CTA, real chat replies as cards, stat strip.</p>
+        <div class="links"><a href="v1/impeccable/index.html">Impeccable <small>indigo</small></a><a href="v1/taste/index.html">Taste v2 <small>orange</small></a></div>
+      </li>
+      <li>
+        <span class="num">v2</span>
+        <h2>Halftone Print-Tech</h2>
+        <p class="desc">Invoice ledger crossed with a terminal. Duotone: one accent, black, white.</p>
+        <div class="links"><a href="v2/impeccable/index.html">Impeccable <small>riso red</small></a><a href="v2/taste/index.html">Taste v2 <small>cobalt</small></a></div>
+      </li>
+      <li>
+        <span class="num">v3</span>
+        <h2>Warm Green Nature-Finance</h2>
+        <p class="desc">Forest green and cream, sparkles, soft blobs, one serif-italic word, dark-green flow band.</p>
+        <div class="links"><a href="v3/impeccable/index.html">Impeccable <small>forest</small></a><a href="v3/taste/index.html">Taste v2 <small>forest</small></a></div>
+      </li>
+      <li>
+        <span class="num">v4</span>
+        <h2>Photoreal Landscape SaaS</h2>
+        <p class="desc">Plain white nav, centered headline, full-bleed Lagos lagoon photo with the chat card floating on it.</p>
+        <div class="links"><a href="v4/impeccable/index.html">Impeccable <small>dawn amber</small></a><a href="v4/taste/index.html">Taste v2 <small>lagoon</small></a></div>
+      </li>
+      <li>
+        <span class="num">v5</span>
+        <h2>Monochrome Documentary</h2>
+        <p class="desc">One full-bleed grayscale photo, white headline bottom-left, stat row and a plain numbered process.</p>
+        <div class="links"><a href="v5/impeccable/index.html">Impeccable <small>thread red</small></a><a href="v5/taste/index.html">Taste v2 <small>signal yellow</small></a></div>
+      </li>
+    </ol>
+    <footer>Static pages, not wired into the Next.js app. Product truth lives in PRODUCT.md.</footer>
+  </main>
+</body>
+</html>
