@@ -3,14 +3,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, X } from "@phosphor-icons/react/dist/ssr";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import type { BusinessClosureDto } from "types";
 
 import {
   closureFormSchema,
   type ClosureFormSchema,
 } from "@/backend/validators/business.validator";
-import { Button, Field, Input, Modal, Notice } from "@/primitives";
+import { Button, DatePicker, Field, Input, Modal, Notice } from "@/primitives";
 import { formatLongDate, todayIso } from "@/utils/format";
 
 import { Section } from "./section";
@@ -123,6 +123,7 @@ function ClosureForm({
   onSubmit: (values: ClosureFormSchema) => void;
 }) {
   const {
+    control,
     register,
     handleSubmit,
     formState: { errors },
@@ -134,7 +135,19 @@ function ClosureForm({
   return (
     <form noValidate autoComplete="off" onSubmit={handleSubmit(onSubmit)} className="mt-6 grid gap-4">
       <Field id="closure-date" label="Date" error={errors.date?.message}>
-        <Input type="date" min={min} {...register("date")} />
+        <Controller
+          control={control}
+          name="date"
+          render={({ field }) => (
+            <DatePicker
+              ref={field.ref}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              min={min}
+            />
+          )}
+        />
       </Field>
       <Field id="closure-reason" label="Reason (optional)" hint="Only you see this." error={errors.reason?.message}>
         <Input placeholder="Independence Day" {...register("reason")} />

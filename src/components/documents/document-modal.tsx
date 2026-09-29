@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "@phosphor-icons/react/dist/ssr";
-import { useFieldArray, useForm, useWatch } from "react-hook-form";
+import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
 import type { ServiceDto } from "types";
 
 import {
@@ -12,6 +12,7 @@ import {
 import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
 import {
   Button,
+  DatePicker,
   Field,
   Input,
   Modal,
@@ -274,7 +275,21 @@ export function DocumentModal({
 
                 {kind === "invoice" ? (
                   <Field id="invoice-due" label="Due date (optional)">
-                    <Input type="date" min={todayIso()} {...register("dueAt")} />
+                    <Controller
+                      control={control}
+                      name="dueAt"
+                      render={({ field }) => (
+                        <DatePicker
+                          ref={field.ref}
+                          value={field.value}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          min={todayIso()}
+                          placeholder="No due date"
+                          clearable
+                        />
+                      )}
+                    />
                   </Field>
                 ) : (
                   <Field id="receipt-method" label="Paid by">
