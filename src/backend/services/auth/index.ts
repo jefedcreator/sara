@@ -96,7 +96,10 @@ export class AuthService {
       const redirectUri = this.getRedirectUri(request, provider.id);
       const shouldRedirect =
         request.nextUrl.searchParams.get("redirect") === "true";
-      const state = this.encodeState({});
+      const callbackUrl = this.sanitizeCallbackUrl(
+        request.nextUrl.searchParams.get("callbackUrl"),
+      );
+      const state = this.encodeState(callbackUrl ? { callbackUrl } : {});
 
       const authorizationUrl = new URL(provider.authorizationUrl);
       authorizationUrl.searchParams.set("client_id", provider.clientId);
@@ -149,12 +152,10 @@ export class AuthService {
               request.nextUrl.searchParams.get("state") ?? body?.state ?? null,
             );
 
-            if (state.callbackUrl) {
-              const redirectUrl = new URL(
-                state.callbackUrl,
-                this.getAppUrl(request),
-              );
-              redirectUrl.searchParams.set("sessionToken", sessionTokenParam);
+            const callbackUrl = this.sanitizeCallbackUrl(state.callbackUrl);
+            if (callbackUrl) {
+              // The cookie carries the session; the token stays out of the URL.
+              const redirectUrl = new URL(callbackUrl, this.getAppUrl(request));
 
               const response = NextResponse.redirect(redirectUrl);
               this.setSessionCookie(response, sessionTokenParam);
@@ -198,9 +199,10 @@ export class AuthService {
         request.nextUrl.searchParams.get("state") ?? body?.state ?? null,
       );
 
-      if (state.callbackUrl) {
-        const redirectUrl = new URL(state.callbackUrl, this.getAppUrl(request));
-        redirectUrl.searchParams.set("sessionToken", sessionToken);
+      const callbackUrl = this.sanitizeCallbackUrl(state.callbackUrl);
+      if (callbackUrl) {
+        // The cookie carries the session; the token stays out of the URL.
+        const redirectUrl = new URL(callbackUrl, this.getAppUrl(request));
 
         const response = NextResponse.redirect(redirectUrl);
         this.setSessionCookie(response, sessionToken);
@@ -261,6 +263,19 @@ export class AuthService {
     }
 
     return provider as ConfiguredOAuthProvider;
+  }
+
+  /**
+   * Only same-site relative paths ("/link?t=…") are honoured, so the OAuth
+   * round trip cannot be turned into an open redirect. "//host" and "/\host"
+   * are protocol-relative in browsers and are refused, as are control
+   * characters and whitespace, which the URL parser strips ("/\t/host").
+   */
+  sanitizeCallbackUrl(value: string | null | undefined) {
+    if (!value?.startsWith("/")) return null;
+    if (/[\u0000-\u001f\u007f\s\\]/.test(value)) return null;
+    if (value.startsWith("//")) return null;
+    return value;
   }
 
   private encodeState(value: Record<string, string | null>) {

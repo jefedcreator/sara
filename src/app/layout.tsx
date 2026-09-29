@@ -3,6 +3,8 @@ import "@/styles/globals.css";
 import { type Metadata } from "next";
 import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 
+import { Provider } from "@/provider";
+
 export const metadata: Metadata = {
   title: "Sara",
   description:
@@ -27,7 +29,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${bricolage.variable} ${hanken.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Provider>{children}</Provider>
+      </body>
     </html>
   );
 }

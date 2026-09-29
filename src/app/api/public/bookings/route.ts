@@ -1,4 +1,5 @@
 import { bookingService } from "@/backend/services/booking";
+import { publicUrl } from "@/backend/services/messaging/url";
 import { HttpException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -42,6 +43,9 @@ export async function POST(request: Request) {
       clientEmail: data.clientEmail,
       clientPhone: data.clientPhone,
       notes: data.notes,
+      // Back to Sara after checkout, where the page waits for the webhook.
+      callbackUrl: (booking) =>
+        `${publicUrl("book", data.serviceSlug)}/done?b=${encodeURIComponent(booking.slug)}`,
     });
 
     return NextResponse.json(
