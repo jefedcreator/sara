@@ -78,7 +78,7 @@ describe("startSignIn", () => {
       "instagram",
     );
     const location = new URL(response.headers.get("location")!);
-    expect(location.pathname).toBe("/sign-in");
+    expect(location.pathname).toBe("/signin");
     expect(location.searchParams.get("error")).toBe("unavailable");
   });
 });
@@ -100,7 +100,7 @@ describe("completeSignIn", () => {
     );
 
     const location = new URL(response.headers.get("location")!);
-    expect(location.pathname).toBe("/sign-in");
+    expect(location.pathname).toBe("/signin");
     expect(location.searchParams.get("error")).toBe("expired");
     expect(fetch).not.toHaveBeenCalled();
   });

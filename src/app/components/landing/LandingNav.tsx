@@ -71,7 +71,7 @@ export function LandingNav({ whatsappHref }: { whatsappHref: string }) {
           </nav>
           <Link
             className={cn(NAV_LINK, "hidden min-[960px]:inline")}
-            href="/sign-in"
+            href="/signin"
           >
             Sign in
           </Link>
@@ -108,7 +108,7 @@ export function LandingNav({ whatsappHref }: { whatsappHref: string }) {
             id="mobile-menu"
             aria-label="Mobile"
           >
-            {[...LINKS, { href: "/sign-in", label: "Sign in" }].map((l) => {
+            {[...LINKS, { href: "/signin", label: "Sign in" }].map((l) => {
               const cls =
                 "border-b border-line py-3 text-[17px] font-medium no-underline last:border-b-0";
               return l.href.startsWith("/") ? (

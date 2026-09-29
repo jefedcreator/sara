@@ -887,7 +887,7 @@ export function LandingPage() {
             <a className="hover:text-ink" href="#faq">
               FAQ
             </a>
-            <Link className="hover:text-ink" href="/sign-in">
+            <Link className="hover:text-ink" href="/signin">
               Sign in
             </Link>
           </nav>

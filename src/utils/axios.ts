@@ -18,7 +18,7 @@ http.interceptors.response.use(
       typeof window !== "undefined"
     ) {
       const next = `${window.location.pathname}${window.location.search}`;
-      window.location.assign(`/sign-in?next=${encodeURIComponent(next)}`);
+      window.location.assign(`/signin?next=${encodeURIComponent(next)}`);
     }
     return Promise.reject(error instanceof Error ? error : new Error(String(error)));
   },

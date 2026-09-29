@@ -2,6 +2,7 @@ import { type Metadata } from "next";
 import { redirect } from "next/navigation";
 
 import { authService, type SignInError } from "@/backend/services/auth";
+import { ProviderLogo } from "@/components/provider-logo";
 import { Button, Notice, Wordmark } from "@/primitives";
 import { getCurrentUser } from "@/server";
 import { safeNextPath } from "@/utils/redirect";
@@ -112,6 +113,7 @@ export default async function SignInPage({
                       className="w-full"
                     >
                       <a href={authorizeHref(provider.id, next)}>
+                        <ProviderLogo provider={provider.id} className="size-4.5!" />
                         {provider.label}
                       </a>
                     </Button>
@@ -123,6 +125,7 @@ export default async function SignInPage({
                       disabled
                       title={`Add ${provider.id} OAuth credentials to enable this provider`}
                     >
+                      <ProviderLogo provider={provider.id} className="size-4.5!" />
                       {provider.label}
                     </Button>
                   ),

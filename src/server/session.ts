@@ -29,7 +29,7 @@ export const getCurrentUser = cache(async () => {
 export type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
 export function signInPath(next: string) {
-  return `/sign-in?next=${encodeURIComponent(next)}`;
+  return `/signin?next=${encodeURIComponent(next)}`;
 }
 
 /** The owner, or a redirect to sign in that comes back to `next`. */
