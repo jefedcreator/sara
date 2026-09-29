@@ -1,4 +1,5 @@
 import { env } from "@/env";
+import { appBaseUrl } from "@/utils/url";
 import { db } from "@/server/db";
 import { type Booking, type Business, type Service } from "@prisma/client";
 import axios from "axios";
@@ -43,11 +44,7 @@ const SCOPE =
 
 class GoogleCalendarService {
   private getRedirectUri(): string {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_APP_URL ??
-      process.env.NEXTAUTH_URL ??
-      "http://localhost:3000";
-    return `${baseUrl}/api/business/google-calendar/callback`;
+    return `${appBaseUrl()}/api/business/google-calendar/callback`;
   }
 
   /**

@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/env", async (importOriginal) => {
+  const { env } = await importOriginal<typeof import("@/env")>();
+  return { env: { ...env, NEXT_PUBLIC_APP_URL: "https://app.sara.ng" } };
+});
 vi.mock("@/server/db", () => {
   const db: any = {
     business: { findUnique: vi.fn() },
@@ -23,7 +27,6 @@ const BUSINESS = { id: "biz_1", currency: "NGN" };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  process.env.NEXT_PUBLIC_APP_URL = "https://app.sara.ng";
   mockedDb.business.findUnique.mockResolvedValue(BUSINESS);
 });
 

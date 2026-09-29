@@ -4,7 +4,7 @@ import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
 import { NotFoundException } from "@/utils/exceptions";
 import { formatMoney } from "../engine/amount";
-import { publicUrl } from "../url";
+import { publicUrl } from "@/utils/url";
 
 export type WriteDraft = {
   customerName: string;

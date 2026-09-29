@@ -8,10 +8,10 @@ import { db } from "@/server/db";
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_SECONDS,
-  readAuthSecret,
   sessionCookieOptions,
 } from "@/server/auth/shared";
 import { safeNextPath } from "@/utils/redirect";
+import { appBaseUrl } from "@/utils/url";
 
 import {
   OAUTH_STATE_COOKIE,
@@ -66,8 +66,7 @@ export class AuthService {
 
   /** The public origin: providers match the redirect URI exactly. */
   private appOrigin(request: NextRequest) {
-    const configured = process.env.NEXT_PUBLIC_APP_URL ?? process.env.AUTH_URL;
-    return configured ? new URL(configured).origin : request.nextUrl.origin;
+    return appBaseUrl(request.nextUrl.origin);
   }
 
   private client(provider: Provider, origin: string): OAuthClient | null {
@@ -83,9 +82,8 @@ export class AuthService {
   }
 
   private secret() {
-    const secret = readAuthSecret();
-    if (!secret) throw new Error("AUTH_SECRET is not set.");
-    return secret;
+    if (!env.AUTH_SECRET) throw new Error("AUTH_SECRET is not set.");
+    return env.AUTH_SECRET;
   }
 
   /** GET /api/auth/{provider}: off to the provider's consent screen. */
@@ -277,7 +275,7 @@ export class AuthService {
     const raw =
       request.cookies.get(SESSION_COOKIE)?.value ??
       /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1];
-    const secret = readAuthSecret();
+    const secret = env.AUTH_SECRET;
     if (!raw || !secret) return null;
 
     const token = await decode({

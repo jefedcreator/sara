@@ -1,12 +1,12 @@
 import { authMiddleware, withMiddleware } from "@/backend/middleware";
 import { monoService } from "@/backend/services/mono";
-import { env } from "@/env";
 import {
   ConflictException,
   InternalServerErrorException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import type { ApiResponse } from "types";
+import { appBaseUrl } from "@/utils/url";
 
 export const runtime = "nodejs";
 
@@ -29,7 +29,7 @@ export const GET = withMiddleware<unknown>(
       const response: ApiResponse<{ url: string }> = {
         status: 200,
         message: "Mono Connect public key retrieved successfully",
-        data: { url:`${process.env.NEXT_PUBLIC_APP_URL}/mono` },
+        data: { url: `${appBaseUrl()}/mono` },
       };
 
       return NextResponse.json(response);

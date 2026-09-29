@@ -7,6 +7,10 @@ import { defineConfig } from "vitest/config";
 // which validates required env vars at import time — so they need to be in
 // process.env before any test file is loaded.
 Object.assign(process.env, loadEnv("test", process.cwd(), ""));
+// Session JWTs need a secret; tests without a .env still sign and verify.
+// `||=`: an empty AUTH_SECRET counts as unset, as it does in src/env.js.
+// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+process.env.AUTH_SECRET ||= "test-auth-secret";
 
 export default defineConfig({
   test: {

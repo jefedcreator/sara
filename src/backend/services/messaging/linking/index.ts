@@ -2,7 +2,7 @@ import { db } from "@/server/db";
 import { BadRequestException } from "@/utils/exceptions";
 import type { ChatChannel, ChatIdentity } from "@prisma/client";
 import crypto from "node:crypto";
-import { appBaseUrl } from "../url";
+import { appBaseUrl } from "@/utils/url";
 
 const TOKEN_TTL_MS = 15 * 60 * 1000;
 

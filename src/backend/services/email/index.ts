@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { env } from "@/env";
 // import InviteEmail from './templates/InviteNotification';
 
 class EmailService {
@@ -12,7 +13,7 @@ class EmailService {
    * Next.js's build-time route analysis.
    */
   private get resend(): Resend {
-    this.resendClient ??= new Resend(process.env.RESEND_API_KEY);
+    this.resendClient ??= new Resend(env.RESEND_API_KEY);
     return this.resendClient;
   }
 

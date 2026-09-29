@@ -1,9 +1,10 @@
 import type { DefaultSession, NextAuthConfig } from "next-auth";
 
+import { env } from "@/env";
+
 import {
   SESSION_COOKIE,
   SESSION_MAX_AGE_SECONDS,
-  readAuthSecret,
   sessionCookieAttributes,
 } from "./shared";
 
@@ -31,11 +32,13 @@ declare module "next-auth/jwt" {
  * work, and is what sign-out deletes.
  *
  * Edge-safe on purpose: middleware imports this file, so it must not import
- * the database, a provider SDK or `@/env`.
+ * the database or a provider SDK. `@/env` is fine; it is validated once when
+ * the module loads.
  */
 export const authConfig = {
   providers: [],
-  secret: readAuthSecret(),
+  // The same env.AUTH_SECRET the auth service mints tokens with.
+  secret: env.AUTH_SECRET,
   // Sara runs behind its own proxy in Docker as well as on hosted platforms;
   // no provider is registered here, so the host only shapes Auth.js's own URLs.
   trustHost: true,

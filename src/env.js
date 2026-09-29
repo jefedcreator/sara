@@ -11,6 +11,9 @@ export const env = createEnv({
       process.env.NODE_ENV === "production"
         ? z.string()
         : z.string().optional(),
+    // Fallbacks for the public origin when NEXT_PUBLIC_APP_URL is unset (see utils/url.ts).
+    AUTH_URL: z.string().url().optional(),
+    NEXTAUTH_URL: z.string().url().optional(),
     AUTH_DISCORD_ID: z.string().optional(),
     AUTH_DISCORD_SECRET: z.string().optional(),
     AUTH_GOOGLE_ID: z.string().optional(),
@@ -60,6 +63,8 @@ export const env = createEnv({
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
     NEXT_PUBLIC_MONO_PUBLIC_KEY: z.string().optional(),
+    // The public origin (e.g. https://app.sara.ng): OAuth redirect URIs, booking links, emails.
+    NEXT_PUBLIC_APP_URL: z.string().url().optional(),
     // Sara's public WhatsApp number in international format without "+" (e.g. 2348012345678). Powers the landing "Start on WhatsApp" links.
     NEXT_PUBLIC_SARA_WHATSAPP_NUMBER: z
       .string()
@@ -73,6 +78,8 @@ export const env = createEnv({
    */
   runtimeEnv: {
     AUTH_SECRET: process.env.AUTH_SECRET,
+    AUTH_URL: process.env.AUTH_URL,
+    NEXTAUTH_URL: process.env.NEXTAUTH_URL,
     AUTH_DISCORD_ID: process.env.AUTH_DISCORD_ID,
     AUTH_DISCORD_SECRET: process.env.AUTH_DISCORD_SECRET,
     AUTH_GOOGLE_ID: process.env.AUTH_GOOGLE_ID,
@@ -111,7 +118,7 @@ export const env = createEnv({
     INSTAGRAM_VERIFY_TOKEN: process.env.INSTAGRAM_VERIFY_TOKEN,
     INSTAGRAM_IG_ID: process.env.INSTAGRAM_IG_ID,
     INSTAGRAM_PAGE_TOKEN: process.env.INSTAGRAM_PAGE_TOKEN,
-    // NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_SARA_WHATSAPP_NUMBER:
       process.env.NEXT_PUBLIC_SARA_WHATSAPP_NUMBER,
   },

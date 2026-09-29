@@ -1,12 +1,9 @@
 import { encode } from "next-auth/jwt";
 import { vi } from "vitest";
 
-import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/server/auth/shared";
+import { env } from "@/env";
 
-// The auth service reads the secret at call time, so tests without a .env
-// still sign and verify with the same key.
-// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-process.env.AUTH_SECRET ||= "test-auth-secret";
+import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/server/auth/shared";
 
 /**
  * Builds a minimal NextRequest-shaped object sufficient for withMiddleware's
@@ -52,7 +49,9 @@ const MOCK_USER_ID = "mock-user";
 /** A real session JWT naming MOCK_SESSION_ID, as authMiddleware expects. */
 export const MOCK_SESSION_TOKEN = await encode({
   token: { sub: MOCK_USER_ID, sessionId: MOCK_SESSION_ID },
-  secret: process.env.AUTH_SECRET,
+  // vitest.config.ts sets the secret; the fallback covers tests that mock
+  // `@/env` without one and never authenticate.
+  secret: env.AUTH_SECRET ?? "test-auth-secret",
   salt: SESSION_COOKIE,
   maxAge: SESSION_MAX_AGE_SECONDS,
 });

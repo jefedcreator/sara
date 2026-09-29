@@ -1,5 +1,5 @@
 import { bookingService } from "@/backend/services/booking";
-import { publicUrl } from "@/backend/services/messaging/url";
+import { publicUrl } from "@/utils/url";
 import { HttpException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import { z } from "zod";

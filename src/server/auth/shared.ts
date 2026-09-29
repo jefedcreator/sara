@@ -1,8 +1,10 @@
+import { env } from "@/env";
+
 /*
  * Session constants shared by Edge middleware, the Auth.js config and the
- * auth service. Deliberately imports nothing: middleware loads this on the
- * Edge runtime, where `@/env` would run zod validation on every request and
- * the database cannot be reached at all.
+ * auth service. Middleware loads this on the Edge runtime, so it imports
+ * nothing but `@/env` (validated once when the module loads) and never the
+ * database.
  */
 
 /**
@@ -16,22 +18,12 @@ export const SESSION_COOKIE = "sara-auth";
 /** 30 days, for both the JWT and the `Session` row it points at. */
 export const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
-/**
- * The key session JWTs are encrypted with, read the same way by the minting
- * side and the verifying side so the two cannot drift apart. `||`, not `??`:
- * an empty AUTH_SECRET is a missing one.
- */
-export function readAuthSecret() {
-  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-  return process.env.AUTH_SECRET || undefined;
-}
-
 /** Attributes every auth cookie is set with, minus its lifetime. */
 export const sessionCookieAttributes = {
   httpOnly: true,
   sameSite: "lax" as const,
   path: "/",
-  secure: process.env.NODE_ENV === "production",
+  secure: env.NODE_ENV === "production",
 };
 
 export function sessionCookieOptions(maxAge = SESSION_MAX_AGE_SECONDS) {

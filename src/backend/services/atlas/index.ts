@@ -1,4 +1,5 @@
 import axios, { type AxiosInstance } from "axios";
+import { env } from "@/env";
 import type {
   AtlasGeocodeResponse,
   AtlasGeocodeResult,
@@ -19,7 +20,7 @@ class AtlasService {
   private client: AxiosInstance;
 
   constructor() {
-    const baseURL = process.env.ATLAS_API_URL ?? "http://localhost:3001";
+    const baseURL = env.ATLAS_API_URL ?? "http://localhost:3001";
 
     this.client = axios.create({
       baseURL,
