@@ -39,32 +39,22 @@ for (const hex of Object.values(C)) {
   );
 }
 
-/* Geometry, mirrored from Logo.tsx. Each mark is its body paths plus the one
-   accent shape. `loop`'s body is a stroke, the others are fills. */
+/* Geometry, mirrored from Logo.tsx: each mark is its body paths plus the one
+   accent shape (the owner's). A stroked body is supported for future marks. */
 const marks = {
-  duet: {
+  reply: {
+    accent: "M58 30A15 15 0 1 0 88 30A15 15 0 1 0 58 30Z",
+    body: [
+      "M34 22H52.51A22 22 0 0 0 89.47 44.58A28 28 0 0 1 90 50V60A28 28 0 0 1 62 88H11A5 5 0 0 1 6 83V50A28 28 0 0 1 34 22Z",
+    ],
+  },
+  thread: {
     accent:
-      "M47 12H75A17 17 0 0 1 92 29V41A5 5 0 0 1 87 46H47A17 17 0 0 1 30 29V29A17 17 0 0 1 47 12Z",
+      "M46 66H82A10 10 0 0 1 92 76V82A4 4 0 0 1 88 86H46A10 10 0 0 1 36 76V76A10 10 0 0 1 46 66Z",
     body: [
-      "M25 54H53A17 17 0 0 1 70 71V71A17 17 0 0 1 53 88H13A5 5 0 0 1 8 83V71A17 17 0 0 1 25 54Z",
+      "M18 14H82A10 10 0 0 1 82 34H18A10 10 0 0 1 18 14Z",
+      "M18 40H54A10 10 0 0 1 64 50V50A10 10 0 0 1 54 60H12A4 4 0 0 1 8 56V50A10 10 0 0 1 18 40Z",
     ],
-  },
-  menu: {
-    accent: "M58.66 45L72.7 25.8A10.5 10.5 0 1 1 82.31 42.44Z",
-    body: [
-      "M50 40L40.39 18.24A10.5 10.5 0 1 1 59.61 18.24Z",
-      "M58.66 55L82.31 57.56A10.5 10.5 0 1 1 72.7 74.2Z",
-      "M50 60L59.61 81.76A10.5 10.5 0 1 1 40.39 81.76Z",
-      "M41.34 55L27.3 74.2A10.5 10.5 0 1 1 17.69 57.56Z",
-      "M41.34 45L17.69 42.44A10.5 10.5 0 1 1 27.3 25.8Z",
-    ],
-  },
-  loop: {
-    accent: "M19 70A8 8 0 1 0 35 70A8 8 0 1 0 19 70Z",
-    stroke: {
-      d: "M67.5 27A18.5 18.5 0 1 0 50 50A18.5 18.5 0 0 1 40.75 84.02",
-      width: 15,
-    },
   },
 };
 
@@ -139,7 +129,7 @@ for (const name of Object.keys(marks)) {
 }
 
 /* Favicons and app icons: the recommended mark on the ink tile. */
-const icon = svg(tile("duet"));
+const icon = svg(tile("reply"));
 write("favicon.svg", icon);
 const png = (size) =>
   sharp(Buffer.from(icon), { density: 384 })

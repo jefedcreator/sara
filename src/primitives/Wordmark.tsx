@@ -13,7 +13,7 @@ import { LogoMark, type MarkName } from "./Logo";
 export function Wordmark({
   href = "/",
   mark = true,
-  name = "duet",
+  name = "reply",
   className,
 }: {
   href?: string;

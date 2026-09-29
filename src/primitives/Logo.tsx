@@ -3,34 +3,38 @@ import { cn } from "@/utils/cn";
 /**
  * The Sara marks.
  *
- * Drawn from the product's own illustration language (DESIGN.md "Chat Bubbles"):
- * Sara's material is a short exchange, so the marks are made of it rather than
- * of a generic symbol. Three marks, one family, all soft-cornered like every
- * pill and bubble in the system:
+ * Sara sells one idea: the back office of a salon chain, run from the chat the
+ * owner already has open. "Reply with a number. Sara does the rest." Both marks
+ * are drawn from that exchange, in the product's own bubble language (18 : 6
+ * radii, tail corners) and its colour rule: green belongs to the owner's own
+ * voice, ink to Sara.
  *
- * - `duet`  two chat bubbles, the owner's (green, tail bottom-right) and
- *           Sara's reply (ink, tail bottom-left), in the order the landing
- *           animates them: owner first, reply after. **Recommended.**
- * - `menu`  six petals round an open centre, one per item in the numbered
- *           chat menu; the green one is the number the owner replies with.
- * - `loop`  a lowercase `s` in one stroke, with a green dot trailing the
- *           terminal like the next message arriving.
+ * - `reply`   Sara's bubble (ink, tail bottom-left) with the owner's green
+ *             reply, the numeral disc from the menu, landing on its corner.
+ *             One chat, a number in, the business answered. **Default.**
+ * - `thread`  the exchange written out: Sara's menu in two lines, the owner's
+ *             green reply below on the right. For wide, quiet places where the
+ *             conversation should read as a conversation.
  *
- * All three were proofed from 16px up (`yarn brand:generate` writes the sheet
- * to public/brand/sara-specimen.png). `menu` holds at 16px but reads closest
- * to the six-point "sparkle" AI products use, and Sara must never read as AI,
- * so it is an alternate rather than the default.
+ * Both were proofed from 16px up (`yarn brand:generate` writes the sheet to
+ * public/brand/sara-specimen.png). Rejected on that sheet, so not re-proposed:
+ * two stacked bubbles (reads as any messaging app, says nothing of the
+ * business), a six-petal menu burst (reads as an AI sparkle, and Sara is never
+ * AI), an `s` strung from menu beads (the letter vanishes into a molecule), and
+ * a torn-receipt bubble (reads as a ghost).
  *
- * Path data here is the source of truth; scripts/gen-brand-assets.mjs restates
- * it for the static exports and asserts every path still appears in this file.
+ * `reply`'s notch is cut into the path itself rather than masked, so the mark
+ * needs no ids and survives export to anything that reads bare SVG. Path data
+ * here is the source of truth; scripts/gen-brand-assets.mjs restates it and
+ * asserts every path still appears in this file.
  */
 
-export type MarkName = "duet" | "menu" | "loop";
+export type MarkName = "reply" | "thread";
 
 type MarkProps = {
   name?: MarkName;
   /**
-   * Fill the accent shape WhatsApp green. Turn it off for single-ink uses (a
+   * Fill the owner's shape WhatsApp green. Turn it off for single-ink uses (a
    * stamp, print) and on a green ground, where it would vanish.
    */
   accent?: boolean;
@@ -43,7 +47,7 @@ type MarkProps = {
  * ink both work without variants.
  */
 export function LogoMark({
-  name = "duet",
+  name = "reply",
   accent = true,
   className,
 }: MarkProps) {
@@ -61,70 +65,53 @@ export function LogoMark({
 }
 
 function Glyph({ name, accent }: { name: MarkName; accent: boolean }) {
-  if (name === "menu") return <Menu accent={accent} />;
-  if (name === "loop") return <Loop accent={accent} />;
-  return <Duet accent={accent} />;
+  if (name === "thread") return <Thread accent={accent} />;
+  return <Reply accent={accent} />;
 }
 
 /**
- * 62 x 34 bubbles with the system's 17 : 5 radius ratio (18px bubble, 6px
- * tail corner). The owner's bubble sits top-right and carries the green, as
- * the owner's bubbles do in the product; Sara's reply sits below-left in ink.
+ * An 84 x 66 bubble, 28 radius with a 5 tail corner (the system's bubble ratio
+ * at mark scale), notched by a 22-radius moat round the 15-radius disc at
+ * (73, 30). The moat is 7 units, wide enough to stay open at 16px, so the two
+ * voices never touch.
  */
-function Duet({ accent }: { accent: boolean }) {
+function Reply({ accent }: { accent: boolean }) {
   return (
     <g>
-      <Shape
-        d="M47 12H75A17 17 0 0 1 92 29V41A5 5 0 0 1 87 46H47A17 17 0 0 1 30 29V29A17 17 0 0 1 47 12Z"
-        accent={accent}
-      />
       <path
-        d="M25 54H53A17 17 0 0 1 70 71V71A17 17 0 0 1 53 88H13A5 5 0 0 1 8 83V71A17 17 0 0 1 25 54Z"
+        d="M34 22H52.51A22 22 0 0 0 89.47 44.58A28 28 0 0 1 90 50V60A28 28 0 0 1 62 88H11A5 5 0 0 1 6 83V50A28 28 0 0 1 34 22Z"
         fill="currentColor"
       />
+      <Shape d="M58 30A15 15 0 1 0 88 30A15 15 0 1 0 58 30Z" accent={accent} />
     </g>
   );
 }
 
 /**
- * Six teardrop petals struck from radius 10, never the centre: the open core
- * keeps the mark from flooding into a blob at 16px. Tips are 10.5-radius bulbs
- * at radius 36. The accent petal points up-right, toward the reply.
+ * Three 20-unit rows, 6 apart: Sara's two lines left-aligned, the last with
+ * Sara's tail corner; the owner's reply right-aligned with the owner's.
  */
-function Menu({ accent }: { accent: boolean }) {
-  return (
-    <g fill="currentColor">
-      <path d="M50 40L40.39 18.24A10.5 10.5 0 1 1 59.61 18.24Z" />
-      <Shape
-        d="M58.66 45L72.7 25.8A10.5 10.5 0 1 1 82.31 42.44Z"
-        accent={accent}
-      />
-      <path d="M58.66 55L82.31 57.56A10.5 10.5 0 1 1 72.7 74.2Z" />
-      <path d="M50 60L59.61 81.76A10.5 10.5 0 1 1 40.39 81.76Z" />
-      <path d="M41.34 55L27.3 74.2A10.5 10.5 0 1 1 17.69 57.56Z" />
-      <path d="M41.34 45L17.69 42.44A10.5 10.5 0 1 1 27.3 25.8Z" />
-    </g>
-  );
-}
-
-/** Two 18.5-radius bowls in a 15-unit round-capped stroke, and the dot after. */
-function Loop({ accent }: { accent: boolean }) {
+function Thread({ accent }: { accent: boolean }) {
   return (
     <g>
       <path
-        d="M67.5 27A18.5 18.5 0 1 0 50 50A18.5 18.5 0 0 1 40.75 84.02"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth={15}
-        strokeLinecap="round"
+        d="M18 14H82A10 10 0 0 1 82 34H18A10 10 0 0 1 18 14Z"
+        fill="currentColor"
       />
-      <Shape d="M19 70A8 8 0 1 0 35 70A8 8 0 1 0 19 70Z" accent={accent} />
+      <path
+        d="M18 40H54A10 10 0 0 1 64 50V50A10 10 0 0 1 54 60H12A4 4 0 0 1 8 56V50A10 10 0 0 1 18 40Z"
+        fill="currentColor"
+      />
+      <Shape
+        d="M46 66H82A10 10 0 0 1 92 76V82A4 4 0 0 1 88 86H46A10 10 0 0 1 36 76V76A10 10 0 0 1 46 66Z"
+        accent={accent}
+      />
     </g>
   );
 }
 
 /**
- * The accent shape: `fill-accent` when accented, `currentColor` when not. A
+ * The owner's shape: `fill-accent` when accented, `currentColor` when not. A
  * component rather than a ternary so the accented case emits no `fill`
  * attribute for the utility to fight with.
  */
@@ -135,12 +122,12 @@ function Shape({ d, accent }: { d: string; accent: boolean }) {
 
 /**
  * The mark in a filled tile: favicon, app icon, avatar. `ink` (the default and
- * the favicon) keeps the green bubble; green on ink is a fill on a dark
- * ground, not text, and it keeps the tab icon from passing for WhatsApp's own.
- * `accent` draws the whole mark in on-accent on a green tile.
+ * the favicon) keeps the green reply; green on ink is a fill on a dark ground,
+ * not text, and it keeps the tab icon from passing for WhatsApp's own green
+ * tile. `accent` draws the whole mark in on-accent.
  */
 export function LogoTile({
-  name = "duet",
+  name = "reply",
   ground = "ink",
   className,
 }: {
@@ -172,7 +159,7 @@ export function LogoTile({
 }
 
 /** A bare mark that carries the name, for places with no wordmark beside it. */
-export function Logo({ name = "duet", accent = true, className }: MarkProps) {
+export function Logo({ name = "reply", accent = true, className }: MarkProps) {
   return (
     <span role="img" aria-label="Sara" className={cn("inline-flex", className)}>
       <LogoMark name={name} accent={accent} />
