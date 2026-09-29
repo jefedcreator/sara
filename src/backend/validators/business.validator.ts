@@ -57,3 +57,20 @@ export const businessSetupFormSchema = z
   .strict();
 
 export type BusinessSetupFormSchema = z.infer<typeof businessSetupFormSchema>;
+
+/** Settings: the setup fields plus a description. */
+export const businessProfileFormSchema = businessSetupFormSchema.extend({
+  description: optionalText(500, "Keep the description under 500 characters"),
+});
+
+export type BusinessProfileFormSchema = z.infer<typeof businessProfileFormSchema>;
+
+/** A one-off day off, as the settings form sends it. */
+export const closureFormSchema = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Pick a date"),
+    reason: optionalText(255, "Keep the reason under 255 characters"),
+  })
+  .strict();
+
+export type ClosureFormSchema = z.infer<typeof closureFormSchema>;
