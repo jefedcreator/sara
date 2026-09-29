@@ -3,6 +3,7 @@ import {
   baseQueryValidatorSchema,
   decimalValidator,
   timeValidator,
+  withoutDefaults,
 } from "./index.validator";
 
 const cuidValidator = z.string().cuid("id must be a valid cuid");
@@ -55,7 +56,7 @@ export const serviceValidatorSchema =
   availabilityWindowRefine(serviceBaseSchema);
 
 export const updateServiceValidatorSchema = availabilityWindowRefine(
-  serviceBaseSchema.partial().strict(),
+  z.object(withoutDefaults(serviceBaseSchema.shape)).partial().strict(),
 );
 
 export const serviceQueryValidatorSchema = baseQueryValidatorSchema

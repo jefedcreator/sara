@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { baseQueryValidatorSchema, decimalValidator } from "./index.validator";
+import {
+  baseQueryValidatorSchema,
+  decimalValidator,
+  withoutDefaults,
+} from "./index.validator";
 
 const cuidValidator = z.string().cuid("id must be a valid cuid");
 
@@ -69,7 +73,8 @@ export const receiptValidatorSchema = z
   })
   .strict();
 
-export const updateReceiptValidatorSchema = receiptValidatorSchema
+export const updateReceiptValidatorSchema = z
+  .object(withoutDefaults(receiptValidatorSchema.shape))
   .partial()
   .strict();
 

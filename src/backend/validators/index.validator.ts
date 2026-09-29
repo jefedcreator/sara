@@ -105,3 +105,31 @@ export const slugParamValidator = z.object({
 export const nextAuthPathParamValidator = z.object({
   nextauth: z.array(z.string().min(1)).min(1, "nextauth path is required"),
 });
+
+type StripDefault<S> =
+  S extends z.ZodOptional<infer Inner>
+    ? StripDefault<Inner>
+    : S extends z.ZodDefault<infer Inner>
+      ? StripDefault<Inner>
+      : S;
+
+/**
+ * A create schema's fields with their `.default()`s removed, for building the
+ * matching update schema: `z.object(withoutDefaults(create.shape)).partial()`.
+ *
+ * `.partial()` alone keeps defaults in Zod 4, so an update that leaves a field
+ * out gets it filled with the create-time default (an invoice edit resetting
+ * its status to DRAFT, a paused service getting 08:00–17:00 hours back).
+ * Optional wrappers are removed too; `.partial()` adds them back.
+ */
+export function withoutDefaults<T extends z.ZodRawShape>(shape: T) {
+  const strip = (schema: z.ZodType): z.ZodType => {
+    if (schema instanceof z.ZodOptional || schema instanceof z.ZodDefault) {
+      return strip(schema.unwrap() as z.ZodType);
+    }
+    return schema;
+  };
+  return Object.fromEntries(
+    Object.entries(shape).map(([key, schema]) => [key, strip(schema as z.ZodType)]),
+  ) as unknown as { [K in keyof T]: StripDefault<T[K]> };
+}
