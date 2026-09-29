@@ -11,6 +11,7 @@ import {
   type ReceiptValidatorSchema,
   type ReceiptQueryValidatorSchema,
 } from "@/backend/validators/receipt.validator";
+import { publicBusinessSelect } from "@/backend/selects";
 import { db } from "@/server/db";
 import {
   ForbiddenException,
@@ -149,7 +150,7 @@ export const GET = withMiddleware<ReceiptQueryValidatorSchema>(
             },
           },
         },
-        business: true,
+        business: { select: publicBusinessSelect },
         services: { include: { service: true } },
       };
 

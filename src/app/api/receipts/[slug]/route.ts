@@ -7,6 +7,7 @@ import {
   updateReceiptValidatorSchema,
   type UpdateReceiptValidatorSchema,
 } from "@/backend/validators/receipt.validator";
+import { publicBusinessSelect } from "@/backend/selects";
 import { db } from "@/server/db";
 import { type ApiResponse, type ReceiptListItem } from "types";
 import {
@@ -31,7 +32,7 @@ const receiptInclude: Prisma.ReceiptInclude = {
       },
     },
   },
-  business: true,
+  business: { select: publicBusinessSelect },
   services: { include: { service: true } },
 };
 

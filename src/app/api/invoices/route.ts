@@ -11,6 +11,8 @@ import {
   type InvoiceQueryValidatorSchema,
   type InvoiceValidatorSchema,
 } from "@/backend/validators/invoice.validator";
+import { publicBusinessSelect } from "@/backend/selects";
+import { UNPAID_STATUSES } from "@/backend/services/dashboard";
 import { db } from "@/server/db";
 import {
   ForbiddenException,
@@ -116,6 +118,8 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
 
       if (payload.status) {
         where.status = payload.status;
+      } else if (payload.unpaid) {
+        where.status = { in: UNPAID_STATUSES };
       }
 
       if (payload.clientName) {
@@ -172,7 +176,7 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
       };
 
       const include = {
-        business: true,
+        business: { select: publicBusinessSelect },
         payments: true,
         services: { include: { service: true } },
         booking: {
