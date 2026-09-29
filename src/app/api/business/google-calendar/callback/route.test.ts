@@ -89,4 +89,39 @@ describe("GET /api/business/google-calendar/callback", () => {
     expect(response.status).toBe(500);
     expect(mockedDb.business.update).not.toHaveBeenCalled();
   });
+
+  it("sends a browser back to settings when connected", async () => {
+    mockedCalendar.exchangeCodeForTokens.mockResolvedValue({
+      accessToken: "access-1",
+      refreshToken: "refresh-1",
+      expiresAt: new Date(Date.now() + 3600 * 1000),
+    });
+
+    const request = createMockRequest({
+      url: "http://localhost:3000/api/business/google-calendar/callback?code=auth-code",
+      cookies: authenticatedCookies(),
+      headers: { accept: "text/html,application/xhtml+xml" },
+    });
+    const response = await GET(request, { params: Promise.resolve({}) });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain(
+      "/settings?calendar=connected",
+    );
+  });
+
+  it("sends a browser back to settings with the failure", async () => {
+    mockedCalendar.exchangeCodeForTokens.mockRejectedValue(new Error("boom"));
+
+    const request = createMockRequest({
+      url: "http://localhost:3000/api/business/google-calendar/callback?code=auth-code",
+      cookies: authenticatedCookies(),
+      headers: { accept: "text/html" },
+    });
+    const response = await GET(request, { params: Promise.resolve({}) });
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toContain("/settings?calendar=failed");
+    expect(mockedDb.business.update).not.toHaveBeenCalled();
+  });
 });

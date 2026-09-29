@@ -103,8 +103,17 @@ export const api = {
       }
       return service;
     },
-    remove: (slug: string) =>
-      data<ServiceDto>(http.delete(`/services/${encodeURIComponent(slug)}`)),
+    // Services with bookings or invoices are paused rather than deleted; only
+    // the response message says which happened.
+    remove: async (slug: string) => {
+      const response = await http.delete<ApiResponse<ServiceDto>>(
+        `/services/${encodeURIComponent(slug)}`,
+      );
+      return {
+        service: response.data.data,
+        paused: response.data.message.toLowerCase().includes("deactivated"),
+      };
+    },
   },
 
   business: {
