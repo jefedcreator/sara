@@ -17,6 +17,16 @@ colors:
   accent-tint: "#c8f0d6"
   danger: "#b42318"
   danger-soft: "#fef3f2"
+  google-blue: "#4285f4"
+  google-green: "#34a853"
+  google-yellow: "#fbbc05"
+  google-red: "#ea4335"
+  facebook: "#0866ff"
+  instagram-yellow: "#ffd600"
+  instagram-orange: "#ff7a00"
+  instagram-pink: "#ff0069"
+  instagram-purple: "#d300c5"
+  instagram-violet: "#7638fa"
 typography:
   display:
     fontFamily: "Bricolage Grotesque, Hanken Grotesk, sans-serif"
@@ -167,6 +177,9 @@ A restrained palette: white, green-tinted neutrals and a single WhatsApp green u
 
 ### Status (app extension)
 - **Danger** (danger) on **Danger Wash** (danger-soft): errors and destructive confirmations. Used sparingly and never as decoration.
+
+### Brand Marks (sign-in only)
+- **Google, Facebook, Instagram** (google-*, facebook, instagram-*): each provider's own logo colours, used only inside that provider's mark on the sign-in buttons. Never for text, fills or anything that is not the logo itself.
 
 ### Named Rules
 **The Green Fill Rule.** WhatsApp green is a fill, never a text colour on white. If it has to be read, it is Deep Teal-Green.

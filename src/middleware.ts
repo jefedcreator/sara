@@ -15,7 +15,7 @@ export const middleware = auth((request) => {
   if (request.auth?.user?.sessionId) return NextResponse.next();
 
   const { pathname, search } = request.nextUrl;
-  const signIn = new URL("/sign-in", request.url);
+  const signIn = new URL("/signin", request.url);
   signIn.searchParams.set("next", `${pathname}${search}`);
   return NextResponse.redirect(signIn);
 });

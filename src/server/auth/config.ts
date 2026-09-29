@@ -54,6 +54,6 @@ export const authConfig = {
     },
   },
   pages: {
-    signIn: "/sign-in",
+    signIn: "/signin",
   },
 } satisfies NextAuthConfig;

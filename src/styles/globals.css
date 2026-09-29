@@ -38,6 +38,18 @@
   --color-danger: #b42318;
   --color-danger-soft: #fef3f2;
 
+  /* Brand marks on the sign-in buttons, in each provider's own colours. Logos only, never UI. */
+  --color-google-blue: #4285f4;
+  --color-google-green: #34a853;
+  --color-google-yellow: #fbbc05;
+  --color-google-red: #ea4335;
+  --color-facebook: #0866ff;
+  --color-instagram-yellow: #ffd600;
+  --color-instagram-orange: #ff7a00;
+  --color-instagram-pink: #ff0069;
+  --color-instagram-purple: #d300c5;
+  --color-instagram-violet: #7638fa;
+
   --radius-chip: 10px;
   --radius-bubble: 18px;
   --radius-card: 24px;

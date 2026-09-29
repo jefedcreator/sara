@@ -31,7 +31,7 @@ import {
 /** Who a session JWT claims to be, before the database has agreed. */
 export type SessionClaim = { userId: string; sessionId: string };
 
-/** Why sign-in bounced back to /sign-in. Short codes, never provider text. */
+/** Why sign-in bounced back to /signin. Short codes, never provider text. */
 export type SignInError = "declined" | "expired" | "failed" | "unavailable";
 
 export class AuthService {
@@ -160,7 +160,7 @@ export class AuthService {
   }
 
   private signInFailure(origin: string, error: SignInError, next?: string) {
-    const url = new URL("/sign-in", origin);
+    const url = new URL("/signin", origin);
     url.searchParams.set("error", error);
     if (next) url.searchParams.set("next", next);
     const response = NextResponse.redirect(url);
