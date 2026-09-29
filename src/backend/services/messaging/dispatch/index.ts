@@ -1,3 +1,4 @@
+import { dashboardService } from "@/backend/services/dashboard";
 import { invoiceService } from "@/backend/services/invoice";
 import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
@@ -12,23 +13,6 @@ export type WriteDraft = {
 };
 export type WriteResult = { number: string; link: string };
 export type ServiceOption = { slug: string; label: string };
-
-function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
-}
-function startOfWeek(): Date {
-  const d = startOfToday();
-  const day = (d.getDay() + 6) % 7; // Monday = 0
-  d.setDate(d.getDate() - day);
-  return d;
-}
-function endOfToday(): Date {
-  const d = startOfToday();
-  d.setDate(d.getDate() + 1);
-  return d;
-}
 
 class IntentDispatcher {
   private async currencyFor(businessId: string): Promise<string> {
@@ -103,51 +87,33 @@ class IntentDispatcher {
   }
 
   async listUnpaidInvoices(businessId: string): Promise<string> {
-    const invoices = await db.invoice.findMany({
-      where: { businessId, status: { in: ["SENT", "PARTIALLY_PAID", "OVERDUE"] } },
-      orderBy: { createdAt: "asc" },
-      take: 10,
-      select: { invoiceNumber: true, clientName: true, total: true, amountPaid: true, currency: true },
-    });
+    const invoices = await dashboardService.unpaidInvoices(businessId);
     if (invoices.length === 0) return "✅ No unpaid invoices. You're all settled up!";
-    const lines = invoices.map((inv) => {
-      const outstanding = Number(inv.total) - Number(inv.amountPaid);
-      return `• ${inv.clientName} — ${formatMoney(outstanding, inv.currency)} (${inv.invoiceNumber})`;
-    });
+    const lines = invoices.map(
+      (inv) =>
+        `• ${inv.clientName} — ${formatMoney(inv.outstanding, inv.currency)} (${inv.invoiceNumber})`,
+    );
     return `🧾 Unpaid invoices:\n${lines.join("\n")}`;
   }
 
   async listTodayBookings(businessId: string): Promise<string> {
-    const bookings = await db.booking.findMany({
-      where: {
-        businessId,
-        startTime: { gte: startOfToday(), lt: endOfToday() },
-        status: { in: ["PENDING", "CONFIRMED"] },
-      },
-      orderBy: { startTime: "asc" },
-      take: 20,
-      select: { startTime: true, clientName: true, service: { select: { name: true } } },
-    });
+    const bookings = await dashboardService.todayBookings(businessId);
     if (bookings.length === 0) return "📅 No bookings today.";
     const lines = bookings.map((b) => {
       const time = b.startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-      return `• ${time} — ${b.service.name} (${b.clientName})`;
+      return `• ${time} — ${b.serviceName} (${b.clientName})`;
     });
     return `📅 Today's bookings:\n${lines.join("\n")}`;
   }
 
   async businessSummary(businessId: string): Promise<string> {
     const currency = await this.currencyFor(businessId);
-    const [todayAgg, weekAgg, unpaidCount] = await Promise.all([
-      db.payment.aggregate({ where: { businessId, createdAt: { gte: startOfToday() } }, _sum: { amount: true } }),
-      db.payment.aggregate({ where: { businessId, createdAt: { gte: startOfWeek() } }, _sum: { amount: true } }),
-      db.invoice.count({ where: { businessId, status: { in: ["SENT", "PARTIALLY_PAID", "OVERDUE"] } } }),
-    ]);
+    const summary = await dashboardService.summary(businessId);
     return [
       "📊 Business summary",
-      `• Today's revenue: ${formatMoney(Number(todayAgg._sum.amount ?? 0), currency)}`,
-      `• This week: ${formatMoney(Number(weekAgg._sum.amount ?? 0), currency)}`,
-      `• Unpaid invoices: ${unpaidCount}`,
+      `• Today's revenue: ${formatMoney(summary.todayRevenue, currency)}`,
+      `• This week: ${formatMoney(summary.weekRevenue, currency)}`,
+      `• Unpaid invoices: ${summary.unpaidCount}`,
     ].join("\n");
   }
 }

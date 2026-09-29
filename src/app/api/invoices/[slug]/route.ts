@@ -7,6 +7,7 @@ import {
   updateInvoiceValidatorSchema,
   type UpdateInvoiceValidatorSchema,
 } from "@/backend/validators/invoice.validator";
+import { publicBusinessSelect } from "@/backend/selects";
 import { db } from "@/server/db";
 import { generateInvoicePdf } from "@/backend/services/pdf";
 import { cloudinaryService } from "@/backend/services/cloudinary";
@@ -19,6 +20,8 @@ import {
 } from "@/utils/exceptions";
 import { type Invoice, type Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
+
+const PAYMENT_FIELDS = new Set(["status", "amountPaid", "paidAt"]);
 
 /**
  * @body UpdateInvoiceValidatorSchema
@@ -43,14 +46,28 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
         throw new NotFoundException("Invoice not found");
       }
 
-      if (invoice.status === "PAID" || invoice.status === "PARTIALLY_PAID") {
-        throw new BadRequestException("Invoice cannot be updated");
-      }
-
       if (invoice.business.ownerId !== user.id) {
         throw new ForbiddenException(
           "You are not authorized to update this invoice",
         );
+      }
+
+      // A paid invoice is final. A part-paid one can still take payments
+      // (status, amountPaid, paidAt) but nothing else about it can change.
+      if (invoice.status === "PAID") {
+        throw new BadRequestException("Invoice cannot be updated");
+      }
+      if (
+        invoice.status === "PARTIALLY_PAID" &&
+        Object.keys(payload).some((key) => !PAYMENT_FIELDS.has(key))
+      ) {
+        throw new BadRequestException(
+          "A part-paid invoice can only record further payments",
+        );
+      }
+      const total = payload.total ?? Number(invoice.total);
+      if (payload.amountPaid !== undefined && payload.amountPaid > total) {
+        throw new BadRequestException("amountPaid cannot exceed the invoice total");
       }
 
       const data: Prisma.InvoiceUpdateInput = {};
@@ -237,7 +254,7 @@ export const GET = withMiddleware<unknown>(
         where: { slug },
         include: {
           services: { include: { service: true } },
-          business: true,
+          business: { select: publicBusinessSelect },
           booking: {
             select: {
               id: true,

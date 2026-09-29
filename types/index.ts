@@ -46,9 +46,26 @@ export interface ApiError {
 export interface PaginatedApiResponse<T = unknown>
   extends ApiResponse<T>, PaginationMeta { }
 
+/** The business as it rides along on invoices and receipts (no secrets). */
+export type PublicBusiness = Pick<
+  Business,
+  | "id"
+  | "ownerId"
+  | "name"
+  | "slug"
+  | "email"
+  | "phone"
+  | "address"
+  | "city"
+  | "state"
+  | "country"
+  | "logoUrl"
+  | "currency"
+>;
+
 export type InvoiceListItem = Invoice & {
   services: (InvoiceService & { service: Service })[];
-  business: Business;
+  business: PublicBusiness;
   booking: {
     id: string;
     slug: string;
@@ -76,7 +93,7 @@ export type ReceiptListItem = Receipt & {
     } | null;
   })
   | null;
-  business: Business;
+  business: PublicBusiness;
   services: (ReceiptService & { service: Service })[];
 };
 
@@ -160,3 +177,37 @@ export interface BusinessProfileDto {
   calendarConnectedAt: string | null;
 }
 
+
+/** GET /api/dashboard — the owner's day. */
+export interface DashboardData {
+  currency: string;
+  summary: {
+    todayRevenue: number;
+    weekRevenue: number;
+    unpaidCount: number;
+    unpaidTotal: number;
+  };
+  todayBookings: {
+    slug: string;
+    startTime: string;
+    endTime: string;
+    status: "PENDING" | "CONFIRMED";
+    clientName: string;
+    serviceName: string;
+  }[];
+  unpaidInvoices: {
+    slug: string;
+    invoiceNumber: string;
+    clientName: string;
+    outstanding: number;
+    currency: string;
+    url: string | null;
+  }[];
+  revenueByService: {
+    serviceId: string;
+    serviceName: string;
+    serviceSlug: string;
+    totalRevenue: number;
+    totalBookings: number;
+  }[];
+}
