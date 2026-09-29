@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { Wordmark } from "@/primitives";
 import { cn } from "@/utils/cn";
 
 const LINKS = [
@@ -52,13 +53,7 @@ export function LandingNav({ whatsappHref }: { whatsappHref: string }) {
         )}
       >
         <div className="max-w-page mx-auto flex h-16 items-center gap-6 px-4 max-[420px]:gap-2.5 md:px-8">
-          <a
-            className="font-display text-ink text-[26px] leading-none font-semibold tracking-[-0.04em] no-underline [font-variation-settings:'opsz'_48]"
-            href="#top"
-            aria-label="Sara home"
-          >
-            sara
-          </a>
+          <Wordmark href="#top" />
           <nav
             className="mx-auto hidden gap-7 min-[960px]:flex"
             aria-label="Primary"

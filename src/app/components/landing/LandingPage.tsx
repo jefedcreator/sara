@@ -9,6 +9,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { env } from "@/env";
+import { Wordmark } from "@/primitives";
 import { cn } from "@/utils/cn";
 
 import { CopyLinkButton } from "./CopyLinkButton";
@@ -865,12 +866,7 @@ export function LandingPage() {
             "text-muted flex flex-wrap items-center gap-x-8 gap-y-4 text-sm",
           )}
         >
-          <a
-            className="font-display text-ink text-[26px] leading-none font-semibold tracking-[-0.04em] no-underline"
-            href="#top"
-          >
-            sara
-          </a>
+          <Wordmark href="#top" />
           <nav
             className="flex flex-wrap gap-x-[22px] gap-y-2"
             aria-label="Footer"
