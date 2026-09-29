@@ -58,7 +58,6 @@ export interface AuthRequest<
   files?: Record<string, File>;
   validatedData?: B;
   user: AuthenticatedUser | null;
-  isExpired?: boolean;
 }
 
 export interface ValidationResult {

@@ -1,48 +1,32 @@
 import { type Metadata } from "next";
 import { redirect } from "next/navigation";
 
-import { env } from "@/env";
-import { Button, Wordmark } from "@/primitives";
+import { authService, type SignInError } from "@/backend/services/auth";
+import { Button, Notice, Wordmark } from "@/primitives";
 import { getCurrentUser } from "@/server";
 import { safeNextPath } from "@/utils/redirect";
 
-// Sign-in goes through the custom OAuth routes, which set the `sara-session`
-// cookie the API and the app pages read.
+// Each button starts that provider's OAuth flow, which comes back with the
+// Auth.js session cookie the API and the app pages read.
 const authProviders = [
-  {
-    id: "google",
-    label: "Continue with Google",
-    isConfigured: Boolean(
-      (env.AUTH_GOOGLE_ID ?? env.CLIENT_ID) &&
-      (env.AUTH_GOOGLE_SECRET ?? env.CLIENT_SECRET),
-    ),
-  },
-  {
-    id: "facebook",
-    label: "Continue with Facebook",
-    isConfigured: Boolean(
-      (env.AUTH_FACEBOOK_ID ?? env.FACEBOOK_CLIENT_ID) &&
-      (env.AUTH_FACEBOOK_SECRET ?? env.FACEBOOK_CLIENT_SECRET),
-    ),
-  },
-  {
-    id: "instagram",
-    label: "Continue with Instagram",
-    isConfigured: Boolean(
-      (env.AUTH_INSTAGRAM_ID ?? env.INSTAGRAM_CLIENT_ID) &&
-      (env.AUTH_INSTAGRAM_SECRET ?? env.INSTAGRAM_CLIENT_SECRET),
-    ),
-  },
+  { id: "google", label: "Continue with Google" },
+  { id: "facebook", label: "Continue with Facebook" },
+  { id: "instagram", label: "Continue with Instagram" },
 ] as const;
+
+const errorMessages: Record<SignInError, string> = {
+  declined: "Sign-in was cancelled. Choose an account to try again.",
+  expired: "That sign-in expired or was started in another tab. Please try again.",
+  failed: "We couldn't sign you in with that account. Please try again.",
+  unavailable: "That sign-in option isn't available right now.",
+};
 
 export const metadata: Metadata = {
   title: "Sign in · Sara",
 };
 
-
 function authorizeHref(provider: string, next: string) {
-  const params = new URLSearchParams({ redirect: "true", callbackUrl: next });
-  return `/api/auth/${provider}?${params.toString()}`;
+  return `/api/auth/${provider}?${new URLSearchParams({ next }).toString()}`;
 }
 
 export default async function SignInPage({
@@ -52,6 +36,10 @@ export default async function SignInPage({
 }) {
   const params = await searchParams;
   const next = safeNextPath(params.next);
+  const error =
+    typeof params.error === "string" && Object.hasOwn(errorMessages, params.error)
+      ? errorMessages[params.error as SignInError]
+      : null;
   const user = await getCurrentUser();
 
   // Already signed in and on the way somewhere: carry on.
@@ -112,9 +100,11 @@ export default async function SignInPage({
                 </p>
               </div>
 
+              {error ? <Notice tone="danger">{error}</Notice> : null}
+
               <div className="space-y-3">
                 {authProviders.map((provider) =>
-                  provider.isConfigured ? (
+                  authService.isConfigured(provider.id) ? (
                     <Button
                       key={provider.id}
                       asChild

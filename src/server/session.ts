@@ -1,27 +1,25 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
-import { db } from "@/server/db";
-
-const SESSION_COOKIE = "sara-session";
+import { authService } from "@/backend/services/auth";
+import { auth } from "@/server/auth";
 
 /**
- * The signed-in owner (with their business), read from the same
- * `sara-session` cookie the API's authMiddleware checks. Null when signed
- * out or expired. cache()d: a layout and its page share one lookup.
+ * The signed-in owner (with their business). The Auth.js JWT says who the
+ * visitor claims to be; the `Session` row it names must still be live, the
+ * same check the API's authMiddleware makes. Null when signed out or
+ * expired. cache()d: a layout and its page share one lookup.
  */
 export const getCurrentUser = cache(async () => {
-  const sessionToken = (await cookies()).get(SESSION_COOKIE)?.value;
-  if (!sessionToken) return null;
-
   try {
-    const session = await db.session.findUnique({
-      where: { sessionToken },
-      include: { user: { include: { business: true } } },
+    const session = await auth();
+    if (!session?.user?.id || !session.user.sessionId) return null;
+
+    const live = await authService.findLiveSession({
+      userId: session.user.id,
+      sessionId: session.user.sessionId,
     });
-    if (!session || session.expires <= new Date()) return null;
-    return session.user;
+    return live?.user ?? null;
   } catch (error) {
     console.error("[session] lookup failed:", error);
     return null;
