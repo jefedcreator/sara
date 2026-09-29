@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { cache } from "react";
 
 import { authService } from "@/backend/services/auth";
@@ -21,6 +21,9 @@ export const getCurrentUser = cache(async () => {
     });
     return live?.user ?? null;
   } catch (error) {
+    // Next signals "this route is dynamic" by throwing from headers(); that
+    // must reach Next, not be logged and swallowed as a failed lookup.
+    unstable_rethrow(error);
     console.error("[session] lookup failed:", error);
     return null;
   }
