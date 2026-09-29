@@ -1,9 +1,12 @@
 import { type Metadata } from "next";
-import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import { env } from "@/env";
-import { auth, signIn, signOut } from "@/server/auth";
+import { Button, Wordmark } from "@/primitives";
+import { getCurrentUser } from "@/server";
 
+// Sign-in goes through the custom OAuth routes, which set the `sara-session`
+// cookie the API and the app pages read.
 const authProviders = [
   {
     id: "google",
@@ -35,57 +38,75 @@ export const metadata: Metadata = {
   title: "Sign in · Sara",
 };
 
-export default async function SignInPage() {
-  const session = await auth();
+/** Only same-site paths; anything else falls back to the services page. */
+function safeNext(value: string | string[] | undefined) {
+  const next = Array.isArray(value) ? value[0] : value;
+  if (!next?.startsWith("/") || next.startsWith("//") || /[\s\\]/.test(next)) {
+    return "/services";
+  }
+  return next;
+}
+
+function authorizeHref(provider: string, next: string) {
+  const params = new URLSearchParams({ redirect: "true", callbackUrl: next });
+  return `/api/auth/${provider}?${params.toString()}`;
+}
+
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const next = safeNext(params.next);
+  const user = await getCurrentUser();
+
+  // Already signed in and on the way somewhere: carry on.
+  if (user && params.next) redirect(next);
 
   return (
     <main className="bg-canvas text-ink flex min-h-dvh items-center justify-center px-4 py-16 md:px-8">
       <section className="max-w-page grid w-full gap-12 lg:grid-cols-[1fr_400px] lg:items-center lg:gap-20">
         <div className="max-w-2xl">
-          <Link
-            href="/"
-            className="font-display text-ink mb-10 inline-block text-[26px] leading-none font-semibold tracking-[-0.04em]"
-          >
-            sara
-          </Link>
+          <Wordmark className="mb-10 inline-block" />
           <h1 className="font-display text-[clamp(2.4rem,1.4rem+3.6vw,4rem)] leading-[1.04] font-[380] tracking-[-0.04em] text-balance">
-            Sign in and manage your business in one place.
+            Sign in to set up your services and booking links.
           </h1>
           <p className="text-muted mt-6 max-w-[46ch] text-lg">
-            Use Google, Facebook, or Instagram to create your account or return
-            to your workspace.
+            Use Google, Facebook, or Instagram. New accounts are created the
+            first time you sign in.
           </p>
         </div>
 
         <div className="rounded-panel bg-surface p-6 sm:p-8">
-          {session?.user ? (
+          {user ? (
             <div className="space-y-6">
               <div>
                 <p className="text-muted text-sm font-medium">Signed in as</p>
                 <p className="font-display mt-1 text-2xl font-medium tracking-[-0.02em]">
-                  {session.user.name ?? session.user.email ?? "Your account"}
+                  {user.name ?? user.email ?? "Your account"}
                 </p>
-                {session.user.email ? (
-                  <p className="text-muted mt-1 text-sm">
-                    {session.user.email}
-                  </p>
+                {user.email ? (
+                  <p className="text-muted mt-1 text-sm">{user.email}</p>
                 ) : null}
-                {session.user.provider ? (
+                {user.provider ? (
                   <p className="bg-accent-soft text-accent-ink mt-3 inline-block rounded-full px-3 py-1.5 text-[13px] font-semibold">
-                    Signed in with {session.user.provider}
+                    Signed in with {user.provider}
                   </p>
                 ) : null}
               </div>
-              <form
-                action={async () => {
-                  "use server";
-                  await signOut({ redirectTo: "/sign-in" });
-                }}
-              >
-                <button className="border-line bg-canvas text-ink ease-out-expo hover:border-ink h-12 w-full rounded-full border px-6 text-[15px] font-semibold transition-colors duration-200 active:scale-[0.98]">
-                  Sign out
-                </button>
-              </form>
+              <div className="grid gap-3">
+                <Button asChild className="w-full">
+                  <a href={user.business ? "/services" : "/onboarding"}>
+                    {user.business ? "Go to your services" : "Set up your business"}
+                  </a>
+                </Button>
+                <form action="/api/auth/logout" method="post">
+                  <Button type="submit" variant="secondary" className="w-full">
+                    Sign out
+                  </Button>
+                </form>
+              </div>
             </div>
           ) : (
             <div className="space-y-5">
@@ -94,43 +115,36 @@ export default async function SignInPage() {
                   Log in or sign up
                 </h2>
                 <p className="text-muted mt-2 text-[15px]">
-                  New accounts are created automatically after provider
-                  verification.
+                  We only use your account to sign you in.
                 </p>
               </div>
 
-              {authProviders.length > 0 ? (
-                <div className="space-y-3">
-                  {authProviders.map((provider) =>
-                    provider.isConfigured ? (
-                      <form
-                        key={provider.id}
-                        action={async () => {
-                          "use server";
-                          await signIn(provider.id, { redirectTo: "/sign-in" });
-                        }}
-                      >
-                        <button className="border-line bg-canvas text-ink ease-out-expo hover:border-ink h-12 w-full rounded-full border px-6 text-[15px] font-semibold transition-colors duration-200 active:scale-[0.98]">
-                          {provider.label}
-                        </button>
-                      </form>
-                    ) : (
-                      <button
-                        key={provider.id}
-                        className="bg-line text-faint h-12 w-full cursor-not-allowed rounded-full px-6 text-[15px] font-semibold"
-                        disabled
-                        title={`Add ${provider.id} OAuth credentials to enable this provider`}
-                      >
+              <div className="space-y-3">
+                {authProviders.map((provider) =>
+                  provider.isConfigured ? (
+                    <Button
+                      key={provider.id}
+                      asChild
+                      variant="secondary"
+                      className="w-full"
+                    >
+                      <a href={authorizeHref(provider.id, next)}>
                         {provider.label}
-                      </button>
-                    ),
-                  )}
-                </div>
-              ) : (
-                <p className="rounded-card bg-canvas text-ink-2 px-4 py-3 text-sm">
-                  Add OAuth credentials to enable social sign-in.
-                </p>
-              )}
+                      </a>
+                    </Button>
+                  ) : (
+                    <Button
+                      key={provider.id}
+                      variant="secondary"
+                      className="w-full"
+                      disabled
+                      title={`Add ${provider.id} OAuth credentials to enable this provider`}
+                    >
+                      {provider.label}
+                    </Button>
+                  ),
+                )}
+              </div>
             </div>
           )}
         </div>

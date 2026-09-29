@@ -74,6 +74,48 @@
     }
   }
 
+  /* Overlays (Radix Dialog). Radix waits for the exit animation before unmounting. */
+  --animate-fade-in: fade-in 0.24s var(--ease-out-expo) both;
+  /* Matches sheet-out so the backdrop never unmounts before the sheet has left. */
+  --animate-fade-out: fade-out 0.2s ease-in both;
+  --animate-sheet-in: sheet-in 0.42s var(--ease-out-expo) both;
+  --animate-sheet-out: sheet-out 0.2s ease-in both;
+  --animate-pop-in: pop-in 0.32s var(--ease-out-expo) both;
+  --animate-pop-out: pop-out 0.16s ease-in both;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+  @keyframes sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes sheet-out {
+    to {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+    }
+  }
+  @keyframes pop-out {
+    to {
+      opacity: 0;
+      transform: scale(0.97);
+    }
+  }
+
   --container-page: 1160px;
 }
 

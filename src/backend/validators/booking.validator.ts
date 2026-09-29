@@ -94,3 +94,37 @@ export type UpdateBookingValidatorSchema = z.infer<
 export type BookingQueryValidatorSchema = z.infer<
   typeof bookingQueryValidatorSchema
 >;
+
+/**
+ * The customer's details on the public booking page. Email is required here
+ * (though optional in the API) because confirmations, reminders and the
+ * Paystack receipt all go to it; phone and notes are optional. Empty inputs
+ * arrive as "" from the form and are dropped before sending.
+ */
+export const bookingDetailsFormSchema = z
+  .object({
+    clientName: z
+      .string()
+      .trim()
+      .min(1, "Enter your name")
+      .max(255, "Keep your name under 255 characters"),
+    clientEmail: z
+      .string()
+      .trim()
+      .min(1, "Enter your email so we can send your confirmation")
+      .email("Enter a valid email, like ada@example.com"),
+    clientPhone: z
+      .string()
+      .trim()
+      .max(20, "Keep the number under 20 characters")
+      .refine((v) => v === "" || /^\+?[\d\s-]{7,19}$/.test(v), {
+        message: "Enter a valid phone number, like 0803 123 4567",
+      }),
+    notes: z
+      .string()
+      .trim()
+      .max(1000, "Keep notes under 1,000 characters"),
+  })
+  .strict();
+
+export type BookingDetailsFormSchema = z.infer<typeof bookingDetailsFormSchema>;

@@ -14,6 +14,8 @@ export type CreateBookingInput = {
   clientPhone?: string | null;
   notes?: string | null;
   payerEmailFallback?: string | null;
+  /** Where Paystack sends the payer after checkout, built from the new booking. */
+  callbackUrl?: (booking: Booking) => string;
 };
 
 export type BookingWithPayment = {
@@ -128,6 +130,7 @@ class BookingService {
       email: payerEmail,
       amount: amountInSmallestUnit,
       subaccountCode: service.business.paystackSubaccountCode,
+      callbackUrl: input.callbackUrl?.(booking),
       metadata: {
         bookingId: booking.id,
         bookingSlug: booking.slug,

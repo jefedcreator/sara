@@ -5,6 +5,11 @@
 import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+  images: {
+    // Service photos are uploaded to Cloudinary.
+    remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
+  },
+};
 
 export default config;
