@@ -8,6 +8,7 @@ import {
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import type { ApiResponse } from "types";
+import { appBaseUrl } from "@/utils/url";
 
 /**
  * @description Exchanges the Google OAuth `code` for tokens and persists
@@ -30,7 +31,7 @@ export const GET = withMiddleware<unknown>(
     const settingsUrl = (result: "connected" | "failed") =>
       new URL(
         `/settings?calendar=${result}`,
-        process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin,
+        appBaseUrl(request.nextUrl.origin),
       );
 
     try {

@@ -8,6 +8,8 @@ vi.mock("@/env", () => ({
     CLIENT_SECRET: "google-secret",
     FACEBOOK_CLIENT_ID: "facebook-id",
     FACEBOOK_CLIENT_SECRET: "facebook-secret",
+    AUTH_SECRET: "test-auth-secret",
+    NEXT_PUBLIC_APP_URL: "https://sara.test",
   },
 }));
 
@@ -46,14 +48,11 @@ let prisma: ReturnType<typeof mockPrisma>;
 let service: AuthService;
 
 beforeEach(() => {
-  vi.stubEnv("AUTH_SECRET", SECRET);
-  vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://sara.test");
   prisma = mockPrisma();
   service = new AuthService(prisma as never);
 });
 
 afterEach(() => {
-  vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 

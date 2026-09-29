@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 
-import { publicUrl } from "@/backend/services/messaging/url";
+import { publicUrl } from "@/utils/url";
 import { AppError } from "@/components/app-error";
 import { ServicesPageClient } from "@/components/services/services-page-client";
 import { getServices, requireBusiness, toBusinessProfile } from "@/server";

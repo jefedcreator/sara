@@ -1,18 +1,32 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const env: Record<string, string | undefined> = vi.hoisted(() => ({}));
+vi.mock("@/env", () => ({ env }));
+
 import { appBaseUrl, publicUrl } from "./url";
 
-const original = process.env.NEXT_PUBLIC_APP_URL;
-afterEach(() => {
-  process.env.NEXT_PUBLIC_APP_URL = original;
+beforeEach(() => {
+  for (const key of Object.keys(env)) delete env[key];
 });
 
 describe("url helpers", () => {
   it("strips a trailing slash from the base url", () => {
-    process.env.NEXT_PUBLIC_APP_URL = "https://app.sara.ng/";
+    env.NEXT_PUBLIC_APP_URL = "https://app.sara.ng/";
     expect(appBaseUrl()).toBe("https://app.sara.ng");
   });
+
   it("builds a public url from a path and slug", () => {
-    process.env.NEXT_PUBLIC_APP_URL = "https://app.sara.ng";
-    expect(publicUrl("book", "acme-haircut")).toBe("https://app.sara.ng/book/acme-haircut");
+    env.NEXT_PUBLIC_APP_URL = "https://app.sara.ng";
+    expect(publicUrl("book", "acme-haircut")).toBe(
+      "https://app.sara.ng/book/acme-haircut",
+    );
+  });
+
+  it("falls back to Auth.js's URL, then the request, then localhost", () => {
+    env.AUTH_URL = "https://auth.sara.ng";
+    expect(appBaseUrl("https://req.test")).toBe("https://auth.sara.ng");
+    delete env.AUTH_URL;
+    expect(appBaseUrl("https://req.test")).toBe("https://req.test");
+    expect(appBaseUrl()).toBe("http://localhost:3000");
   });
 });

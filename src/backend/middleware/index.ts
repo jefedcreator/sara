@@ -1,4 +1,5 @@
 import { authService } from "@/backend/services/auth";
+import { env } from "@/env";
 import { parseHttpError } from "@/utils";
 import { HttpException, UnauthorizedException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
@@ -20,7 +21,7 @@ import type {
  */
 
 const getExternalUrl = (url: string) => {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXTAUTH_URL;
+  const baseUrl = env.NEXT_PUBLIC_APP_URL ?? env.NEXTAUTH_URL;
   if (!baseUrl) return url;
 
   try {
