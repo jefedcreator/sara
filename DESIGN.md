@@ -259,11 +259,10 @@ Soft and friendly. Every interactive control is a full pill (buttons, slot choic
 Sticky white bar, translucent with blur, 64px; wordmark "sara" in display 600 at 26px on the left, muted 15px links centred, compact primary on the right. Links darken to ink on hover. Below 960px the links collapse into a round leaf-grey menu button that opens a full-width list.
 
 ### Logo
-The lockup is the mark plus "sara" in display 600 (the `Wordmark` primitive); the name stays live text. Marks live in `src/primitives/Logo.tsx` and are built from the chat-bubble language, all soft-cornered:
-- **Duet (default):** two bubbles, the owner's in WhatsApp green (tail bottom-right) above Sara's reply in ink (tail bottom-left). Owner first, reply after.
-- **Menu (alternate):** six petals round an open centre, one per numbered menu item; the green petal is the owner's reply. Reads close to the six-point AI "sparkle", so never as the primary mark.
-- **Loop (alternate):** a single-stroke lowercase "s" with a green dot trailing it.
-Green is only ever a fill inside the mark. The favicon and app icons are the duet on an ink tile (22 radius, mark inset to 70%); a green tile draws the mark wholly in on-accent. The plain name without a mark is for inline credits ("Bookings by sara") and the green closing wordmark. Static exports in `public/brand` come from `yarn brand:generate`, never by hand.
+The lockup is the mark plus "sara" in display 600 (the `Wordmark` primitive); the name stays live text. The marks live in `src/primitives/Logo.tsx` and say what Sara sells, a whole business run from one chat by replying with a number, in the product's bubble language and colour rule (green is the owner's voice, ink is Sara's):
+- **Reply (default):** Sara's ink bubble, tail bottom-left, with the owner's green numeral disc landing on its corner, separated by a moat. A number in, the business answered.
+- **Thread (alternate):** the exchange written out: two ink lines from Sara on the left, the owner's green reply on the right with its tail bottom-right. For wide, quiet placements.
+Green is only ever a fill inside the mark. The favicon and app icons are Reply on an ink tile (22 radius, mark inset to 70%); a green tile draws the mark wholly in on-accent. The plain name without a mark is for inline credits ("Bookings by sara") and the green closing wordmark. Static exports in `public/brand` come from `yarn brand:generate`, never by hand. Rejected and not to be re-proposed: stacked twin bubbles (any messaging app), a six-petal burst (reads as an AI sparkle), an "s" of beads, a torn-receipt bubble (reads as a ghost).
 
 ### Chat Bubbles (signature)
 Sara's replies: white, hairline border, 18px radius with a 6px bottom-left corner. Owner messages: WhatsApp green with green-ink text and a 6px bottom-right corner, right-aligned. Numbers in a menu render as green circular numerals (32px). This is the system's illustration language; use it wherever the product's behaviour needs explaining.
