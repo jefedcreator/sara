@@ -50,6 +50,8 @@ export type BusinessUpdateInput = {
 export type BusinessCreateInput = BusinessUpdateInput & {
   name: string;
   monoCode: string;
+  currency?: string;
+  country?: string;
 };
 
 function toFormData(values: Record<string, string | number | File | undefined>) {
