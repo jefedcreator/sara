@@ -1,3 +1,16 @@
+import { readFile } from "node:fs/promises";
+import path from "node:path";
+
+import fontkit from "@pdf-lib/fontkit";
+import {
+  PDFDocument,
+  StandardFonts,
+  rgb,
+  type Color,
+  type PDFFont,
+  type PDFImage,
+  type PDFPage,
+} from "pdf-lib";
 import sharp from "sharp";
 
 import { formatMoney } from "@/utils/format";
@@ -68,12 +81,6 @@ export type ReceiptPdfData = {
   items: InvoicePdfItem[];
 };
 
-type PdfImage = {
-  data: Buffer;
-  width: number;
-  height: number;
-};
-
 /*
  * Invoices and receipts, drawn to DESIGN.md: a calm document on white, ink
  * and green-tinted greys, hairline rules, the customer as the title, a
@@ -81,17 +88,19 @@ type PdfImage = {
  * and green only where money is settled. The layout follows the invoice on
  * the landing page (landing/v1/impeccable).
  *
- * The PDF is written by hand, with the standard Helvetica and Courier fonts
- * (no embedding), so layout measures text with their published metrics.
+ * Type is the app's own: Bricolage Grotesque for display (the document
+ * title, the customer) and Hanken Grotesk for everything else, embedded and
+ * subset from assets/fonts. Hanken's digits are tabular, so every figure is
+ * set in it (DESIGN.md's Tabular Money Rule).
  */
 
-// DESIGN.md colour tokens, as PDF RGB.
-type Rgb = readonly [number, number, number];
-const hex = (value: string): Rgb => [
-  parseInt(value.slice(1, 3), 16) / 255,
-  parseInt(value.slice(3, 5), 16) / 255,
-  parseInt(value.slice(5, 7), 16) / 255,
-];
+// DESIGN.md colour tokens.
+const hex = (value: string) =>
+  rgb(
+    parseInt(value.slice(1, 3), 16) / 255,
+    parseInt(value.slice(3, 5), 16) / 255,
+    parseInt(value.slice(5, 7), 16) / 255,
+  );
 const COLOR = {
   ink: hex("#0f1a14"),
   ink2: hex("#37443c"),
@@ -104,7 +113,7 @@ const COLOR = {
   accentSoft: hex("#e8f9ee"),
   danger: hex("#b42318"),
   dangerSoft: hex("#fef3f2"),
-} as const;
+};
 
 const PILL_TONES = {
   accent: { fill: COLOR.accentSoft, text: COLOR.accentInk },
@@ -126,124 +135,48 @@ const DESCRIPTION_WIDTH = QTY_RIGHT - 44 - MARGIN;
 // Totals and the meta block share this left edge.
 const SIDE_LEFT = 340;
 
-// --- Text: WinAnsi encoding and Helvetica metrics ---------------------------
+// --- Fonts ------------------------------------------------------------------
 
-type Font = "regular" | "bold" | "mono";
-const FONT_RESOURCE: Record<Font, string> = {
-  regular: "F1",
-  bold: "F2",
-  mono: "F3",
-};
+type Font = "display" | "regular" | "bold" | "mono";
 
-// Adobe's widths for Helvetica and Helvetica-Bold, characters 32-126, in
-// thousandths of the font size.
-const HELVETICA =
-  "278 278 355 556 556 889 667 191 333 333 389 584 278 333 278 278 556 556 556 556 556 556 556 556 556 556 278 278 584 584 584 556 1015 667 667 722 722 667 611 778 722 278 500 667 556 833 722 778 667 778 722 667 611 722 667 944 667 667 611 278 278 278 469 556 333 556 556 500 556 556 278 556 556 222 222 500 222 833 556 556 556 556 333 500 278 556 500 722 500 500 500 334 260 334 584"
-    .split(" ")
-    .map(Number);
-const HELVETICA_BOLD =
-  "278 333 474 556 556 889 722 238 333 333 389 584 278 333 278 278 556 556 556 556 556 556 556 556 556 556 333 333 584 584 584 611 975 722 722 722 722 667 611 778 722 278 556 722 611 833 722 778 667 778 722 667 611 722 667 944 667 667 611 333 278 333 584 556 333 556 611 556 611 556 333 611 611 278 278 556 278 889 611 611 611 611 389 556 333 611 556 778 556 556 500 389 280 389 584"
-    .split(" ")
-    .map(Number);
-
-// WinAnsi's extra characters in 128-159, by the byte they are drawn with.
-const WIN_ANSI_EXTRAS: Record<string, number> = {
-  "€": 0x80,
-  "‚": 0x82,
-  "„": 0x84,
-  "…": 0x85,
-  "‘": 0x91,
-  "’": 0x92,
-  "“": 0x93,
-  "”": 0x94,
-  "•": 0x95,
-  "–": 0x96,
-  "—": 0x97,
-  "™": 0x99,
-  "−": 0x96, // A minus sign draws as an en dash, which Helvetica has.
-};
-const EXTRA_WIDTHS: Record<number, number> = {
-  0x80: 556,
-  0x82: 222,
-  0x84: 333,
-  0x85: 1000,
-  0x91: 222,
-  0x92: 222,
-  0x93: 333,
-  0x94: 333,
-  0x95: 350,
-  0x96: 556,
-  0x97: 1000,
-  0x99: 1000,
-  0xa0: 278, // no-break space
-  0xb7: 278, // middle dot
-};
-
-/** Printable ASCII and Latin-1, which WinAnsi draws with the same byte. */
-const isDrawable = (code: number) =>
-  (code >= 32 && code < 127) || (code >= 160 && code <= 255);
-
-/**
- * The text as WinAnsi characters (one char per byte). Latin-1 passes
- * through, so "Adébáyọ̀" keeps its é and á; anything else loses its accents
- * ("ọ" draws as "o"), and what is still not drawable becomes "?".
+/*
+ * Read from assets/fonts at the project root, which the Docker image copies
+ * and next.config.js traces for the API routes. Read once per process.
  */
-const toWinAnsi = (value: string) => {
-  let out = "";
-  for (const char of value.replace(/\s+/g, " ").normalize("NFC")) {
-    const code = char.codePointAt(0)!;
-    if (isDrawable(code)) {
-      out += char;
-    } else if (WIN_ANSI_EXTRAS[char] !== undefined) {
-      out += String.fromCharCode(WIN_ANSI_EXTRAS[char]);
-    } else if (char === "₦") {
-      out += "NGN";
-    } else {
-      // A lone combining mark (the grave in "ọ̀") has no base and is dropped.
-      const base = char.normalize("NFD").replace(/\p{M}/gu, "");
-      if (!base) continue;
-      out += [...base].every((c) => isDrawable(c.charCodeAt(0))) ? base : "?";
-    }
-  }
-  return out;
-};
+const FONT_FILES = {
+  display: "BricolageGrotesque-Regular.ttf",
+  regular: "HankenGrotesk-Regular.ttf",
+  bold: "HankenGrotesk-SemiBold.ttf",
+} as const;
 
-const charWidth = (code: number, font: Font) => {
-  if (font === "mono") return 600;
-  const table = font === "bold" ? HELVETICA_BOLD : HELVETICA;
-  if (code >= 32 && code <= 126) return table[code - 32]!;
-  if (EXTRA_WIDTHS[code]) return EXTRA_WIDTHS[code];
-  const base = String.fromCharCode(code).normalize("NFD").charCodeAt(0);
-  return base >= 32 && base <= 126 ? table[base - 32]! : 556;
-};
+type FontBytes = Record<keyof typeof FONT_FILES, Buffer>;
+let fontBytes: Promise<FontBytes> | undefined;
 
-/** Width in points of text already converted with toWinAnsi. */
-const measure = (encoded: string, size: number, font: Font) => {
-  let units = 0;
-  for (let i = 0; i < encoded.length; i++) {
-    units += charWidth(encoded.charCodeAt(i), font);
-  }
-  return (units / 1000) * size;
-};
+const loadFontBytes = () =>
+  (fontBytes ??= Promise.all(
+    Object.entries(FONT_FILES).map(async ([role, file]) => [
+      role,
+      await readFile(path.join(process.cwd(), "assets", "fonts", file)),
+    ]),
+  ).then((entries) => Object.fromEntries(entries) as FontBytes));
 
-const escapePdfText = (value: string) =>
-  value.replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
-
-/** Words wrapped to a width; a word longer than the line is kept whole. */
-const wrap = (text: string, width: number, size: number, font: Font) => {
-  const lines: string[] = [];
-  let current = "";
-  for (const word of text.split(/\s+/).filter(Boolean)) {
-    const next = current ? `${current} ${word}` : word;
-    if (current && measure(toWinAnsi(next), size, font) > width) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = next;
-    }
-  }
-  if (current) lines.push(current);
-  return lines.length ? lines : [""];
+const embedFonts = async (doc: PDFDocument) => {
+  doc.registerFontkit(fontkit);
+  const bytes = await loadFontBytes();
+  const fonts: Record<Font, PDFFont> = {
+    display: await doc.embedFont(bytes.display, { subset: true }),
+    regular: await doc.embedFont(bytes.regular, { subset: true }),
+    bold: await doc.embedFont(bytes.bold, { subset: true }),
+    // The document number, like the landing invoice's monospace number.
+    mono: await doc.embedFont(StandardFonts.Courier),
+  };
+  const glyphs = Object.fromEntries(
+    Object.entries(fonts).map(([role, font]) => [
+      role,
+      new Set(font.getCharacterSet()),
+    ]),
+  ) as Record<Font, Set<number>>;
+  return { fonts, glyphs };
 };
 
 // --- Drawing ----------------------------------------------------------------
@@ -251,46 +184,79 @@ const wrap = (text: string, width: number, size: number, font: Font) => {
 type TextOptions = {
   size?: number;
   font?: Font;
-  color?: Rgb;
+  color?: Color;
   align?: "left" | "right";
 };
 
-const num = (value: number) => value.toFixed(2);
-const rgb = (color: Rgb) => color.map((c) => c.toFixed(3)).join(" ");
-
 /**
- * Drawing commands, one list per page. Coordinates are measured from the
- * top of the page (PDF's own origin is the bottom), and `y` for text is the
- * baseline.
+ * One document's pages. Coordinates are measured from the top of the page
+ * (PDF's own origin is the bottom), and `y` for text is the baseline. Every
+ * string drawn is kept in `drawn`, which is how tests read the output.
  */
 class PdfCanvas {
-  readonly pages: string[][] = [[]];
+  readonly drawn: string[] = [];
+  private page: PDFPage;
 
-  private get commands() {
-    return this.pages[this.pages.length - 1]!;
+  constructor(
+    private readonly doc: PDFDocument,
+    private readonly fonts: Record<Font, PDFFont>,
+    private readonly glyphs: Record<Font, Set<number>>,
+  ) {
+    this.page = doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   }
 
   addPage() {
-    this.pages.push([]);
+    this.page = this.doc.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
+  }
+
+  /**
+   * The text with every character the font can draw. Accented letters are
+   * composed first ("é", "ọ"); an accent that stays a separate mark (the
+   * tone mark in "ọ̀") is dropped, because pdf-lib draws marks by advance
+   * width and they land beside the letter instead of over it. Missing
+   * letters fall back to their unaccented form, then "?". "₦" reads "NGN",
+   * the app's form anyway.
+   */
+  private drawable(value: string, font: Font) {
+    const has = (char: string) => this.glyphs[font].has(char.codePointAt(0)!);
+    let out = "";
+    for (const char of value.replace(/\s+/g, " ").normalize("NFC")) {
+      if (/\p{M}/u.test(char)) continue;
+      else if (has(char)) out += char;
+      else if (char === "₦") out += "NGN";
+      else {
+        const base = char.normalize("NFD").replace(/\p{M}/gu, "");
+        out += base && [...base].every(has) ? base : "?";
+      }
+    }
+    return out;
+  }
+
+  measure(value: string, size: number, font: Font) {
+    return this.fonts[font].widthOfTextAtSize(this.drawable(value, font), size);
   }
 
   text(value: string, x: number, y: number, options: TextOptions = {}) {
     const { size = 10, font = "regular", color = COLOR.ink } = options;
-    const encoded = toWinAnsi(value);
-    const left =
-      options.align === "right" ? x - measure(encoded, size, font) : x;
-    this.commands.push(
-      `BT ${rgb(color)} rg /${FONT_RESOURCE[font]} ${size} Tf ${num(left)} ${num(
-        PAGE_HEIGHT - y,
-      )} Td (${escapePdfText(encoded)}) Tj ET`,
-    );
+    const safe = this.drawable(value, font);
+    const width = this.fonts[font].widthOfTextAtSize(safe, size);
+    this.drawn.push(safe);
+    this.page.drawText(safe, {
+      x: options.align === "right" ? x - width : x,
+      y: PAGE_HEIGHT - y,
+      size,
+      font: this.fonts[font],
+      color,
+    });
   }
 
-  line(x1: number, y: number, x2: number, color: Rgb = COLOR.line) {
-    const top = num(PAGE_HEIGHT - y);
-    this.commands.push(
-      `q ${rgb(color)} RG 0.75 w ${num(x1)} ${top} m ${num(x2)} ${top} l S Q`,
-    );
+  line(x1: number, y: number, x2: number, color: Color = COLOR.line) {
+    this.page.drawLine({
+      start: { x: x1, y: PAGE_HEIGHT - y },
+      end: { x: x2, y: PAGE_HEIGHT - y },
+      thickness: 0.75,
+      color,
+    });
   }
 
   /** A filled rectangle, with rounded corners when `radius` is set. */
@@ -299,39 +265,60 @@ class PdfCanvas {
     y: number,
     width: number,
     height: number,
-    fill: Rgb,
+    fill: Color,
     radius = 0,
   ) {
+    if (width <= 0 || height <= 0) return;
     const r = Math.min(radius, width / 2, height / 2);
-    const left = x;
+    if (r === 0) {
+      this.page.drawRectangle({
+        x,
+        y: PAGE_HEIGHT - y - height,
+        width,
+        height,
+        color: fill,
+      });
+      return;
+    }
+    // An SVG path is drawn with y pointing down from its origin, which is
+    // the page's top-left here.
     const right = x + width;
-    const top = PAGE_HEIGHT - y;
-    const bottom = top - height;
-    const k = r * 0.5523; // Bezier handle length for a quarter circle.
-    const path =
-      r === 0
-        ? `${num(left)} ${num(bottom)} ${num(width)} ${num(height)} re`
-        : [
-            `${num(left + r)} ${num(bottom)} m`,
-            `${num(right - r)} ${num(bottom)} l`,
-            `${num(right - r + k)} ${num(bottom)} ${num(right)} ${num(bottom + r - k)} ${num(right)} ${num(bottom + r)} c`,
-            `${num(right)} ${num(top - r)} l`,
-            `${num(right)} ${num(top - r + k)} ${num(right - r + k)} ${num(top)} ${num(right - r)} ${num(top)} c`,
-            `${num(left + r)} ${num(top)} l`,
-            `${num(left + r - k)} ${num(top)} ${num(left)} ${num(top - r + k)} ${num(left)} ${num(top - r)} c`,
-            `${num(left)} ${num(bottom + r)} l`,
-            `${num(left)} ${num(bottom + r - k)} ${num(left + r - k)} ${num(bottom)} ${num(left + r)} ${num(bottom)} c`,
-            "h",
-          ].join(" ");
-    this.commands.push(`q ${rgb(fill)} rg ${path} f Q`);
+    const bottom = y + height;
+    this.page.drawSvgPath(
+      [
+        `M ${x + r} ${y}`,
+        `H ${right - r}`,
+        `A ${r} ${r} 0 0 1 ${right} ${y + r}`,
+        `V ${bottom - r}`,
+        `A ${r} ${r} 0 0 1 ${right - r} ${bottom}`,
+        `H ${x + r}`,
+        `A ${r} ${r} 0 0 1 ${x} ${bottom - r}`,
+        `V ${y + r}`,
+        `A ${r} ${r} 0 0 1 ${x + r} ${y}`,
+        "Z",
+      ].join(" "),
+      { x: 0, y: PAGE_HEIGHT, color: fill },
+    );
   }
 
-  image(name: string, x: number, y: number, width: number, height: number) {
-    this.commands.push(
-      `q ${num(width)} 0 0 ${num(height)} ${num(x)} ${num(
-        PAGE_HEIGHT - y - height,
-      )} cm /${name} Do Q`,
-    );
+  image(image: PDFImage, x: number, y: number, width: number, height: number) {
+    this.page.drawImage(image, {
+      x,
+      y: PAGE_HEIGHT - y - height,
+      width,
+      height,
+    });
+  }
+
+  /** Runs `draw` on every page, for the footer once the body is laid out. */
+  eachPage(draw: (index: number, count: number) => void) {
+    const current = this.page;
+    const pages = this.doc.getPages();
+    pages.forEach((page, index) => {
+      this.page = page;
+      draw(index, pages.length);
+    });
+    this.page = current;
   }
 }
 
@@ -355,10 +342,30 @@ type DocumentData = {
   items: InvoicePdfItem[];
 };
 
-const money = (value: number | string, currency: string) =>
-  formatMoney(value, currency);
-
 const pdfDate = (date: Date) => formatDate(date.toISOString());
+
+/** Words wrapped to a width; a word longer than the line is kept whole. */
+const wrap = (
+  canvas: PdfCanvas,
+  text: string,
+  width: number,
+  size: number,
+  font: Font,
+) => {
+  const lines: string[] = [];
+  let current = "";
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const next = current ? `${current} ${word}` : word;
+    if (current && canvas.measure(next, size, font) > width) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length ? lines : [""];
+};
 
 /** Sentence-case status pill, right-aligned at `right`, like StatusPill. */
 const drawPill = (
@@ -369,10 +376,10 @@ const drawPill = (
   top: number,
 ) => {
   const size = 9.5;
-  const width = measure(toWinAnsi(label), size, "bold") + 20;
+  const width = canvas.measure(label, size, "bold") + 22;
   const { fill, text } = PILL_TONES[tone];
   canvas.rect(right - width, top, width, 22, fill, 11);
-  canvas.text(label, right - 10, top + 14.5, {
+  canvas.text(label, right - 11, top + 14.5, {
     size,
     font: "bold",
     color: text,
@@ -390,45 +397,34 @@ const drawTableHeader = (canvas: PdfCanvas, y: number) => {
   return y + 30;
 };
 
-const drawFooter = (canvas: PdfCanvas, data: DocumentData) => {
-  canvas.pages.forEach((_, index) => {
-    // Footers are drawn onto every page once the body is laid out.
-    const page = canvas.pages[index]!;
-    const draw = new PdfCanvas();
-    const y = PAGE_HEIGHT - 36;
-    draw.line(MARGIN, y - 18, RIGHT);
-    draw.text(data.business.name, MARGIN, y, { size: 8.5, color: COLOR.faint });
-    const pageLabel =
-      canvas.pages.length > 1
-        ? `${data.number} · Page ${index + 1} of ${canvas.pages.length}`
-        : `${data.number} · Made with Sara`;
-    draw.text(pageLabel, RIGHT, y, {
-      size: 8.5,
-      color: COLOR.faint,
-      align: "right",
-    });
-    page.push(...draw.pages[0]!);
-  });
-};
-
 const renderDocument = async (data: DocumentData) => {
-  const logo = await fetchLogo(data.business.logoUrl);
-  const canvas = new PdfCanvas();
-  const { currency } = data;
+  const doc = await PDFDocument.create();
+  doc.setTitle(`${data.kind} ${data.number}`);
+  doc.setAuthor(data.business.name);
+  doc.setCreator("Sara");
+  doc.setProducer("Sara");
+
+  const [{ fonts, glyphs }, logo] = await Promise.all([
+    embedFonts(doc),
+    fetchLogo(data.business.logoUrl),
+  ]);
+  const logoImage = logo ? await doc.embedJpg(logo) : null;
+  const canvas = new PdfCanvas(doc, fonts, glyphs);
+  const money = (value: number | string) => formatMoney(value, data.currency);
   let y = MARGIN;
 
   // Header: the business on the left, the document on the right.
   let left = y;
-  if (logo) {
-    const scale = Math.min(140 / logo.width, 44 / logo.height, 1);
-    const width = logo.width * scale;
-    const height = logo.height * scale;
-    canvas.image("Logo", MARGIN, left, width, height);
+  if (logoImage) {
+    const scale = Math.min(140 / logoImage.width, 44 / logoImage.height, 1);
+    const width = logoImage.width * scale;
+    const height = logoImage.height * scale;
+    canvas.image(logoImage, MARGIN, left, width, height);
     left += height + 20;
     canvas.text(data.business.name, MARGIN, left, { size: 11, font: "bold" });
   } else {
     left += 18;
-    canvas.text(data.business.name, MARGIN, left, { size: 17, font: "bold" });
+    canvas.text(data.business.name, MARGIN, left, { size: 16, font: "bold" });
   }
   left += 16;
   [
@@ -447,29 +443,33 @@ const renderDocument = async (data: DocumentData) => {
       left += 13.5;
     });
 
-  canvas.text(data.kind, RIGHT, y + 20, { size: 22, align: "right" });
-  canvas.text(data.number, RIGHT, y + 38, {
+  canvas.text(data.kind, RIGHT, y + 22, {
+    size: 26,
+    font: "display",
+    align: "right",
+  });
+  canvas.text(data.number, RIGHT, y + 40, {
     size: 10,
     font: "mono",
     color: COLOR.faint,
     align: "right",
   });
 
-  y = Math.max(left, y + 50) + 14;
+  y = Math.max(left, y + 52) + 14;
   canvas.line(MARGIN, y, RIGHT);
   y += 34;
 
   // Who it is for, and the status with its dates.
   const partiesTop = y;
   canvas.text("Billed to", MARGIN, y, { size: 9, color: COLOR.muted });
-  y += 26;
-  wrap(data.client.name, SIDE_LEFT - MARGIN - 24, 20, "regular")
+  y += 27;
+  wrap(canvas, data.client.name, SIDE_LEFT - MARGIN - 24, 22, "display")
     .slice(0, 2)
     .forEach((line) => {
-      canvas.text(line, MARGIN, y, { size: 20 });
-      y += 24;
+      canvas.text(line, MARGIN, y, { size: 22, font: "display" });
+      y += 26;
     });
-  y -= 6;
+  y -= 7;
   [data.client.email, data.client.phone].filter(Boolean).forEach((line) => {
     canvas.text(String(line), MARGIN, y, { size: 10, color: COLOR.muted });
     y += 14;
@@ -488,7 +488,13 @@ const renderDocument = async (data: DocumentData) => {
   // Line items.
   y = drawTableHeader(canvas, y);
   data.items.forEach((item) => {
-    const lines = wrap(item.description, DESCRIPTION_WIDTH, 10.5, "regular");
+    const lines = wrap(
+      canvas,
+      item.description,
+      DESCRIPTION_WIDTH,
+      10.5,
+      "regular",
+    );
     // Each rule sits 10pt under the row's last line; the next row starts 20pt below it.
     const height = (lines.length - 1) * 14 + 30;
     if (y + height > BOTTOM) {
@@ -500,20 +506,17 @@ const renderDocument = async (data: DocumentData) => {
     });
     const figures = { size: 10.5, align: "right" as const };
     canvas.text(String(item.quantity), QTY_RIGHT, y, figures);
-    canvas.text(money(item.unitPrice, currency), PRICE_RIGHT, y, figures);
-    canvas.text(money(item.total, currency), RIGHT, y, figures);
+    canvas.text(money(item.unitPrice), PRICE_RIGHT, y, figures);
+    canvas.text(money(item.total), RIGHT, y, figures);
     y += height;
     canvas.line(MARGIN, y - 20, RIGHT);
   });
 
   // Totals: quiet lines, then the total. Tax and discount only when used.
-  const soft: Array<[string, string]> = [
-    ["Subtotal", money(data.subtotal, currency)],
-  ];
-  if (Number(data.taxAmount) > 0)
-    soft.push(["Tax", money(data.taxAmount, currency)]);
+  const soft: Array<[string, string]> = [["Subtotal", money(data.subtotal)]];
+  if (Number(data.taxAmount) > 0) soft.push(["Tax", money(data.taxAmount)]);
   if (Number(data.discount) > 0) {
-    soft.push(["Discount", `−${money(data.discount, currency)}`]);
+    soft.push(["Discount", `−${money(data.discount)}`]);
   }
 
   const total = Number(data.total);
@@ -538,8 +541,8 @@ const renderDocument = async (data: DocumentData) => {
   canvas.line(SIDE_LEFT, y - 6, RIGHT);
   y += 18;
   canvas.text("Total", SIDE_LEFT, y, { size: 13, font: "bold" });
-  canvas.text(money(total, currency), RIGHT, y, {
-    size: 15,
+  canvas.text(money(total), RIGHT, y, {
+    size: 16,
     font: "bold",
     align: "right",
   });
@@ -550,7 +553,7 @@ const renderDocument = async (data: DocumentData) => {
       size: 10,
       color: COLOR.accentInk,
     });
-    canvas.text(money(paid, currency), RIGHT, y, {
+    canvas.text(money(paid), RIGHT, y, {
       size: 10,
       font: "bold",
       color: COLOR.accentInk,
@@ -559,7 +562,7 @@ const renderDocument = async (data: DocumentData) => {
     y += 20;
     if (outstanding > 0) {
       canvas.text("Still owed", SIDE_LEFT, y, { size: 10, color: COLOR.muted });
-      canvas.text(money(outstanding, currency), RIGHT, y, {
+      canvas.text(money(outstanding), RIGHT, y, {
         size: 10,
         color: COLOR.muted,
         align: "right",
@@ -580,24 +583,19 @@ const renderDocument = async (data: DocumentData) => {
         3,
       );
       y += 18;
-      canvas.text(
-        `${money(paid, currency)} of ${money(total, currency)} paid`,
-        SIDE_LEFT,
-        y,
-        { size: 9, color: COLOR.muted },
-      );
+      canvas.text(`${money(paid)} of ${money(total)} paid`, SIDE_LEFT, y, {
+        size: 9,
+        color: COLOR.muted,
+      });
       y += 22;
     }
     canvas.text(
       outstanding > 0 ? "Balance due" : "Nothing owed",
       SIDE_LEFT,
       y,
-      {
-        size: 10.5,
-        font: "bold",
-      },
+      { size: 10.5, font: "bold" },
     );
-    canvas.text(money(outstanding, currency), RIGHT, y, {
+    canvas.text(money(outstanding), RIGHT, y, {
       size: 10.5,
       font: "bold",
       color: outstanding > 0 ? COLOR.ink : COLOR.accentInk,
@@ -608,10 +606,13 @@ const renderDocument = async (data: DocumentData) => {
 
   // Notes, on a leaf-grey panel.
   if (data.notes?.trim()) {
-    const lines = wrap(data.notes, RIGHT - MARGIN - 36, 10, "regular").slice(
-      0,
-      8,
-    );
+    const lines = wrap(
+      canvas,
+      data.notes,
+      RIGHT - MARGIN - 36,
+      10,
+      "regular",
+    ).slice(0, 8);
     const height = 40 + lines.length * 14;
     y += 18;
     if (y + height > BOTTOM) {
@@ -628,27 +629,47 @@ const renderDocument = async (data: DocumentData) => {
     });
   }
 
-  drawFooter(canvas, data);
-  return buildPdf(canvas.pages, logo);
+  // Footer on every page.
+  canvas.eachPage((index, count) => {
+    const footer = PAGE_HEIGHT - 36;
+    canvas.line(MARGIN, footer - 18, RIGHT);
+    canvas.text(data.business.name, MARGIN, footer, {
+      size: 8.5,
+      color: COLOR.faint,
+    });
+    canvas.text(
+      count > 1
+        ? `${data.number} · Page ${index + 1} of ${count}`
+        : `${data.number} · Made with Sara`,
+      RIGHT,
+      footer,
+      { size: 8.5, color: COLOR.faint, align: "right" },
+    );
+  });
+
+  return {
+    pdf: Buffer.from(await doc.save()),
+    pageCount: doc.getPageCount(),
+    text: canvas.drawn,
+  };
 };
 
 // --- Invoice and receipt ----------------------------------------------------
 
-export const generateInvoicePdf = (invoice: InvoicePdfData) => {
-  const status = INVOICE_STATUS[invoice.status] ?? {
-    label: invoice.status,
-    tone: "muted" as const,
-  };
+const invoiceDocument = (invoice: InvoicePdfData): DocumentData => {
   const meta: Array<[string, string]> = [
     ["Issued", pdfDate(invoice.sentAt ?? new Date())],
   ];
   if (invoice.dueAt) meta.push(["Due", pdfDate(invoice.dueAt)]);
   if (invoice.paidAt) meta.push(["Paid", pdfDate(invoice.paidAt)]);
 
-  return renderDocument({
+  return {
     kind: "Invoice",
     number: invoice.invoiceNumber,
-    pill: status,
+    pill: INVOICE_STATUS[invoice.status] ?? {
+      label: invoice.status,
+      tone: "muted",
+    },
     meta,
     currency: invoice.currency,
     subtotal: invoice.subtotal,
@@ -660,10 +681,10 @@ export const generateInvoicePdf = (invoice: InvoicePdfData) => {
     business: invoice.business,
     client: invoice.client,
     items: invoice.items,
-  });
+  };
 };
 
-export const generateReceiptPdf = (receipt: ReceiptPdfData) => {
+const receiptDocument = (receipt: ReceiptPdfData): DocumentData => {
   const meta: Array<[string, string]> = [
     ["Paid on", pdfDate(receipt.paidAt ?? new Date())],
   ];
@@ -674,7 +695,7 @@ export const generateReceiptPdf = (receipt: ReceiptPdfData) => {
     ]);
   }
 
-  return renderDocument({
+  return {
     kind: "Receipt",
     number: receipt.receiptNumber,
     pill: { label: "Paid", tone: "accent" },
@@ -689,12 +710,26 @@ export const generateReceiptPdf = (receipt: ReceiptPdfData) => {
     business: receipt.business,
     client: receipt.client,
     items: receipt.items,
-  });
+  };
 };
 
-// --- Logo and file assembly -------------------------------------------------
+/** The PDF with what it drew; tests read `text` and `pageCount`. */
+export const renderInvoicePdf = (invoice: InvoicePdfData) =>
+  renderDocument(invoiceDocument(invoice));
 
-const fetchLogo = async (logoUrl?: string | null): Promise<PdfImage | null> => {
+export const renderReceiptPdf = (receipt: ReceiptPdfData) =>
+  renderDocument(receiptDocument(receipt));
+
+export const generateInvoicePdf = async (invoice: InvoicePdfData) =>
+  (await renderInvoicePdf(invoice)).pdf;
+
+export const generateReceiptPdf = async (receipt: ReceiptPdfData) =>
+  (await renderReceiptPdf(receipt)).pdf;
+
+// --- Logo -------------------------------------------------------------------
+
+/** The business logo as a JPEG, or null when it is missing or unreachable. */
+const fetchLogo = async (logoUrl?: string | null): Promise<Buffer | null> => {
   if (!logoUrl || logoUrl.includes("placeimg.com")) return null;
 
   try {
@@ -708,7 +743,7 @@ const fetchLogo = async (logoUrl?: string | null): Promise<PdfImage | null> => {
 
     const input = Buffer.from(await response.arrayBuffer());
     // Twice the drawn size, so the logo stays sharp when zoomed or printed.
-    const { data, info } = await sharp(input)
+    return await sharp(input)
       .resize({
         width: 280,
         height: 88,
@@ -717,13 +752,7 @@ const fetchLogo = async (logoUrl?: string | null): Promise<PdfImage | null> => {
       })
       .flatten({ background: "#ffffff" })
       .jpeg({ quality: 88 })
-      .toBuffer({ resolveWithObject: true });
-
-    return {
-      data,
-      width: info.width,
-      height: info.height,
-    };
+      .toBuffer();
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
       console.warn("Logo fetch timed out");
@@ -735,98 +764,4 @@ const fetchLogo = async (logoUrl?: string | null): Promise<PdfImage | null> => {
     }
     return null;
   }
-};
-
-const buildPdf = (pages: string[][], logo: PdfImage | null) => {
-  const objects: Buffer[] = [];
-
-  const addObject = (body: string | Buffer) => {
-    const id = objects.length + 1;
-    objects.push(Buffer.isBuffer(body) ? body : Buffer.from(body, "latin1"));
-    return id;
-  };
-
-  const catalogId = addObject("placeholder");
-  const pagesId = addObject("placeholder");
-  const font = (name: string) =>
-    addObject(
-      `<< /Type /Font /Subtype /Type1 /BaseFont /${name} /Encoding /WinAnsiEncoding >>`,
-    );
-  const fonts = `/F1 ${font("Helvetica")} 0 R /F2 ${font("Helvetica-Bold")} 0 R /F3 ${font("Courier")} 0 R`;
-
-  let logoId: number | null = null;
-  if (logo) {
-    logoId = addObject(
-      Buffer.concat([
-        Buffer.from(
-          `<< /Type /XObject /Subtype /Image /Width ${logo.width} /Height ${logo.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${logo.data.length} >>\nstream\n`,
-          "latin1",
-        ),
-        logo.data,
-        Buffer.from("\nendstream", "latin1"),
-      ]),
-    );
-  }
-
-  const resources = `<< /Font << ${fonts} >>${
-    logoId ? ` /XObject << /Logo ${logoId} 0 R >>` : ""
-  } >>`;
-
-  const pageIds = pages.map((commands) => {
-    // Text is already WinAnsi, one char per byte, so latin1 writes it as is.
-    const content = Buffer.from(commands.join("\n"), "latin1");
-    const contentId = addObject(
-      Buffer.concat([
-        Buffer.from(`<< /Length ${content.length} >>\nstream\n`, "latin1"),
-        content,
-        Buffer.from("\nendstream", "latin1"),
-      ]),
-    );
-    return addObject(
-      `<< /Type /Page /Parent ${pagesId} 0 R /MediaBox [0 0 ${PAGE_WIDTH} ${PAGE_HEIGHT}] /Resources ${resources} /Contents ${contentId} 0 R >>`,
-    );
-  });
-
-  objects[catalogId - 1] = Buffer.from(
-    `<< /Type /Catalog /Pages ${pagesId} 0 R >>`,
-    "latin1",
-  );
-  objects[pagesId - 1] = Buffer.from(
-    `<< /Type /Pages /Kids [${pageIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pageIds.length} >>`,
-    "latin1",
-  );
-
-  const chunks: Buffer[] = [Buffer.from("%PDF-1.4\n", "latin1")];
-  const offsets: number[] = [0];
-  let length = chunks[0]!.length;
-
-  objects.forEach((object, index) => {
-    offsets.push(length);
-    const piece = Buffer.concat([
-      Buffer.from(`${index + 1} 0 obj\n`, "latin1"),
-      object,
-      Buffer.from("\nendobj\n", "latin1"),
-    ]);
-    chunks.push(piece);
-    length += piece.length;
-  });
-
-  const xrefRows = offsets
-    .map((offset, index) =>
-      index === 0
-        ? "0000000000 65535 f "
-        : `${String(offset).padStart(10, "0")} 00000 n `,
-    )
-    .join("\n");
-
-  chunks.push(
-    Buffer.from(
-      `xref\n0 ${objects.length + 1}\n${xrefRows}\ntrailer\n<< /Size ${
-        objects.length + 1
-      } /Root ${catalogId} 0 R >>\nstartxref\n${length}\n%%EOF\n`,
-      "latin1",
-    ),
-  );
-
-  return Buffer.concat(chunks);
 };

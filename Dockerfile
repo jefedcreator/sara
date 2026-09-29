@@ -56,6 +56,8 @@ COPY --from=build --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=build --chown=nextjs:nodejs /app/generated ./generated
 COPY --from=build --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=build --chown=nextjs:nodejs /app/public ./public
+# Fonts embedded in invoice and receipt PDFs (src/backend/services/pdf).
+COPY --from=build --chown=nextjs:nodejs /app/assets ./assets
 COPY --from=build --chown=nextjs:nodejs /app/package.json ./package.json
 COPY --from=build --chown=nextjs:nodejs /app/next.config.js ./next.config.js
 
