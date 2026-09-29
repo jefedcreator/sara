@@ -4,15 +4,7 @@ import { authService } from "@/backend/services/auth";
 
 /**
  * @queryParams OAuthCallbackQueryValidatorSchema
- * @description Handles the Google OAuth callback, creates a user session, and returns or redirects with the session token.
+ * @description Completes Google sign-in: checks the signed state, redeems the code, links or creates the owner's account and sets the session cookie. Redirects to the requested page, or to /sign-in with an error code.
  */
 export const GET = (request: NextRequest) =>
-  authService.createCallbackResponse(request, "google");
-
-/**
- * @body OAuthCallbackValidatorSchema
- * @queryParams OAuthCallbackQueryValidatorSchema
- * @description Handles the Google OAuth callback from a JSON payload, creates a user session, and returns or redirects with the session token.
- * @contentType application/json
- */
-export const POST = GET;
+  authService.completeSignIn(request, "google");

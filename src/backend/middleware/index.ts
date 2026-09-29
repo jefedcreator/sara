@@ -1,4 +1,4 @@
-import { db } from "@/server/db";
+import { authService } from "@/backend/services/auth";
 import { parseHttpError } from "@/utils";
 import { HttpException, UnauthorizedException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
@@ -243,61 +243,17 @@ export const pathParamValidatorMiddleware =
 export const authMiddleware = async <B = unknown, Q = QueryParameters>(
   request: AuthRequest<B, Q>,
 ): Promise<MiddlewareResponse> => {
-  // 1. Extract token from cookie or Authorization header
-  const sessionToken =
-    request.cookies.get("sara-session")?.value ||
-    request.headers
-      .get("authorization")
-      ?.replace(/^Bearer\s+/i, "")
-      .trim();
-
-  try {
-    if (
-      !sessionToken ||
-      sessionToken === "undefined" ||
-      sessionToken === "null"
-    ) {
-      throw new UnauthorizedException("Unauthorized");
-    }
-
-    // 2. Query the Session table to validate the token
-    const session = await db.session.findUnique({
-      where: { sessionToken },
-      include: {
-        user: {
-          include: {
-            business: true,
-          },
-        },
-      },
+  // The Auth.js session JWT (cookie, or Bearer for non-browser clients),
+  // then the live `Session` row it names.
+  const session = await authService
+    .sessionFromRequest(request)
+    .catch((error) => {
+      console.error("Auth error:", error);
+      return null;
     });
+  if (!session) throw new UnauthorizedException("Unauthorized");
 
-    if (!session) {
-      throw new UnauthorizedException("Invalid session");
-    }
-
-    // 3. Check if session has expired
-    if (session.expires < new Date()) {
-      // Optionally clean up expired session
-      await db.session.delete({ where: { id: session.id } }).catch(() => {});
-      throw new UnauthorizedException("Session expired");
-    }
-
-    if (!session.user) {
-      throw new UnauthorizedException("User not found");
-    }
-
-    request.user = {
-      ...session.user,
-      session,
-    };
-  } catch (error: any) {
-    console.error("Auth error:", error.message || error);
-    if (error instanceof UnauthorizedException) {
-      throw error;
-    }
-    throw new UnauthorizedException("Invalid auth token");
-  }
+  request.user = { ...session.user, session };
 
   return {
     message: "",
@@ -309,55 +265,13 @@ export const authMiddleware = async <B = unknown, Q = QueryParameters>(
 export const optionalAuthMiddleware = async <B = unknown, Q = QueryParameters>(
   request: AuthRequest<B, Q>,
 ): Promise<MiddlewareResponse> => {
-  // 1. Extract token from cookie or Authorization header
-  const sessionToken =
-    request.cookies.get("sara-session")?.value ||
-    request.headers
-      .get("authorization")
-      ?.replace(/^Bearer\s+/i, "")
-      .trim();
-
-  if (
-    !sessionToken ||
-    sessionToken === "undefined" ||
-    sessionToken === "null"
-  ) {
-    request.user = null;
-    return {
-      message: "",
-      statusCode: 200,
-      next: true,
-    };
-  }
-
-  try {
-    // 2. Query the Session table to validate the token
-    const session = await db.session.findUnique({
-      where: { sessionToken },
-      include: {
-        user: {
-          include: {
-            business: true,
-          },
-        },
-      },
+  const session = await authService
+    .sessionFromRequest(request)
+    .catch((error) => {
+      console.error("Optional Auth error:", error);
+      return null;
     });
-
-    if (session && session.expires > new Date()) {
-      request.user = {
-        ...session.user,
-        session,
-      };
-    } else {
-      if (session && session.expires <= new Date()) {
-        request.isExpired = true;
-      }
-      request.user = null;
-    }
-  } catch (error: any) {
-    console.error("Optional Auth error:", error.message || error);
-    request.user = null;
-  }
+  request.user = session ? { ...session.user, session } : null;
 
   return {
     message: "",

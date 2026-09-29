@@ -1,567 +1,326 @@
 import { randomBytes } from "node:crypto";
-import type { Account, Provider, PrismaClient, User } from "@prisma/client";
+import type { Prisma, PrismaClient, Provider, User } from "@prisma/client";
+import { decode, encode } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
 
 import { env } from "@/env";
 import { db } from "@/server/db";
+import {
+  SESSION_COOKIE,
+  SESSION_MAX_AGE_SECONDS,
+  readAuthSecret,
+  sessionCookieOptions,
+} from "@/server/auth/shared";
+import { safeNextPath } from "@/utils/redirect";
 
-// export type Provider = "google" | "facebook" | "instagram";
+import {
+  OAUTH_STATE_COOKIE,
+  OAUTH_STATE_MAX_AGE_SECONDS,
+  OAUTH_VERIFIER_COOKIE,
+  buildAuthorizationUrl,
+  createNonce,
+  createPkcePair,
+  exchangeCode,
+  signState,
+  usesPkce,
+  verifyState,
+  type OAuthClient,
+  type OAuthResult,
+} from "./oauth";
 
-type OAuthProviderConfig = {
-  id: Provider;
-  name: string;
-  authorizationUrl: string;
-  tokenUrl: string;
-  scope: string;
-  clientId?: string;
-  clientSecret?: string;
-  configurationId?: string;
-};
+/** Who a session JWT claims to be, before the database has agreed. */
+export type SessionClaim = { userId: string; sessionId: string };
 
-type ConfiguredOAuthProvider = OAuthProviderConfig & {
-  clientId: string;
-  clientSecret: string;
-};
-
-type OAuthTokenSet = {
-  access_token: string;
-  refresh_token?: string;
-  expires_in?: number;
-  token_type?: string;
-  scope?: string;
-  id_token?: string;
-};
-
-type OAuthProfile = {
-  id: string;
-  name: string | null;
-  email: string | null;
-  image: string | null;
-};
-
-type AuthenticatedUser = Pick<User, "id" | "name" | "email" | "image"> & {
-  provider: Provider;
-};
-
-type CallbackBody = {
-  code?: string;
-  state?: string;
-  sessionToken?: string;
-};
-
-type DecodedState = {
-  callbackUrl?: string;
-};
+/** Why sign-in bounced back to /sign-in. Short codes, never provider text. */
+export type SignInError = "declined" | "expired" | "failed" | "unavailable";
 
 export class AuthService {
-  private readonly sessionMaxAgeSeconds = 60 * 60 * 24 * 30;
-  private readonly sessionCookieName = "sara-session";
-
-  private readonly providerConfigs: Record<Provider, OAuthProviderConfig> = {
-    google: {
-      id: "google",
-      name: "Google",
-      authorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
-      tokenUrl: "https://oauth2.googleapis.com/token",
-      scope: "openid email profile",
-      clientId: env.AUTH_GOOGLE_ID ?? env.CLIENT_ID,
-      clientSecret: env.AUTH_GOOGLE_SECRET ?? env.CLIENT_SECRET,
-    },
-    facebook: {
-      id: "facebook",
-      name: "Facebook",
-      authorizationUrl: "https://www.facebook.com/v19.0/dialog/oauth",
-      tokenUrl: "https://graph.facebook.com/v19.0/oauth/access_token",
-      scope: "email public_profile",
-      clientId: env.AUTH_FACEBOOK_ID ?? env.FACEBOOK_CLIENT_ID,
-      clientSecret: env.AUTH_FACEBOOK_SECRET ?? env.FACEBOOK_CLIENT_SECRET,
-      configurationId: env.CONFIGURATION_ID,
-    },
-    instagram: {
-      id: "instagram",
-      name: "Instagram",
-      authorizationUrl: "https://api.instagram.com/oauth/authorize",
-      tokenUrl: "https://api.instagram.com/oauth/access_token",
-      scope: "instagram_business_basic", // ← replace user_profile
-      clientId: env.AUTH_INSTAGRAM_ID ?? env.INSTAGRAM_CLIENT_ID,
-      clientSecret: env.AUTH_INSTAGRAM_SECRET ?? env.INSTAGRAM_CLIENT_SECRET,
-    },
-  };
-
   constructor(private readonly prisma: PrismaClient = db) {}
 
-  createAuthorizationResponse(request: NextRequest, providerId: Provider) {
-    try {
-      const provider = this.getConfiguredProvider(providerId);
-      const redirectUri = this.getRedirectUri(request, provider.id);
-      const shouldRedirect =
-        request.nextUrl.searchParams.get("redirect") === "true";
-      const callbackUrl = this.sanitizeCallbackUrl(
-        request.nextUrl.searchParams.get("callbackUrl"),
-      );
-      const state = this.encodeState(callbackUrl ? { callbackUrl } : {});
-
-      const authorizationUrl = new URL(provider.authorizationUrl);
-      authorizationUrl.searchParams.set("client_id", provider.clientId);
-      authorizationUrl.searchParams.set("redirect_uri", redirectUri);
-      authorizationUrl.searchParams.set("response_type", "code");
-      authorizationUrl.searchParams.set("scope", provider.scope);
-      authorizationUrl.searchParams.set("state", state);
-
-      if (provider.id === "google") {
-        authorizationUrl.searchParams.set("scope", provider.scope);
-        authorizationUrl.searchParams.set("access_type", "offline");
-      } else if (provider.id === "facebook" && provider.configurationId) {
-        authorizationUrl.searchParams.set(
-          "config_id",
-          provider.configurationId,
-        );
-      } else {
-        authorizationUrl.searchParams.set("scope", provider.scope);
-      }
-      if (shouldRedirect) {
-        return NextResponse.redirect(authorizationUrl);
-      }
-
-      return NextResponse.json({
-        provider: provider.id,
-        authorizationUrl: authorizationUrl.toString(),
-      });
-    } catch (error) {
-      return this.oauthErrorResponse(error);
+  private credentials(provider: Provider) {
+    switch (provider) {
+      case "google":
+        return {
+          clientId: env.AUTH_GOOGLE_ID ?? env.CLIENT_ID,
+          clientSecret: env.AUTH_GOOGLE_SECRET ?? env.CLIENT_SECRET,
+        };
+      case "facebook":
+        return {
+          clientId: env.AUTH_FACEBOOK_ID ?? env.FACEBOOK_CLIENT_ID,
+          clientSecret: env.AUTH_FACEBOOK_SECRET ?? env.FACEBOOK_CLIENT_SECRET,
+          configurationId: env.CONFIGURATION_ID,
+        };
+      case "instagram":
+        return {
+          clientId: env.AUTH_INSTAGRAM_ID ?? env.INSTAGRAM_CLIENT_ID,
+          clientSecret:
+            env.AUTH_INSTAGRAM_SECRET ?? env.INSTAGRAM_CLIENT_SECRET,
+        };
     }
   }
 
-  async createCallbackResponse(request: NextRequest, providerId: Provider) {
-    try {
-      const provider = this.getConfiguredProvider(providerId);
-      const body = await this.getCallbackBody(request);
-      const code = request.nextUrl.searchParams.get("code") ?? body?.code;
-      const sessionTokenParam =
-        request.nextUrl.searchParams.get("sessionToken") ?? body?.sessionToken;
-
-      if (!code) {
-        if (sessionTokenParam) {
-          const session = await this.prisma.session.findUnique({
-            where: { sessionToken: sessionTokenParam },
-            include: { user: { include: { business: true } } },
-          });
-
-          if (session && session.expires > new Date()) {
-            const state = this.decodeState(
-              request.nextUrl.searchParams.get("state") ?? body?.state ?? null,
-            );
-
-            const callbackUrl = this.sanitizeCallbackUrl(state.callbackUrl);
-            if (callbackUrl) {
-              // The cookie carries the session; the token stays out of the URL.
-              const redirectUrl = new URL(callbackUrl, this.getAppUrl(request));
-
-              const response = NextResponse.redirect(redirectUrl);
-              this.setSessionCookie(response, sessionTokenParam);
-              return response;
-            }
-
-            const user = this.toAuthenticatedUser(session.user, provider.id);
-            const response = NextResponse.json({
-              user,
-              sessionToken: sessionTokenParam,
-              tokenType: "Bearer",
-              expiresIn: this.sessionMaxAgeSeconds,
-            });
-
-            this.setSessionCookie(response, sessionTokenParam);
-            return response;
-          }
-        }
-
-        return NextResponse.json(
-          { error: "Missing OAuth authorization code." },
-          { status: 400 },
-        );
-      }
-
-      const tokenSet = await this.exchangeCodeForToken(
-        provider,
-        code,
-        this.getRedirectUri(request, provider.id),
-      );
-      const profile = await this.fetchProviderProfile(provider.id, tokenSet);
-      console.log("profile", profile);
-
-      const user = await this.findOrCreateOAuthUser(
-        provider.id,
-        profile,
-        tokenSet,
-      );
-      const sessionToken = await this.createUserSession(user.id);
-      const state = this.decodeState(
-        request.nextUrl.searchParams.get("state") ?? body?.state ?? null,
-      );
-
-      const callbackUrl = this.sanitizeCallbackUrl(state.callbackUrl);
-      if (callbackUrl) {
-        // The cookie carries the session; the token stays out of the URL.
-        const redirectUrl = new URL(callbackUrl, this.getAppUrl(request));
-
-        const response = NextResponse.redirect(redirectUrl);
-        this.setSessionCookie(response, sessionToken);
-        return response;
-      }
-
-      const response = NextResponse.json({
-        user,
-        sessionToken,
-        tokenType: "Bearer",
-        expiresIn: this.sessionMaxAgeSeconds,
-      });
-
-      this.setSessionCookie(response, sessionToken);
-      return response;
-    } catch (error) {
-      console.log("error??", error);
-      return this.oauthErrorResponse(error);
-    }
+  isConfigured(provider: Provider) {
+    const { clientId, clientSecret } = this.credentials(provider);
+    return Boolean(clientId && clientSecret);
   }
 
-  async getCurrentUserFromCustomSession() {
-    const { cookies } = await import("next/headers");
-    const sessionToken = (await cookies()).get(this.sessionCookieName)?.value;
-
-    if (!sessionToken) return null;
-
-    const session = await this.prisma.session.findUnique({
-      where: { sessionToken },
-      include: { user: { include: { business: true } } },
-    });
-
-    if (!session || session.expires <= new Date()) return null;
-
-    return session.user;
+  /** The public origin: providers match the redirect URI exactly. */
+  private appOrigin(request: NextRequest) {
+    const configured = process.env.NEXT_PUBLIC_APP_URL ?? process.env.AUTH_URL;
+    return configured ? new URL(configured).origin : request.nextUrl.origin;
   }
 
-  private getAppUrl(request: NextRequest) {
-    return (
-      process.env.NEXT_PUBLIC_APP_URL ??
-      process.env.NEXTAUTH_URL ??
-      `${request.nextUrl.protocol}//${request.nextUrl.host}`
+  private client(provider: Provider, origin: string): OAuthClient | null {
+    const { clientId, clientSecret, ...rest } = this.credentials(provider);
+    if (!clientId || !clientSecret) return null;
+    return {
+      provider,
+      clientId,
+      clientSecret,
+      redirectUri: `${origin}/api/auth/${provider}/callback`,
+      ...rest,
+    };
+  }
+
+  private secret() {
+    const secret = readAuthSecret();
+    if (!secret) throw new Error("AUTH_SECRET is not set.");
+    return secret;
+  }
+
+  /** GET /api/auth/{provider}: off to the provider's consent screen. */
+  startSignIn(request: NextRequest, provider: Provider) {
+    const origin = this.appOrigin(request);
+    const next = safeNextPath(request.nextUrl.searchParams.get("next"));
+    const client = this.client(provider, origin);
+    if (!client) return this.signInFailure(origin, "unavailable", next);
+
+    const nonce = createNonce();
+    const { verifier, challenge } = createPkcePair();
+    const state = signState({ provider, nonce, next }, this.secret());
+
+    const response = NextResponse.redirect(
+      buildAuthorizationUrl(client, state, challenge),
     );
-  }
-
-  private getRedirectUri(request: NextRequest, provider: Provider) {
-    return new URL(
-      `/api/auth/${provider}/callback`,
-      this.getAppUrl(request),
-    ).toString();
-  }
-
-  private getConfiguredProvider(providerId: Provider): ConfiguredOAuthProvider {
-    const provider = this.providerConfigs[providerId];
-
-    if (!provider.clientId || !provider.clientSecret) {
-      throw new Error(`${provider.name} OAuth credentials are not configured.`);
+    // Spent within one consent round trip; they must not outlive it.
+    const options = sessionCookieOptions(OAUTH_STATE_MAX_AGE_SECONDS);
+    response.cookies.set(OAUTH_STATE_COOKIE, nonce, options);
+    if (usesPkce(provider)) {
+      response.cookies.set(OAUTH_VERIFIER_COOKIE, verifier, options);
     }
-
-    return provider as ConfiguredOAuthProvider;
+    return response;
   }
 
   /**
-   * Only same-site relative paths ("/link?t=…") are honoured, so the OAuth
-   * round trip cannot be turned into an open redirect. "//host" and "/\host"
-   * are protocol-relative in browsers and are refused, as are control
-   * characters and whitespace, which the URL parser strips ("/\t/host").
+   * GET /api/auth/{provider}/callback: checks the state, redeems the code,
+   * signs the user in and returns them to where they were going.
    */
-  sanitizeCallbackUrl(value: string | null | undefined) {
-    if (!value?.startsWith("/")) return null;
-    if (/[\u0000-\u001f\u007f\s\\]/.test(value)) return null;
-    if (value.startsWith("//")) return null;
-    return value;
-  }
+  async completeSignIn(request: NextRequest, provider: Provider) {
+    const origin = this.appOrigin(request);
+    const params = request.nextUrl.searchParams;
 
-  private encodeState(value: Record<string, string | null>) {
-    return Buffer.from(JSON.stringify(value), "utf8").toString("base64url");
-  }
+    // Signature first: nothing in a state we did not mint can be trusted.
+    // Then the CSRF check: without it, an attacker could finish this flow
+    // with their own code in the victim's browser and sign them in as the
+    // attacker.
+    const state = verifyState(params.get("state"), this.secret());
+    const nonce = request.cookies.get(OAUTH_STATE_COOKIE)?.value;
+    if (state?.provider !== provider || state.nonce !== nonce) {
+      return this.signInFailure(origin, "expired");
+    }
 
-  private decodeState(state: string | null): DecodedState {
-    if (!state) return {};
+    const next = safeNextPath(state.next);
+    // Providers report a refused consent this way rather than as an HTTP error.
+    if (params.get("error"))
+      return this.signInFailure(origin, "declined", next);
+
+    const code = params.get("code");
+    const client = this.client(provider, origin);
+    if (!client) return this.signInFailure(origin, "unavailable", next);
+    if (!code) return this.signInFailure(origin, "failed", next);
 
     try {
-      return JSON.parse(
-        Buffer.from(state, "base64url").toString("utf8"),
-      ) as DecodedState;
-    } catch {
-      return {};
-    }
-  }
-
-  private async getCallbackBody(request: NextRequest) {
-    if (request.method !== "POST") return null;
-
-    return request.json().catch(() => null) as Promise<CallbackBody | null>;
-  }
-
-  private async exchangeCodeForToken(
-    provider: ConfiguredOAuthProvider,
-    code: string,
-    redirectUri: string,
-  ): Promise<OAuthTokenSet> {
-    if (provider.id === "google" || provider.id === "instagram") {
-      const body = new URLSearchParams({
-        client_id: provider.clientId,
-        client_secret: provider.clientSecret,
+      const result = await exchangeCode(
+        client,
         code,
-        grant_type: "authorization_code",
-        redirect_uri: redirectUri,
-      });
+        request.cookies.get(OAUTH_VERIFIER_COOKIE)?.value ?? null,
+        { fetch, now: new Date() },
+      );
+      const user = await this.signInWithOAuth(provider, result);
+      const token = await this.issueSession(user.id);
 
-      const response = await fetch(provider.tokenUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body,
-      });
-
-      return this.parseTokenResponse(response);
+      const response = NextResponse.redirect(new URL(next, origin));
+      response.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
+      this.clearOAuthCookies(response);
+      return response;
+    } catch (error) {
+      console.error(`[auth] ${provider} sign-in failed:`, error);
+      return this.signInFailure(origin, "failed", next);
     }
-
-    const tokenUrl = new URL(provider.tokenUrl);
-    tokenUrl.searchParams.set("client_id", provider.clientId);
-    tokenUrl.searchParams.set("client_secret", provider.clientSecret);
-    tokenUrl.searchParams.set("code", code);
-    tokenUrl.searchParams.set("redirect_uri", redirectUri);
-
-    return this.parseTokenResponse(await fetch(tokenUrl));
   }
 
-  private async parseTokenResponse(response: Response): Promise<OAuthTokenSet> {
-    const payload = (await response.json()) as
-      | OAuthTokenSet
-      | { error?: string; error_description?: string; message?: string };
-
-    if (!response.ok || !("access_token" in payload)) {
-      const message =
-        "error_description" in payload
-          ? payload.error_description
-          : "message" in payload
-            ? payload.message
-            : "OAuth token exchange failed.";
-      throw new Error(message ?? "OAuth token exchange failed.");
-    }
-
-    return payload;
+  private signInFailure(origin: string, error: SignInError, next?: string) {
+    const url = new URL("/sign-in", origin);
+    url.searchParams.set("error", error);
+    if (next) url.searchParams.set("next", next);
+    const response = NextResponse.redirect(url);
+    this.clearOAuthCookies(response);
+    return response;
   }
 
-  private async fetchProviderProfile(
-    providerId: Provider,
-    tokenSet: OAuthTokenSet,
-  ): Promise<OAuthProfile> {
-    if (providerId === "google") {
-      const profile = (await this.fetchJson(
-        "https://openidconnect.googleapis.com/v1/userinfo",
-        tokenSet.access_token,
-      )) as {
-        sub: string;
-        name?: string;
-        email?: string;
-        picture?: string;
-      };
-
-      return {
-        id: profile.sub,
-        name: profile.name ?? null,
-        email: profile.email ?? null,
-        image: profile.picture ?? null,
-      };
-    }
-
-    if (providerId === "facebook") {
-      const profile = (await this.fetchJson(
-        "https://graph.facebook.com/me?fields=id,name,email,picture",
-        tokenSet.access_token,
-      )) as {
-        id: string;
-        name?: string;
-        email?: string;
-        picture?: { data?: { url?: string } };
-      };
-
-      return {
-        id: profile.id,
-        name: profile.name ?? null,
-        email: profile.email ?? null,
-        image: profile.picture?.data?.url ?? null,
-      };
-    }
-
-    const instagramUrl = new URL("https://graph.instagram.com/me");
-    instagramUrl.searchParams.set("fields", "id,username,account_type,name");
-    instagramUrl.searchParams.set("access_token", tokenSet.access_token);
-
-    const profile = (await fetch(instagramUrl).then((response) =>
-      response.json(),
-    )) as {
-      id: string;
-      username?: string;
-      name?: string;
-    };
-
-    return {
-      id: profile.id,
-      name: profile.name ?? profile.username ?? null,
-      email: null,
-      image: null,
-    };
+  private clearOAuthCookies(response: NextResponse) {
+    response.cookies.set(OAUTH_STATE_COOKIE, "", sessionCookieOptions(0));
+    response.cookies.set(OAUTH_VERIFIER_COOKIE, "", sessionCookieOptions(0));
   }
 
-  private fetchJson(url: string, accessToken: string) {
-    return fetch(url, {
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }).then(async (response) => {
-      const payload = (await response.json()) as unknown;
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch provider profile.");
-      }
-
-      return payload;
-    });
-  }
-
-  private async findOrCreateOAuthUser(
+  /**
+   * The user this provider account belongs to, linking or creating as needed.
+   * `profile.email` is only ever set when the provider vouches for the
+   * address (see oauth.ts), which is what makes linking on it safe.
+   */
+  async signInWithOAuth(
     provider: Provider,
-    profile: OAuthProfile,
-    tokenSet: OAuthTokenSet,
-  ): Promise<AuthenticatedUser> {
-    const existingAccount = await this.prisma.account.findUnique({
+    { profile, tokens }: OAuthResult,
+  ): Promise<User> {
+    const account = {
+      type: provider === "google" ? "oidc" : "oauth",
+      provider,
+      providerAccountId: profile.id,
+      access_token: tokens.accessToken,
+      refresh_token: tokens.refreshToken,
+      expires_at: tokens.expiresAt,
+      token_type: tokens.tokenType,
+      scope: tokens.scope,
+      id_token: tokens.idToken,
+    } satisfies Prisma.AccountCreateWithoutUserInput;
+
+    // 1. A provider account we already know. Keyed on the provider's id, so
+    //    it still resolves after the user changes their email.
+    const linked = await this.prisma.account.findUnique({
       where: {
-        provider_providerAccountId: {
-          provider,
-          providerAccountId: profile.id,
-        },
+        provider_providerAccountId: { provider, providerAccountId: profile.id },
       },
       include: { user: true },
     });
-
-    const accountData = this.createAccountData(provider, profile.id, tokenSet);
-
-    if (existingAccount) {
-      const [updatedUser] = await this.prisma.$transaction([
-        this.prisma.user.update({
-          where: { id: existingAccount.userId },
-          data: {
-            name: profile.name ?? existingAccount.user.name,
-            email: profile.email ?? existingAccount.user.email,
-            image: profile.image ?? existingAccount.user.image,
-            provider,
-          },
-        }),
-        this.prisma.account.update({
-          where: { id: existingAccount.id },
-          data: accountData,
-        }),
-      ]);
-
-      return this.toAuthenticatedUser(updatedUser, provider);
-    }
-
-    const existingUser = profile.email
-      ? await this.prisma.user.findUnique({ where: { email: profile.email } })
-      : null;
-
-    if (existingUser) {
-      const user = await this.prisma.user.update({
-        where: { id: existingUser.id },
+    if (linked) {
+      await this.prisma.account.update({
+        where: { id: linked.id },
+        data: account,
+      });
+      return this.prisma.user.update({
+        where: { id: linked.userId },
         data: {
-          name: profile.name ?? existingUser.name,
-          image: profile.image ?? existingUser.image,
           provider,
-          accounts: {
-            create: accountData,
-          },
+          name: linked.user.name ?? profile.name,
+          image: linked.user.image ?? profile.image,
         },
       });
-
-      return this.toAuthenticatedUser(user, provider);
     }
 
-    const user = await this.prisma.user.create({
+    // 2. An owner already signed up at this verified address: link, don't
+    //    duplicate.
+    const byEmail = profile.email
+      ? await this.prisma.user.findUnique({ where: { email: profile.email } })
+      : null;
+    if (byEmail) {
+      return this.prisma.user.update({
+        where: { id: byEmail.id },
+        data: {
+          provider,
+          name: byEmail.name ?? profile.name,
+          image: byEmail.image ?? profile.image,
+          emailVerified: byEmail.emailVerified ?? new Date(),
+          accounts: { create: account },
+        },
+      });
+    }
+
+    // 3. Someone new.
+    return this.prisma.user.create({
       data: {
+        provider,
         name: profile.name,
         email: profile.email,
+        emailVerified: profile.email ? new Date() : null,
         image: profile.image,
-        provider: provider,
-        accounts: {
-          create: accountData,
-        },
+        accounts: { create: account },
       },
     });
-
-    return this.toAuthenticatedUser(user, provider);
   }
 
-  private createAccountData(
-    provider: Provider,
-    providerAccountId: string,
-    tokenSet: OAuthTokenSet,
-  ): Omit<Account, "id" | "userId"> {
-    return {
-      type: provider === "google" ? "oidc" : "oauth",
-      provider,
-      providerAccountId,
-      refresh_token: tokenSet.refresh_token ?? null,
-      access_token: tokenSet.access_token,
-      expires_at: tokenSet.expires_in
-        ? Math.floor(Date.now() / 1000) + tokenSet.expires_in
-        : null,
-      token_type: tokenSet.token_type ?? null,
-      scope: tokenSet.scope ?? null,
-      id_token: tokenSet.id_token ?? null,
-      session_state: null,
-    };
-  }
-
-  private async createUserSession(userId: string) {
-    const sessionToken = randomBytes(32).toString("base64url");
-    const expires = new Date(Date.now() + this.sessionMaxAgeSeconds * 1000);
-
-    await this.prisma.session.create({
+  /** Opens a `Session` row and returns the Auth.js JWT that names it. */
+  async issueSession(userId: string) {
+    const session = await this.prisma.session.create({
       data: {
-        sessionToken,
+        // Unused as a credential now that the JWT carries the session id,
+        // but the column is unique and required.
+        sessionToken: randomBytes(32).toString("base64url"),
         userId,
-        expires,
+        expires: new Date(Date.now() + SESSION_MAX_AGE_SECONDS * 1000),
       },
     });
 
-    return sessionToken;
-  }
-
-  private setSessionCookie(response: NextResponse, sessionToken: string) {
-    response.cookies.set(this.sessionCookieName, sessionToken, {
-      httpOnly: true,
-      maxAge: this.sessionMaxAgeSeconds,
-      path: "/",
-      sameSite: "lax",
-      secure: env.NODE_ENV === "production",
+    return encode({
+      token: { sub: userId, sessionId: session.id },
+      secret: this.secret(),
+      salt: SESSION_COOKIE,
+      maxAge: SESSION_MAX_AGE_SECONDS,
     });
   }
 
-  private toAuthenticatedUser(
-    user: User,
-    provider: Provider,
-  ): AuthenticatedUser {
-    return {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      image: user.image,
-      provider,
-    };
+  /**
+   * The claim a request's session JWT makes, from the cookie or, for
+   * non-browser clients, `Authorization: Bearer <jwt>`. Signature and expiry
+   * only; findLiveSession decides whether it still counts.
+   */
+  async readClaim(request: NextRequest): Promise<SessionClaim | null> {
+    const raw =
+      request.cookies.get(SESSION_COOKIE)?.value ??
+      /^Bearer\s+(\S+)$/i.exec(request.headers.get("authorization") ?? "")?.[1];
+    const secret = readAuthSecret();
+    if (!raw || !secret) return null;
+
+    const token = await decode({
+      token: raw,
+      secret,
+      salt: SESSION_COOKIE,
+    }).catch(() => null);
+    if (!token?.sub || typeof token.sessionId !== "string") return null;
+    return { userId: token.sub, sessionId: token.sessionId };
   }
 
-  private oauthErrorResponse(error: unknown) {
-    const message =
-      error instanceof Error ? error.message : "OAuth authentication failed.";
+  /**
+   * The session behind a claim, with its owner and business, or null when it
+   * was signed out, has expired, or belongs to someone else. This is what
+   * makes a signed JWT insufficient on its own.
+   */
+  async findLiveSession(claim: SessionClaim) {
+    const session = await this.prisma.session.findUnique({
+      where: { id: claim.sessionId },
+      include: { user: { include: { business: true } } },
+    });
+    if (session?.userId !== claim.userId) return null;
+    if (session.expires <= new Date()) {
+      await this.prisma.session
+        .delete({ where: { id: session.id } })
+        .catch(() => undefined);
+      return null;
+    }
+    return session;
+  }
 
-    return NextResponse.json({ error: message }, { status: 400 });
+  async sessionFromRequest(request: NextRequest) {
+    const claim = await this.readClaim(request);
+    return claim ? this.findLiveSession(claim) : null;
+  }
+
+  /** Revokes the request's session. The caller clears the cookie. */
+  async signOut(request: NextRequest) {
+    const claim = await this.readClaim(request);
+    if (!claim) return;
+    await this.prisma.session.deleteMany({
+      where: { id: claim.sessionId, userId: claim.userId },
+    });
   }
 }
 

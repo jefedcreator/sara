@@ -79,16 +79,18 @@ src/
 }
 ```
 
-`jsonwebtoken` and `next-auth` are **not used** — sessions are random tokens stored in the database and transported via httpOnly cookie. No JWT signing, no NextAuth runtime.
+Sessions follow `../parcours`: sign-in runs through our own OAuth routes (`/api/auth/{google,facebook,instagram}` → `/callback`, signed `state` + nonce cookie, PKCE for Google), which open a `Session` row and set an Auth.js JWT (`{ sub, sessionId }`) in the `sara-auth` httpOnly cookie. Auth.js (`src/server/auth`) only carries that JWT: Edge middleware verifies it, and `auth()` reads it in pages. The JWT alone is never enough — `authService.findLiveSession` checks the `Session` row it names, so signing out (deleting the row) revokes it at once. The cookie name, lifetime and secret live in `src/server/auth/shared.ts` so the minting and verifying sides cannot drift apart.
 
 Required env vars:
 ```
 DATABASE_URL=         # Prisma connection string
 NEXT_PUBLIC_APP_URL=  # Public base URL (used for OAuth redirect URIs)
+AUTH_SECRET=          # Encrypts the session JWT
 
-# Per OAuth provider
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
+# Per OAuth provider (redirect URI: <NEXT_PUBLIC_APP_URL>/api/auth/<provider>/callback)
+AUTH_GOOGLE_ID=       AUTH_GOOGLE_SECRET=
+AUTH_FACEBOOK_ID=     AUTH_FACEBOOK_SECRET=
+AUTH_INSTAGRAM_ID=    AUTH_INSTAGRAM_SECRET=
 ```
 
 ---
@@ -417,82 +419,23 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
 
 ### `authMiddleware`
 
-Reads the session token from the `sara-session` httpOnly cookie (or falls back to `Authorization: Bearer <token>` for non-browser clients), validates it against the `Session` table, checks expiry, and attaches the full user record (with `business` and `session`) to `request.user`. Throws `UnauthorizedException` on any failure.
+Reads the Auth.js session JWT from the `sara-auth` httpOnly cookie (or `Authorization: Bearer <jwt>` for non-browser clients), then asks `authService` for the live `Session` row it names. Attaches the user record (with `business` and `session`) to `request.user`; throws `UnauthorizedException` when the JWT is missing, forged or expired, or the session was signed out.
 
 ```typescript
 export const authMiddleware = async <B = unknown, Q = QueryParameters>(
-  request: AuthRequest<B, Q>
+  request: AuthRequest<B, Q>,
 ): Promise<MiddlewareResponse> => {
-  // Cookie is the primary source; Bearer header is a fallback for API/mobile clients
-  const sessionToken =
-    request.cookies.get('sara-session')?.value ||
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
+  const session = await authService.sessionFromRequest(request).catch(() => null);
+  if (!session) throw new UnauthorizedException("Unauthorized");
 
-  try {
-    if (!sessionToken || sessionToken === 'undefined' || sessionToken === 'null') {
-      throw new UnauthorizedException('Unauthorized');
-    }
-
-    const session = await db.session.findUnique({
-      where: { sessionToken },
-      include: { user: { include: { business: true } } },
-    });
-
-    if (!session) throw new UnauthorizedException('Invalid session');
-
-    if (session.expires < new Date()) {
-      await db.session.delete({ where: { id: session.id } }).catch(() => {});
-      throw new UnauthorizedException('Session expired');
-    }
-
-    if (!session.user) throw new UnauthorizedException('User not found');
-
-    request.user = { ...session.user, session };
-  } catch (error: any) {
-    if (error instanceof UnauthorizedException) throw error;
-    throw new UnauthorizedException('Invalid auth token');
-  }
-
-  return { message: '', statusCode: 200, next: true };
+  request.user = { ...session.user, session };
+  return { message: "", statusCode: 200, next: true };
 };
 ```
 
 ### `optionalAuthMiddleware`
 
-Same as above but does not fail when no token is present. Sets `request.user = null` and `request.isExpired = true` (on expired sessions) without throwing.
-
-```typescript
-export const optionalAuthMiddleware = async <B = unknown, Q = QueryParameters>(
-  request: AuthRequest<B, Q>
-): Promise<MiddlewareResponse> => {
-  const sessionToken =
-    request.cookies.get('sara-session')?.value ||
-    request.headers.get('authorization')?.replace(/^Bearer\s+/i, '').trim();
-
-  if (!sessionToken || sessionToken === 'undefined' || sessionToken === 'null') {
-    request.user = null;
-    return { message: '', statusCode: 200, next: true };
-  }
-
-  try {
-    const session = await db.session.findUnique({
-      where: { sessionToken },
-      include: { user: { include: { business: true } } },
-    });
-
-    if (session && session.expires > new Date()) {
-      request.user = { ...session.user, session };
-    } else {
-      if (session && session.expires <= new Date()) request.isExpired = true;
-      request.user = null;
-    }
-  } catch {
-    request.user = null;
-  }
-
-  return { message: '', statusCode: 200, next: true };
-};
-```
+Same lookup, but never fails: `request.user` is the owner or `null`.
 
 ### `queryValidatorMiddleware`
 

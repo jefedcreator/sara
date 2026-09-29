@@ -1,4 +1,12 @@
+import { encode } from "next-auth/jwt";
 import { vi } from "vitest";
+
+import { SESSION_COOKIE, SESSION_MAX_AGE_SECONDS } from "@/server/auth/shared";
+
+// The auth service reads the secret at call time, so tests without a .env
+// still sign and verify with the same key.
+// eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
+process.env.AUTH_SECRET ||= "test-auth-secret";
 
 /**
  * Builds a minimal NextRequest-shaped object sufficient for withMiddleware's
@@ -38,8 +46,16 @@ export function createMockRequest({
   } as any;
 }
 
-/** Default session token used by tests that call mockAuthenticatedSession. */
-export const MOCK_SESSION_TOKEN = "mock-session-token";
+const MOCK_SESSION_ID = "session_1";
+const MOCK_USER_ID = "mock-user";
+
+/** A real session JWT naming MOCK_SESSION_ID, as authMiddleware expects. */
+export const MOCK_SESSION_TOKEN = await encode({
+  token: { sub: MOCK_USER_ID, sessionId: MOCK_SESSION_ID },
+  secret: process.env.AUTH_SECRET,
+  salt: SESSION_COOKIE,
+  maxAge: SESSION_MAX_AGE_SECONDS,
+});
 
 /**
  * Configures a mocked `db.session.findUnique` (as used by authMiddleware) to
@@ -50,13 +66,13 @@ export function mockAuthenticatedSession(
   { user, business }: { user: Record<string, unknown>; business: unknown },
 ) {
   mockedDb.session.findUnique.mockResolvedValue({
-    id: "session_1",
-    sessionToken: MOCK_SESSION_TOKEN,
+    id: MOCK_SESSION_ID,
+    userId: MOCK_USER_ID,
     expires: new Date(Date.now() + 1000 * 60 * 60),
     user: { ...user, business },
   });
 }
 
 export function authenticatedCookies() {
-  return { "sara-session": MOCK_SESSION_TOKEN };
+  return { [SESSION_COOKIE]: MOCK_SESSION_TOKEN };
 }

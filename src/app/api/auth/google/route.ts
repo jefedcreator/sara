@@ -4,13 +4,7 @@ import { authService } from "@/backend/services/auth";
 
 /**
  * @queryParams OAuthAuthorizationQueryValidatorSchema
- * @description Starts Google OAuth by returning or redirecting to the Google authorization URL.
+ * @description Starts Google sign-in by redirecting to Google's consent screen. Returns to `next` (a same-site path) once signed in.
  */
 export const GET = (request: NextRequest) =>
-  authService.createAuthorizationResponse(request, "google");
-
-/**
- * @queryParams OAuthAuthorizationQueryValidatorSchema
- * @description Starts Google OAuth by returning or redirecting to the Google authorization URL.
- */
-export const POST = GET;
+  authService.startSignIn(request, "google");
