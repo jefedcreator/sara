@@ -25,3 +25,35 @@ export type BusinessValidatorSchema = z.infer<typeof businessValidatorSchema>;
 export type UpdateBusinessValidatorSchema = z.infer<
   typeof updateBusinessValidatorSchema
 >;
+
+const optionalText = (max: number, message: string) =>
+  z.string().trim().max(max, message);
+
+/**
+ * The owner's first-run business form (the Mono code is added once the bank
+ * is linked). Empty optional inputs arrive as "" and are dropped on send.
+ */
+export const businessSetupFormSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "Enter your business name")
+      .max(100, "Keep the name under 100 characters"),
+    phone: optionalText(20, "Keep the number under 20 characters").refine(
+      (v) => v === "" || /^\+?[\d\s-]{7,19}$/.test(v),
+      { message: "Enter a valid phone number, like 0803 123 4567" },
+    ),
+    email: z
+      .string()
+      .trim()
+      .refine((v) => v === "" || z.string().email().safeParse(v).success, {
+        message: "Enter a valid email, like hello@tobibeauty.ng",
+      }),
+    address: optionalText(200, "Keep the address under 200 characters"),
+    city: optionalText(80, "Keep the city under 80 characters"),
+    state: optionalText(80, "Keep the state under 80 characters"),
+  })
+  .strict();
+
+export type BusinessSetupFormSchema = z.infer<typeof businessSetupFormSchema>;

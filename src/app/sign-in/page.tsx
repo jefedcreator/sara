@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { env } from "@/env";
 import { Button, Wordmark } from "@/primitives";
 import { getCurrentUser } from "@/server";
+import { safeNextPath } from "@/utils/redirect";
 
 // Sign-in goes through the custom OAuth routes, which set the `sara-session`
 // cookie the API and the app pages read.
@@ -38,14 +39,6 @@ export const metadata: Metadata = {
   title: "Sign in · Sara",
 };
 
-/** Only same-site paths; anything else falls back to the services page. */
-function safeNext(value: string | string[] | undefined) {
-  const next = Array.isArray(value) ? value[0] : value;
-  if (!next?.startsWith("/") || next.startsWith("//") || /[\s\\]/.test(next)) {
-    return "/services";
-  }
-  return next;
-}
 
 function authorizeHref(provider: string, next: string) {
   const params = new URLSearchParams({ redirect: "true", callbackUrl: next });
@@ -58,7 +51,7 @@ export default async function SignInPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const next = safeNext(params.next);
+  const next = safeNextPath(params.next);
   const user = await getCurrentUser();
 
   // Already signed in and on the way somewhere: carry on.
