@@ -211,3 +211,24 @@ export interface DashboardData {
     totalBookings: number;
   }[];
 }
+
+/** A page of a list endpoint, envelope removed. */
+export interface Page<T> {
+  data: T[];
+  total: number;
+  page: number;
+  size: number;
+  totalPages: number;
+}
+
+/** GET /api/bookings row. */
+export type BookingDto = Serialized<Booking> & {
+  service: { id: string; name: string; slug: string; price: string; duration: number };
+};
+
+export type InvoiceDto = Serialized<InvoiceListItem>;
+
+export type ReceiptDto = Serialized<ReceiptListItem>;
+
+/** GET /api/services/[slug]?date= — the owner's view of a day's slots. */
+export type ServiceSlotsDto = Serialized<ServiceDetail>;

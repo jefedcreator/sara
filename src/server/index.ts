@@ -1,3 +1,5 @@
+export { getDashboard } from "./dashboard";
+export { getBookingsPage, getInvoicesPage, getReceiptsPage } from "./lists";
 export { getBookingReceipt, getPublicService } from "./book";
 export {
   getBusinessHours,

@@ -1,6 +1,7 @@
 import { authMiddleware, withMiddleware } from "@/backend/middleware";
 import { dashboardService } from "@/backend/services/dashboard";
 import {
+  HttpException,
   InternalServerErrorException,
   NotFoundException,
 } from "@/utils/exceptions";
@@ -27,10 +28,10 @@ export const GET = withMiddleware<unknown>(
         data: await dashboardService.load(business.id, business.currency),
       };
       return NextResponse.json(response);
-    } catch (error: any) {
-      if (error.statusCode) throw error;
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException(
-        `An error occurred while fetching the dashboard: ${error.message}`,
+        `An error occurred while fetching the dashboard: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   },

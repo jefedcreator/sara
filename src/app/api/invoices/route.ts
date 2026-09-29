@@ -11,7 +11,7 @@ import {
   type InvoiceQueryValidatorSchema,
   type InvoiceValidatorSchema,
 } from "@/backend/validators/invoice.validator";
-import { publicBusinessSelect } from "@/backend/selects";
+import { invoiceListInclude } from "@/backend/selects";
 import { UNPAID_STATUSES } from "@/backend/services/dashboard";
 import { db } from "@/server/db";
 import {
@@ -175,24 +175,7 @@ export const GET = withMiddleware<InvoiceQueryValidatorSchema>(
         [payload.sortBy ?? "createdAt"]: payload.sortOrder ?? "desc",
       };
 
-      const include = {
-        business: { select: publicBusinessSelect },
-        payments: true,
-        services: { include: { service: true } },
-        booking: {
-          select: {
-            id: true,
-            slug: true,
-            clientName: true,
-            startTime: true,
-          },
-        },
-        _count: {
-          select: {
-            payments: true,
-          },
-        },
-      };
+      const include = invoiceListInclude;
 
       if (payload.all) {
         const data = (await db.invoice.findMany({

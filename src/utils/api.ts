@@ -1,6 +1,12 @@
 import type {
   ApiResponse,
+  BookingDto,
   BusinessClosureDto,
+  DashboardData,
+  InvoiceDto,
+  Page,
+  ReceiptDto,
+  ServiceSlotsDto,
   BusinessHoursDto,
   PaginatedApiResponse,
   PublicBookingDto,
@@ -53,6 +59,74 @@ export type BusinessCreateInput = BusinessUpdateInput & {
   currency?: string;
   country?: string;
 };
+
+export type BookingStatus = "PENDING" | "CONFIRMED" | "COMPLETED" | "CANCELLED";
+
+export type BookingListParams = {
+  status?: BookingStatus;
+  page?: number;
+  sortOrder?: "asc" | "desc";
+};
+
+export type InvoiceListParams = {
+  status?: "DRAFT" | "PAID" | "VOID";
+  unpaid?: boolean;
+  page?: number;
+};
+
+export type LineItemInput = {
+  serviceId: string;
+  description?: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+};
+
+/** Money fields shared by invoices and receipts. */
+type DocumentMoney = {
+  name: string;
+  email?: string;
+  phone?: string;
+  currency: string;
+  subtotal: number;
+  taxAmount: number;
+  discount: number;
+  total: number;
+  notes?: string;
+  services?: LineItemInput[];
+};
+
+export type InvoiceCreateInput = DocumentMoney & {
+  status: "DRAFT" | "SENT";
+  amountPaid: number;
+  sentAt?: string;
+  dueAt?: string;
+};
+
+export type InvoicePaymentInput = {
+  status: "PAID" | "PARTIALLY_PAID";
+  amountPaid: number;
+  paidAt?: string;
+};
+
+export type ReceiptCreateInput = DocumentMoney & {
+  amountPaid: number;
+  paymentMethod?: "CASH" | "BANK_TRANSFER" | "PAYSTACK";
+};
+
+// Matches PAGE_SIZE in src/server/lists.ts, so server-seeded pages line up.
+const PAGE_SIZE = 20;
+
+async function page<T>(request: Promise<{ data: ApiResponse<T[]> & Omit<Page<T>, "data"> }>) {
+  const { data } = await request;
+  return {
+    data: data.data,
+    total: data.total,
+    page: data.page,
+    size: data.size,
+    totalPages: data.totalPages,
+  } satisfies Page<T>;
+}
 
 function toFormData(values: Record<string, string | number | File | undefined>) {
   const form = new FormData();
@@ -135,6 +209,66 @@ export const api = {
       ),
     disconnectCalendar: () =>
       data<unknown>(http.delete("/business/google-calendar")),
+  },
+
+  dashboard: () => data<DashboardData>(http.get("/dashboard")),
+
+  bookings: {
+    list: ({ status, page: pageNumber = 1, sortOrder = "desc" }: BookingListParams) =>
+      page<BookingDto>(
+        http.get("/bookings", {
+          params: { status, page: pageNumber, size: PAGE_SIZE, sortBy: "startTime", sortOrder },
+        }),
+      ),
+    setStatus: (slug: string, status: BookingStatus) =>
+      data<BookingDto>(http.put(`/bookings/${encodeURIComponent(slug)}`, { status })),
+    reschedule: (slug: string, startTime: string, endTime: string) =>
+      data<BookingDto>(
+        http.put(`/bookings/${encodeURIComponent(slug)}`, { startTime, endTime }),
+      ),
+    /** A service's slots for a day, as the owner sees them. */
+    slots: (serviceSlug: string, date: string) =>
+      data<ServiceSlotsDto>(
+        http.get(`/services/${encodeURIComponent(serviceSlug)}`, { params: { date } }),
+      ),
+  },
+
+  invoices: {
+    list: ({ status, unpaid, page: pageNumber = 1 }: InvoiceListParams) =>
+      page<InvoiceDto>(
+        http.get("/invoices", {
+          params: {
+            status,
+            unpaid: unpaid ? true : undefined,
+            page: pageNumber,
+            size: PAGE_SIZE,
+            sortBy: "createdAt",
+            sortOrder: "desc",
+          },
+        }),
+      ),
+    create: (values: InvoiceCreateInput) => data<InvoiceDto>(http.post("/invoices", values)),
+    recordPayment: (slug: string, values: InvoicePaymentInput) =>
+      data<InvoiceDto>(http.put(`/invoices/${encodeURIComponent(slug)}`, values)),
+    setStatus: (slug: string, status: "SENT" | "VOID") =>
+      data<InvoiceDto>(
+        http.put(`/invoices/${encodeURIComponent(slug)}`, {
+          status,
+          ...(status === "SENT" ? { sentAt: new Date().toISOString() } : {}),
+        }),
+      ),
+    remove: (slug: string) =>
+      data<unknown>(http.delete(`/invoices/${encodeURIComponent(slug)}`)),
+  },
+
+  receipts: {
+    list: ({ page: pageNumber = 1 }: { page?: number }) =>
+      page<ReceiptDto>(
+        http.get("/receipts", {
+          params: { page: pageNumber, size: PAGE_SIZE, sortBy: "createdAt", sortOrder: "desc" },
+        }),
+      ),
+    create: (values: ReceiptCreateInput) => data<ReceiptDto>(http.post("/receipts", values)),
   },
 
   messaging: {
