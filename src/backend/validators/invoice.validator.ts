@@ -3,6 +3,7 @@ import {
   baseQueryValidatorSchema,
   dateValidator,
   decimalValidator,
+  withoutDefaults,
 } from "./index.validator";
 
 const cuidValidator = z.string().cuid("id must be a valid cuid");
@@ -77,7 +78,8 @@ export const invoiceValidatorSchema = z.object({
   services: z.array(invoiceItemValidatorSchema).optional(),
 });
 
-export const updateInvoiceValidatorSchema = invoiceValidatorSchema
+export const updateInvoiceValidatorSchema = z
+  .object(withoutDefaults(invoiceValidatorSchema.shape))
   .partial()
   .strict();
 
@@ -96,6 +98,11 @@ export const invoiceQueryValidatorSchema = baseQueryValidatorSchema
       .optional(),
     bookingId: cuidValidator.optional(),
     status: invoiceStatusValidatorSchema.optional(),
+    // Sent, part-paid or overdue: what the chat calls "unpaid".
+    unpaid: z
+      .string()
+      .transform((val) => val === "true")
+      .optional(),
     invoiceNumber: z
       .string()
       .max(255, "invoiceNumber cannot exceed 255 characters")

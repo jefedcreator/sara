@@ -1,5 +1,7 @@
 import z from "zod";
 
+import { withoutDefaults } from "./index.validator";
+
 export const businessValidatorSchema = z.object({
   name: z.string().min(1, "Business name is required").max(100),
   slug: z.string().min(1, "Slug is required").max(100).optional(),
@@ -17,7 +19,8 @@ export const businessValidatorSchema = z.object({
   monoCode: z.string().min(1, "Mono authorization code is required"),
 });
 
-export const updateBusinessValidatorSchema = businessValidatorSchema
+export const updateBusinessValidatorSchema = z
+  .object(withoutDefaults(businessValidatorSchema.shape))
   .partial()
   .strict();
 
