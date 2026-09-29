@@ -4,6 +4,7 @@ export { ConfirmModal } from "./ConfirmModal";
 export { DatePicker } from "./DatePicker";
 export { Field, useFieldContext } from "./Field";
 export { controlClasses, Input, Textarea } from "./Input";
+export { Logo, LogoMark, LogoTile, type MarkName } from "./Logo";
 export { Modal } from "./Modal";
 export { Notice } from "./Notice";
 export { Pager } from "./Pager";
