@@ -4,6 +4,7 @@ import {
   queryValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
+import { bookingListInclude } from "@/backend/selects";
 import { atlasService } from "@/backend/services/atlas";
 import { bookingService } from "@/backend/services/booking";
 import {
@@ -145,9 +146,7 @@ export const GET = withMiddleware<unknown, BookingQueryValidatorSchema>(
         const data = await db.booking.findMany({
           where,
           orderBy,
-          include: {
-            service: { select: { id: true, name: true, slug: true, price: true, duration: true } },
-          },
+          include: bookingListInclude,
         });
 
         const response: PaginatedApiResponse<typeof data> = {
@@ -174,9 +173,7 @@ export const GET = withMiddleware<unknown, BookingQueryValidatorSchema>(
           take: size,
           skip,
           orderBy,
-          include: {
-            service: { select: { id: true, name: true, slug: true, price: true, duration: true } },
-          },
+          include: bookingListInclude,
         }),
       ]);
 

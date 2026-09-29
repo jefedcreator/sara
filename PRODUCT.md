@@ -18,7 +18,7 @@ Owners of one-person or small Nigerian service businesses: hair stylists, braide
 
 ## Product Purpose
 
-Sara lets the owner run the business from the WhatsApp or Instagram chat they already live in: create invoices and receipts, share a service's booking link, check unpaid invoices, see today's bookings and get a business summary. Customers book and pay in the browser through the booking link. Success for the landing page: the owner taps "Start on WhatsApp".
+Sara lets the owner run the business from the WhatsApp or Instagram chat they already live in: create invoices and receipts, share a service's booking link, check unpaid invoices, see today's bookings and get a business summary. Everything the chat does is also on the web dashboard, which adds what a chat can't do well: setting up services and hours, and working through lists of bookings and invoices. Customers book and pay in the browser through the booking link. Success for the landing page: the owner taps "Start on WhatsApp".
 
 ## Positioning
 
@@ -38,7 +38,8 @@ A guided, deterministic numbered chat menu (not an AI chatbot) on top of serious
 - Customers get confirmation, reschedule and cancellation emails plus a 24-hour reminder. Sara never messages customers on WhatsApp; it only replies to the owner.
 - Business summary: today's revenue, this week's revenue, unpaid count; revenue per service.
 - Home service: route and distance between customer and business address.
-- Does NOT exist yet (never claim): deposit-gated bookings, no-show/reliability scores, buffer times, QR codes, customer-side WhatsApp booking, a web dashboard. Sara is not AI and must never be described as one.
+- Web dashboard (decided by the owner 2026-09-29): a superset of the chat. Today (the chat's six menu items: new invoice, new receipt, share a service, unpaid invoices, today's bookings, business summary, plus revenue by service), Bookings (confirm, mark done, reschedule, cancel), Invoices (itemised or custom amount, record full or part payments with an optional receipt, void), Receipts, Services (create, edit, pause, booking links) and Settings (profile, hours, days off, Google Calendar). The chat and the dashboard read the same numbers (dashboardService).
+- Does NOT exist yet (never claim): deposit-gated bookings, no-show/reliability scores, buffer times, QR codes, customer-side WhatsApp booking. Sara is not AI and must never be described as one.
 - Money: "NGN 15,000" in UI chrome, "₦15,000" in headline and stat copy.
 
 ## Brand Commitments

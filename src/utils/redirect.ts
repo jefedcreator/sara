@@ -5,7 +5,7 @@
  */
 export function safeNextPath(
   value: string | string[] | undefined,
-  fallback = "/services",
+  fallback = "/dashboard",
 ) {
   const next = Array.isArray(value) ? value[0] : value;
   if (!next?.startsWith("/") || next.startsWith("//") || /[\s\\]/.test(next)) {

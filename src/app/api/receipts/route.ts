@@ -11,7 +11,7 @@ import {
   type ReceiptValidatorSchema,
   type ReceiptQueryValidatorSchema,
 } from "@/backend/validators/receipt.validator";
-import { publicBusinessSelect } from "@/backend/selects";
+import { receiptListInclude } from "@/backend/selects";
 import { db } from "@/server/db";
 import {
   ForbiddenException,
@@ -138,21 +138,7 @@ export const GET = withMiddleware<ReceiptQueryValidatorSchema>(
         [payload.sortBy ?? "createdAt"]: payload.sortOrder ?? "desc",
       };
 
-      const include: Prisma.ReceiptInclude = {
-        payment: {
-          include: {
-            invoice: {
-              select: {
-                id: true,
-                slug: true,
-                invoiceNumber: true,
-              },
-            },
-          },
-        },
-        business: { select: publicBusinessSelect },
-        services: { include: { service: true } },
-      };
+      const include = receiptListInclude;
 
       if (payload.all) {
         const data = (await db.receipt.findMany({
