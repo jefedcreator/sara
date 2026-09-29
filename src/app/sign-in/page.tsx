@@ -63,7 +63,7 @@ export default async function SignInPage({
         <div className="max-w-2xl">
           <Wordmark className="mb-10 inline-block" />
           <h1 className="font-display text-[clamp(2.4rem,1.4rem+3.6vw,4rem)] leading-[1.04] font-[380] tracking-[-0.04em] text-balance">
-            Sign in to set up your services and booking links.
+            Sign in to run your business from the web.
           </h1>
           <p className="text-muted mt-6 max-w-[46ch] text-lg">
             Use Google, Facebook, or Instagram. New accounts are created the
@@ -90,8 +90,8 @@ export default async function SignInPage({
               </div>
               <div className="grid gap-3">
                 <Button asChild className="w-full">
-                  <a href={user.business ? "/services" : "/onboarding"}>
-                    {user.business ? "Go to your services" : "Set up your business"}
+                  <a href={user.business ? "/dashboard" : "/onboarding"}>
+                    {user.business ? "Go to your dashboard" : "Set up your business"}
                   </a>
                 </Button>
                 <form action="/api/auth/logout" method="post">
