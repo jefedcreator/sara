@@ -13,4 +13,5 @@ export { Skeleton } from "./Skeleton";
 export { Spinner } from "./Spinner";
 export { StatusPill } from "./StatusPill";
 export { Switch } from "./Switch";
+export { TimePicker } from "./TimePicker";
 export { Wordmark } from "./Wordmark";

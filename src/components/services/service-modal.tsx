@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ImageSquare } from "@phosphor-icons/react/dist/ssr";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import type { ServiceDto } from "types";
 
 import {
@@ -11,7 +11,7 @@ import {
   type ServiceFormInput,
   type ServiceFormOutput,
 } from "@/backend/validators/service-form.validator";
-import { Button, Field, Input, Modal, Notice, Textarea } from "@/primitives";
+import { Button, Field, Input, Modal, Notice, Textarea, TimePicker } from "@/primitives";
 import { formatDuration } from "@/utils/format";
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -54,6 +54,7 @@ export function ServiceModal({
   const [preview, setPreview] = useState<string | null>(service?.image ?? null);
 
   const {
+    control,
     register,
     handleSubmit,
     watch,
@@ -121,10 +122,22 @@ export function ServiceModal({
 
             <div className="grid grid-cols-2 gap-4">
               <Field id="service-from" label="Bookable from" error={errors.availableFrom?.message}>
-                <Input type="time" step={900} {...register("availableFrom")} />
+                <Controller
+                  control={control}
+                  name="availableFrom"
+                  render={({ field }) => (
+                    <TimePicker ref={field.ref} value={field.value} onChange={field.onChange} />
+                  )}
+                />
               </Field>
               <Field id="service-to" label="Until" error={errors.availableTo?.message}>
-                <Input type="time" step={900} {...register("availableTo")} />
+                <Controller
+                  control={control}
+                  name="availableTo"
+                  render={({ field }) => (
+                    <TimePicker ref={field.ref} value={field.value} onChange={field.onChange} />
+                  )}
+                />
               </Field>
             </div>
 
