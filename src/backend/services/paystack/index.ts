@@ -157,19 +157,21 @@ class PaystackService {
   }
 
   /**
-   * Paystack's universal test account number.
-   * Resolves to account name "Test" at any bank code in test mode.
+   * Paystack's test settlement account: 0000000000 at Zenith Bank (057)
+   * resolves to "Test" in test mode. The number alone is not enough; at
+   * other banks (e.g. GTBank, 058) it fails to resolve and subaccount
+   * creation is refused with "Account details are invalid".
    */
   private static readonly TEST_ACCOUNT_NUMBER = "0000000000";
+  private static readonly TEST_BANK_CODE = "057";
 
   /**
    * Creates a Paystack subaccount for a service provider.
    * The provider receives (100 - platformFee)% of each transaction.
    *
-   * In Test Mode, Mono's sandbox returns dummy account numbers that don't
-   * exist at any real bank. Paystack validates account numbers against actual
-   * bank records even in test mode, so we substitute the Paystack universal
-   * test account number "0000000000" (resolves to "Test" at any bank).
+   * In Test Mode, Mono's sandbox returns dummy accounts that don't exist at
+   * any real bank. Paystack validates the bank and number together even in
+   * test mode, so both are swapped for Paystack's test account.
    *
    * @param params - Subaccount details including bank info.
    * @returns The created subaccount with its `subaccount_code`.
@@ -177,21 +179,22 @@ class PaystackService {
   async createSubaccount(
     params: CreateSubaccountParams,
   ): Promise<PaystackSubaccount> {
-    let accountNumber = params.accountNumber;
+    let { accountNumber, settlementBank } = params;
 
     const isTestMode = this.getSecretKey().startsWith("sk_test_");
     if (isTestMode) {
       console.log(
-        `[Paystack Service] Test Mode: Using test account number ${PaystackService.TEST_ACCOUNT_NUMBER} instead of Mono sandbox number ${params.accountNumber}`,
+        `[Paystack Service] Test Mode: Using test account ${PaystackService.TEST_ACCOUNT_NUMBER} at bank ${PaystackService.TEST_BANK_CODE} instead of Mono sandbox account ${params.accountNumber} at bank ${params.settlementBank}`,
       );
       accountNumber = PaystackService.TEST_ACCOUNT_NUMBER;
+      settlementBank = PaystackService.TEST_BANK_CODE;
     }
 
     return this.request<PaystackSubaccount>("/subaccount", {
       method: "POST",
       body: JSON.stringify({
         business_name: params.businessName,
-        settlement_bank: params.settlementBank,
+        settlement_bank: settlementBank,
         account_number: accountNumber,
         percentage_charge:
           params.percentageCharge ?? DEFAULT_PROVIDER_PERCENTAGE,
