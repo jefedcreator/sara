@@ -185,22 +185,30 @@ export function DocumentModal({
                               error={rowErrors?.serviceId?.message}
                               className="col-span-2 sm:col-span-1"
                             >
-                              <Select
-                                {...register(`items.${index}.serviceId`, {
-                                  onChange: (event: { target: { value: string } }) => {
-                                    const service = services.find((s) => s.id === event.target.value);
-                                    if (service) {
-                                      setValue(`items.${index}.unitPrice`, String(Number(service.price)));
-                                    }
-                                  },
-                                })}
-                              >
-                                {services.map((service) => (
-                                  <option key={service.id} value={service.id}>
-                                    {service.name}
-                                  </option>
-                                ))}
-                              </Select>
+                              <Controller
+                                control={control}
+                                name={`items.${index}.serviceId`}
+                                render={({ field: serviceField }) => (
+                                  <Select
+                                    ref={serviceField.ref}
+                                    value={serviceField.value}
+                                    onValueChange={(serviceId) => {
+                                      serviceField.onChange(serviceId);
+                                      const service = services.find((s) => s.id === serviceId);
+                                      if (service) {
+                                        setValue(`items.${index}.unitPrice`, String(Number(service.price)));
+                                      }
+                                    }}
+                                    placeholder="Pick a service"
+                                  >
+                                    {services.map((service) => (
+                                      <Select.Item key={service.id} value={service.id}>
+                                        {service.name}
+                                      </Select.Item>
+                                    ))}
+                                  </Select>
+                                )}
+                              />
                             </Field>
                             <Field
                               id={`${kind}-item-${index}-qty`}
@@ -293,10 +301,16 @@ export function DocumentModal({
                   </Field>
                 ) : (
                   <Field id="receipt-method" label="Paid by">
-                    <Select {...register("paymentMethod")}>
-                      <option value="CASH">Cash</option>
-                      <option value="BANK_TRANSFER">Bank transfer</option>
-                    </Select>
+                    <Controller
+                      control={control}
+                      name="paymentMethod"
+                      render={({ field }) => (
+                        <Select ref={field.ref} value={field.value} onValueChange={field.onChange}>
+                          <Select.Item value="CASH">Cash</Select.Item>
+                          <Select.Item value="BANK_TRANSFER">Bank transfer</Select.Item>
+                        </Select>
+                      )}
+                    />
                   </Field>
                 )}
 

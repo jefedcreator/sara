@@ -3,9 +3,8 @@
 import { useState } from "react";
 import type { BusinessHoursDto } from "types";
 
-import { Button, controlClasses, Notice, Switch } from "@/primitives";
+import { Button, Notice, Switch, TimePicker } from "@/primitives";
 import type { BusinessHoursInput } from "@/utils/api";
-import { cn } from "@/utils/cn";
 import { WEEKDAYS } from "@/utils/format";
 
 import { Section } from "./section";
@@ -75,24 +74,20 @@ export function HoursSection({ hours, onSave, isPending, error, saved }: HoursSe
                 <p className="text-faint text-[15px]">Closed</p>
               ) : (
                 <div className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    step={900}
+                  <TimePicker
                     aria-label={`${name} opens`}
                     value={day.startTime}
-                    onChange={(e) => change(day.dayOfWeek, { startTime: e.target.value })}
-                    aria-invalid={wrongWayRound || undefined}
-                    className={cn(controlClasses, "h-11 w-[124px]")}
+                    onChange={(startTime) => change(day.dayOfWeek, { startTime })}
+                    invalid={wrongWayRound}
+                    className="w-[124px]"
                   />
                   <span className="text-muted text-sm">to</span>
-                  <input
-                    type="time"
-                    step={900}
+                  <TimePicker
                     aria-label={`${name} closes`}
                     value={day.endTime}
-                    onChange={(e) => change(day.dayOfWeek, { endTime: e.target.value })}
-                    aria-invalid={wrongWayRound || undefined}
-                    className={cn(controlClasses, "h-11 w-[124px]")}
+                    onChange={(endTime) => change(day.dayOfWeek, { endTime })}
+                    invalid={wrongWayRound}
+                    className="w-[124px]"
                   />
                 </div>
               )}

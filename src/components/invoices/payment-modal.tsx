@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import type { InvoiceDto } from "types";
 
 import {
@@ -37,6 +37,7 @@ export function PaymentModal({
   const outstanding = outstandingOf(invoice);
   const schema = useMemo(() => paymentFormSchema(outstanding), [outstanding]);
   const {
+    control,
     register,
     handleSubmit,
     formState: { errors },
@@ -67,10 +68,16 @@ export function PaymentModal({
                 <Input inputMode="decimal" {...register("amount")} />
               </Field>
               <Field id="payment-method" label="Paid by">
-                <Select {...register("paymentMethod")}>
-                  <option value="CASH">Cash</option>
-                  <option value="BANK_TRANSFER">Bank transfer</option>
-                </Select>
+                <Controller
+                  control={control}
+                  name="paymentMethod"
+                  render={({ field }) => (
+                    <Select ref={field.ref} value={field.value} onValueChange={field.onChange}>
+                      <Select.Item value="CASH">Cash</Select.Item>
+                      <Select.Item value="BANK_TRANSFER">Bank transfer</Select.Item>
+                    </Select>
+                  )}
+                />
               </Field>
             </div>
             <label className="flex cursor-pointer items-center gap-3 text-[15px]">
