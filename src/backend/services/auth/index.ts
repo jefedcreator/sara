@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient, Provider, User } from "@prisma/client";
 import { decode, encode } from "next-auth/jwt";
 import { NextResponse, type NextRequest } from "next/server";
 
+import { emailService } from "@/backend/services/email";
 import { env } from "@/env";
 import { db } from "@/server/db";
 import {
@@ -233,8 +234,9 @@ export class AuthService {
       });
     }
 
-    // 3. Someone new.
-    return this.prisma.user.create({
+    // 3. Someone new: create them, and welcome them if the provider gave a
+    //    verified address. The email never fails the sign-in (emailService).
+    const user = await this.prisma.user.create({
       data: {
         provider,
         name: profile.name,
@@ -244,6 +246,10 @@ export class AuthService {
         accounts: { create: account },
       },
     });
+    if (user.email) {
+      await emailService.sendWelcomeEmail({ to: user.email, name: user.name });
+    }
+    return user;
   }
 
   /** Opens a `Session` row and returns the Auth.js JWT that names it. */

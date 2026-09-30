@@ -42,6 +42,8 @@ export const env = createEnv({
     MONO_REDIRECT_URL: z.string().url().optional(),
     ATLAS_API_URL: z.string().url().optional(),
     RESEND_API_KEY: z.string().optional(),
+    // "Sara <hello@your-domain>", on a domain verified in Resend.
+    EMAIL_FROM: z.string().optional(),
     CRON_SECRET: z.string().optional(),
     WHATSAPP_VERIFY_TOKEN: z.string().optional(),
     WHATSAPP_PHONE_NUMBER_ID: z.string().optional(),
@@ -110,6 +112,7 @@ export const env = createEnv({
     NEXT_PUBLIC_MONO_PUBLIC_KEY: process.env.NEXT_PUBLIC_MONO_PUBLIC_KEY,
     ATLAS_API_URL: process.env.ATLAS_API_URL,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
+    EMAIL_FROM: process.env.EMAIL_FROM,
     CRON_SECRET: process.env.CRON_SECRET,
     WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN,
     WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,

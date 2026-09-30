@@ -17,6 +17,7 @@ vi.mock("@/backend/services/paystack", () => ({
 vi.mock("@/backend/services/email", () => ({
   emailService: {
     sendBookingConfirmationEmail: vi.fn().mockResolvedValue({ success: true }),
+    sendNewBookingEmail: vi.fn().mockResolvedValue({ success: true }),
   },
 }));
 
@@ -59,11 +60,13 @@ const BOOKING = {
   clientName: "Jane Doe",
   clientEmail: "jane@example.com",
   clientPhone: null,
-  service: { name: "Haircut" },
+  service: { name: "Haircut", duration: 45 },
   business: {
     id: "biz_1",
     name: "Acme Salon",
+    email: "hello@acme.test",
     currency: "NGN",
+    owner: { email: "owner@acme.test" },
     googleCalendarId: null,
     googleCalendarAccessToken: null,
     googleCalendarRefreshToken: "refresh-1",
@@ -117,8 +120,25 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     expect(mockedEmail.sendBookingConfirmationEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: BOOKING.clientEmail,
-        businessName: BOOKING.business.name,
+        business: expect.objectContaining({ name: BOOKING.business.name }),
         serviceName: BOOKING.service.name,
+        duration: 45,
+        amount: 50,
+        receiptUrl: expect.stringMatching(/\/r\/acme-rcp-1001\/[\w-]{16}$/),
+      }),
+    );
+  });
+
+  it("emails the owner about the paid booking", async () => {
+    await POST(buildRequest(buildEvent()));
+
+    expect(mockedEmail.sendNewBookingEmail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "owner@acme.test",
+        clientName: BOOKING.clientName,
+        serviceName: BOOKING.service.name,
+        amount: 50,
+        currency: "NGN",
       }),
     );
   });

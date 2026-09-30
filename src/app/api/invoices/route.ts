@@ -13,6 +13,7 @@ import {
 } from "@/backend/validators/invoice.validator";
 import { invoiceListInclude } from "@/backend/selects";
 import { UNPAID_STATUSES } from "@/backend/services/dashboard";
+import { emailInvoice } from "@/backend/services/email/documents";
 import { db } from "@/server/db";
 import { shareUrl } from "@/server/share";
 import {
@@ -66,6 +67,9 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         bookingId: payload.bookingId,
         services: payload.services,
       });
+
+      // A sent invoice with an address goes to the customer too.
+      await emailInvoice(invoicedata, business);
 
       // shareUrl is the customer's link (the page with the PDF), not the PDF.
       const response: ApiResponse<Invoice & { shareUrl: string }> = {
