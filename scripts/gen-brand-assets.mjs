@@ -40,20 +40,25 @@ for (const hex of Object.values(C)) {
 }
 
 /* Geometry, mirrored from Logo.tsx: each mark is its body paths plus the one
-   accent shape (the owner's). A stroked body is supported for future marks. */
+   accent shape (Sara's part, in green). `cradle`'s body is a stroke. */
 const marks = {
-  reply: {
-    accent: "M58 30A15 15 0 1 0 88 30A15 15 0 1 0 58 30Z",
+  handoff: {
+    accent:
+      "M15 53H70.5A17.5 17.5 0 0 1 70.5 88H15A3 3 0 0 1 12 85V56A3 3 0 0 1 15 53Z",
     body: [
-      "M34 22H52.51A22 22 0 0 0 89.47 44.58A28 28 0 0 1 90 50V60A28 28 0 0 1 62 88H11A5 5 0 0 1 6 83V50A28 28 0 0 1 34 22Z",
+      "M29.5 12H85A3 3 0 0 1 88 15V44A3 3 0 0 1 85 47H29.5A17.5 17.5 0 0 1 29.5 12Z",
     ],
   },
-  thread: {
-    accent:
-      "M46 66H82A10 10 0 0 1 92 76V82A4 4 0 0 1 88 86H46A10 10 0 0 1 36 76V76A10 10 0 0 1 46 66Z",
+  cradle: {
+    accent: "M33 34A17 17 0 1 0 67 34A17 17 0 1 0 33 34Z",
+    stroke: { d: "M15 40A35 35 0 0 0 85 40", width: 15 },
+  },
+  clover: {
+    accent: "M54.24 45.76L59.74 23.33A14 14 0 1 1 76.67 40.26Z",
     body: [
-      "M18 14H82A10 10 0 0 1 82 34H18A10 10 0 0 1 18 14Z",
-      "M18 40H54A10 10 0 0 1 64 50V50A10 10 0 0 1 54 60H12A4 4 0 0 1 8 56V50A10 10 0 0 1 18 40Z",
+      "M54.24 54.24L76.67 59.74A14 14 0 1 1 59.74 76.67Z",
+      "M45.76 54.24L40.26 76.67A14 14 0 1 1 23.33 59.74Z",
+      "M45.76 45.76L23.33 40.26A14 14 0 1 1 40.26 23.33Z",
     ],
   },
 };
@@ -129,7 +134,7 @@ for (const name of Object.keys(marks)) {
 }
 
 /* Favicons and app icons: the recommended mark on the ink tile. */
-const icon = svg(tile("reply"));
+const icon = svg(tile("handoff"));
 write("favicon.svg", icon);
 const png = (size) =>
   sharp(Buffer.from(icon), { density: 384 })
