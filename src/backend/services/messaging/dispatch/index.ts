@@ -2,6 +2,7 @@ import { dashboardService } from "@/backend/services/dashboard";
 import { invoiceService } from "@/backend/services/invoice";
 import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
+import { shareUrl } from "@/server/share";
 import { NotFoundException } from "@/utils/exceptions";
 import { formatMoney } from "../engine/amount";
 import { publicUrl } from "@/utils/url";
@@ -41,7 +42,7 @@ class IntentDispatcher {
     });
     return {
       number: invoice.invoiceNumber,
-      link: invoice.url ?? publicUrl("invoices", invoice.slug),
+      link: shareUrl("invoice", invoice.slug),
     };
   }
 
@@ -60,7 +61,7 @@ class IntentDispatcher {
     });
     return {
       number: receipt.receiptNumber,
-      link: receipt.url ?? publicUrl("receipts", receipt.slug),
+      link: shareUrl("receipt", receipt.slug),
     };
   }
 

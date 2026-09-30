@@ -4,12 +4,13 @@ import type { SearchParams } from "nuqs/server";
 import { AppError } from "@/components/app-error";
 import { BookingsPageClient } from "@/components/bookings/bookings-page-client";
 import { getBookingsPage, requireBusiness } from "@/server";
+import { cardMetadata } from "@/utils/metadata";
 import { bookingListParams, bookingsParamsCache } from "@/utils/url-state";
 
-export const metadata: Metadata = {
-  title: "Bookings · Sara",
-  robots: { index: false },
-};
+export const metadata: Metadata = cardMetadata("bookings", {
+  path: "/bookings",
+  index: false,
+});
 
 export default async function BookingsPage({
   searchParams,

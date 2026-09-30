@@ -45,6 +45,7 @@ export function useDocumentComposer(kind: DocumentKind, currency: string) {
           onSuccess: (invoice) =>
             setCreated({
               number: invoice.invoiceNumber,
+              shareUrl: invoice.shareUrl,
               url: invoice.url,
               total: Number(invoice.total),
               customer: invoice.clientName,
@@ -59,6 +60,7 @@ export function useDocumentComposer(kind: DocumentKind, currency: string) {
         onSuccess: (receipt) =>
           setCreated({
             number: receipt.receiptNumber,
+            shareUrl: receipt.shareUrl,
             url: receipt.url,
             total: Number(receipt.total),
             customer: receipt.name ?? base.name,

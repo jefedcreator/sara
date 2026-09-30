@@ -17,6 +17,9 @@ import type {
 
 import http from "./axios";
 
+/** A just-created invoice or receipt's customer link (/i/… or /r/…). */
+type SharedLink = { shareUrl: string };
+
 /*
  * Typed methods over the REST API. Every method resolves to the response's
  * `data` so hooks never unwrap envelopes themselves.
@@ -247,7 +250,8 @@ export const api = {
           },
         }),
       ),
-    create: (values: InvoiceCreateInput) => data<InvoiceDto>(http.post("/invoices", values)),
+    create: (values: InvoiceCreateInput) =>
+      data<InvoiceDto & SharedLink>(http.post("/invoices", values)),
     recordPayment: (slug: string, values: InvoicePaymentInput) =>
       data<InvoiceDto>(http.put(`/invoices/${encodeURIComponent(slug)}`, values)),
     setStatus: (slug: string, status: "SENT" | "VOID") =>
@@ -268,7 +272,8 @@ export const api = {
           params: { page: pageNumber, size: PAGE_SIZE, sortBy: "createdAt", sortOrder: "desc" },
         }),
       ),
-    create: (values: ReceiptCreateInput) => data<ReceiptDto>(http.post("/receipts", values)),
+    create: (values: ReceiptCreateInput) =>
+      data<ReceiptDto & SharedLink>(http.post("/receipts", values)),
   },
 
   messaging: {

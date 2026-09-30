@@ -3,11 +3,12 @@ import { type Metadata } from "next";
 import { AppError } from "@/components/app-error";
 import { SettingsPageClient } from "@/components/settings/settings-page-client";
 import { getBusinessHours, getClosures, requireBusiness, toBusinessProfile } from "@/server";
+import { cardMetadata } from "@/utils/metadata";
 
-export const metadata: Metadata = {
-  title: "Settings · Sara",
-  robots: { index: false },
-};
+export const metadata: Metadata = cardMetadata("settings", {
+  path: "/settings",
+  index: false,
+});
 
 export default async function SettingsPage({
   searchParams,

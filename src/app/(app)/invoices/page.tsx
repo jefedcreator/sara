@@ -4,12 +4,13 @@ import type { SearchParams } from "nuqs/server";
 import { AppError } from "@/components/app-error";
 import { InvoicesPageClient } from "@/components/invoices/invoices-page-client";
 import { getInvoicesPage, getServices, requireBusiness } from "@/server";
+import { cardMetadata } from "@/utils/metadata";
 import { invoiceListParams, invoicesParamsCache } from "@/utils/url-state";
 
-export const metadata: Metadata = {
-  title: "Invoices · Sara",
-  robots: { index: false },
-};
+export const metadata: Metadata = cardMetadata("invoices", {
+  path: "/invoices",
+  index: false,
+});
 
 export default async function InvoicesPage({
   searchParams,

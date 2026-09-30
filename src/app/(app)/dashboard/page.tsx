@@ -3,11 +3,12 @@ import { type Metadata } from "next";
 import { AppError } from "@/components/app-error";
 import { DashboardPageClient } from "@/components/dashboard/dashboard-page-client";
 import { getDashboard, getServices, requireBusiness } from "@/server";
+import { cardMetadata } from "@/utils/metadata";
 
-export const metadata: Metadata = {
-  title: "Today · Sara",
-  robots: { index: false },
-};
+export const metadata: Metadata = cardMetadata("dashboard", {
+  path: "/dashboard",
+  index: false,
+});
 
 export default async function DashboardPage() {
   const { business } = await requireBusiness("/dashboard");

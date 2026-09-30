@@ -5,11 +5,7 @@ import { PublicError } from "@/components/public-error";
 import { Button } from "@/primitives";
 import { getBookingReceipt } from "@/server";
 import { formatSlotMoment } from "@/utils/format";
-
-export const metadata: Metadata = {
-  title: "Your booking · Sara",
-  robots: { index: false },
-};
+import { pageMetadata } from "@/utils/metadata";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +13,48 @@ type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+const PREVIEW: Record<string, (when: string) => string> = {
+  CONFIRMED: (when) => `Booked and paid for ${when}.`,
+  PENDING: (when) => `Confirming payment for ${when}.`,
+  CANCELLED: (when) => `The booking for ${when} was cancelled.`,
+};
+
+/*
+ * The customer's own confirmation, so never indexed. The card is the
+ * service's (../opengraph-image.tsx), named outright: a child segment that
+ * sets openGraph doesn't inherit its parent's image file.
+ */
+export async function generateMetadata({
+  params,
+  searchParams,
+}: Props): Promise<Metadata> {
+  const { slug } = await params;
+  const { b } = await searchParams;
+  const book = `/book/${encodeURIComponent(slug)}`;
+  const path = `${book}/done`;
+  const image = { url: `${book}/opengraph-image`, alt: "Book a time" };
+  const booking =
+    typeof b === "string" ? await getBookingReceipt(b).catch(() => null) : null;
+
+  if (booking?.serviceSlug !== slug) {
+    return pageMetadata({
+      title: "Your booking · Sara",
+      description: "Your booking confirmation.",
+      path,
+      image,
+      index: false,
+    });
+  }
+  const when = formatSlotMoment(booking.startTime);
+  return pageMetadata({
+    title: `${booking.serviceName} with ${booking.businessName}`,
+    description: (PREVIEW[booking.status] ?? PREVIEW.CONFIRMED!)(when),
+    path,
+    image,
+    index: false,
+  });
+}
 
 /**
  * Where Paystack returns the customer. The booking is confirmed by Paystack's

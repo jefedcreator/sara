@@ -27,7 +27,9 @@ vi.mock("@/backend/services/googleCalendar", () => ({
 }));
 
 vi.mock("@/backend/services/receipt", () => ({
-  receiptService: { create: vi.fn().mockResolvedValue({ url: "https://cdn.test/r.pdf" }) },
+  receiptService: {
+    create: vi.fn().mockResolvedValue({ slug: "acme-rcp-1001", url: "https://cdn.test/r.pdf" }),
+  },
 }));
 
 vi.mock("@/backend/services/messaging/notify", () => ({
@@ -188,6 +190,11 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     expect(mockedNotifier.notify).toHaveBeenCalledWith(
       BOOKING.businessId,
       expect.stringContaining(BOOKING.service.name),
+    );
+    // The receipt's share page, not the bare PDF.
+    expect(mockedNotifier.notify).toHaveBeenCalledWith(
+      BOOKING.businessId,
+      expect.stringMatching(/\nReceipt: https?:\/\/\S+\/r\/acme-rcp-1001\/[\w-]{16}$/),
     );
   });
 

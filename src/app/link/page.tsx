@@ -5,12 +5,13 @@ import { PublicError } from "@/components/public-error";
 import { SetupShell } from "@/components/setup-shell";
 import { Button } from "@/primitives";
 import { getCurrentUser, signInPath } from "@/server";
+import { cardMetadata } from "@/utils/metadata";
 import { whatsappHref } from "@/utils/whatsapp";
 
-export const metadata: Metadata = {
-  title: "Connect your chat · Sara",
-  robots: { index: false },
-};
+export const metadata: Metadata = cardMetadata("link", {
+  path: "/link",
+  index: false,
+});
 
 export const dynamic = "force-dynamic";
 

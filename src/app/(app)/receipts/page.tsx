@@ -4,12 +4,13 @@ import type { SearchParams } from "nuqs/server";
 import { AppError } from "@/components/app-error";
 import { ReceiptsPageClient } from "@/components/receipts/receipts-page-client";
 import { getReceiptsPage, getServices, requireBusiness } from "@/server";
+import { cardMetadata } from "@/utils/metadata";
 import { receiptsParamsCache } from "@/utils/url-state";
 
-export const metadata: Metadata = {
-  title: "Receipts · Sara",
-  robots: { index: false },
-};
+export const metadata: Metadata = cardMetadata("receipts", {
+  path: "/receipts",
+  index: false,
+});
 
 export default async function ReceiptsPage({
   searchParams,

@@ -41,7 +41,9 @@ describe("createInvoice", () => {
     expect(invoiceService.create).toHaveBeenCalledWith(
       expect.objectContaining({ status: "SENT", currency: "NGN", total: 15000, amountPaid: 0, notes: "gele" }),
     );
-    expect(result).toEqual({ number: "INV-1012", link: "https://cdn.test/INV-1012.pdf" });
+    // The customer's page (with its own preview card), not the bare PDF.
+    expect(result.number).toBe("INV-1012");
+    expect(result.link).toMatch(/^https:\/\/app\.sara\.ng\/i\/acme-inv-1012\/[\w-]{16}$/);
   });
 });
 
@@ -53,6 +55,7 @@ describe("createReceipt", () => {
     const result = await intentDispatcher.createReceipt("biz_1", { customerName: "Ada", amount: 15000 });
     expect(receiptService.create).toHaveBeenCalledWith(expect.objectContaining({ total: 15000, amountPaid: 15000 }));
     expect(result.number).toBe("RCP-1007");
+    expect(result.link).toMatch(/^https:\/\/app\.sara\.ng\/r\/acme-rcp-1007\/[\w-]{16}$/);
   });
 });
 
