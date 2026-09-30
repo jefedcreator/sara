@@ -5,6 +5,7 @@ import { BookingPageClient } from "@/components/book/booking-page-client";
 import { PublicError } from "@/components/public-error";
 import { getPublicService } from "@/server";
 import { serviceLabel, todayIso } from "@/utils/format";
+import { pageMetadata } from "@/utils/metadata";
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -13,19 +14,29 @@ export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
   const { slug } = await params;
+  const path = `/book/${encodeURIComponent(slug)}`;
+  // The card itself is ./opengraph-image.tsx.
   try {
     const service = await getPublicService(slug, todayIso());
-    if (!service) return { title: "Booking link not found · Sara" };
-    const title = `${service.name} · ${service.businessName}`;
-    const description = `Book ${serviceLabel(service)} with ${service.businessName}. Pick a free time and pay with Paystack.`;
-    // The card itself is ./opengraph-image.tsx.
-    return {
-      title,
-      description,
-      openGraph: { siteName: "Sara", title, description },
-    };
+    if (!service) {
+      return pageMetadata({
+        title: "Booking link not found · Sara",
+        description: "This booking link is paused or no longer exists.",
+        path,
+        index: false,
+      });
+    }
+    return pageMetadata({
+      title: `${service.name} · ${service.businessName}`,
+      description: `Book ${serviceLabel(service)} with ${service.businessName}. Pick a free time and pay with Paystack.`,
+      path,
+    });
   } catch {
-    return { title: "Book a time · Sara" };
+    return pageMetadata({
+      title: "Book a time · Sara",
+      description: "Pick a free time and pay with Paystack.",
+      path,
+    });
   }
 }
 

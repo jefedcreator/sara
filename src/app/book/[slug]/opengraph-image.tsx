@@ -1,9 +1,8 @@
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
 
-import SiteOpenGraphImage from "@/app/opengraph-image";
 import { getPublicService } from "@/server";
-import { OG, OG_SIZE, OgLockup, OgMark, ogFonts } from "@/server/og";
+import { OG, OG_SIZE, OgLockup, OgMark, ogFonts, pageCard } from "@/server/og";
 import { formatDuration, formatMoney, todayIso } from "@/utils/format";
 
 /*
@@ -41,7 +40,7 @@ async function photo(url: string | null) {
 export default async function BookingOpenGraphImage({ params }: Params) {
   const { slug } = await params;
   const service = await getPublicService(slug, todayIso()).catch(() => null);
-  if (!service) return SiteOpenGraphImage();
+  if (!service) return pageCard("site");
 
   const image = await photo(service.image);
   const titleSize = service.name.length > 28 ? 60 : 76;

@@ -4,11 +4,12 @@ import { publicUrl } from "@/utils/url";
 import { AppError } from "@/components/app-error";
 import { ServicesPageClient } from "@/components/services/services-page-client";
 import { getServices, requireBusiness, toBusinessProfile } from "@/server";
+import { cardMetadata } from "@/utils/metadata";
 
-export const metadata: Metadata = {
-  title: "Services · Sara",
-  robots: { index: false },
-};
+export const metadata: Metadata = cardMetadata("services", {
+  path: "/services",
+  index: false,
+});
 
 export default async function ServicesPage() {
   const { business } = await requireBusiness("/services");

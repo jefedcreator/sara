@@ -29,6 +29,9 @@ export type DocumentKind = "invoice" | "receipt";
 
 export type CreatedDocument = {
   number: string;
+  /** The customer's link: a page with the document's own preview card. */
+  shareUrl: string;
+  /** The PDF, once rendered. */
   url: string | null;
   total: number;
   customer: string;
@@ -401,12 +404,10 @@ function CreatedView({
         {formatMoney(created.total, currency)} for {created.customer}.{" "}
         {kind === "invoice" ? "Send the link so they can see what they owe." : "Send the link as their proof of payment."}
       </Modal.Description>
-      {created.url ? (
-        <div className="bg-surface mt-6 flex items-center gap-2 rounded-full py-1 pr-1 pl-4">
-          <code className="text-ink min-w-0 flex-1 truncate font-mono text-[13px]">{created.url}</code>
-          <CopyLinkButton url={created.url} />
-        </div>
-      ) : null}
+      <div className="bg-surface mt-6 flex items-center gap-2 rounded-full py-1 pr-1 pl-4">
+        <code className="text-ink min-w-0 flex-1 truncate font-mono text-[13px]">{created.shareUrl}</code>
+        <CopyLinkButton url={created.shareUrl} />
+      </div>
       <div className="mt-6 grid gap-2.5 sm:flex sm:flex-row-reverse">
         {created.url ? (
           <Button asChild variant="dark">

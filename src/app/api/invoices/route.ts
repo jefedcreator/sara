@@ -14,6 +14,7 @@ import {
 import { invoiceListInclude } from "@/backend/selects";
 import { UNPAID_STATUSES } from "@/backend/services/dashboard";
 import { db } from "@/server/db";
+import { shareUrl } from "@/server/share";
 import {
   ForbiddenException,
   InternalServerErrorException,
@@ -66,10 +67,11 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         services: payload.services,
       });
 
-      const response: ApiResponse<Invoice> = {
+      // shareUrl is the customer's link (the page with the PDF), not the PDF.
+      const response: ApiResponse<Invoice & { shareUrl: string }> = {
         status: 201,
         message: "Invoice created successfully",
-        data: invoicedata,
+        data: { ...invoicedata, shareUrl: shareUrl("invoice", invoicedata.slug) },
       };
 
       return NextResponse.json(response, { status: 201 });

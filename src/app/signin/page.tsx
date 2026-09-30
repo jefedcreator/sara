@@ -5,6 +5,7 @@ import { authService, type SignInError } from "@/backend/services/auth";
 import { ProviderLogo } from "@/components/provider-logo";
 import { Button, Notice, Wordmark } from "@/primitives";
 import { getCurrentUser } from "@/server";
+import { cardMetadata, type CardKey } from "@/utils/metadata";
 import { safeNextPath } from "@/utils/redirect";
 
 // Each button starts that provider's OAuth flow, which comes back with the
@@ -22,9 +23,36 @@ const errorMessages: Record<SignInError, string> = {
   unavailable: "That sign-in option isn't available right now.",
 };
 
-export const metadata: Metadata = {
-  title: "Sign in · Sara",
+/*
+ * Owner pages redirect a signed-out visitor here with ?next=, and so does a
+ * link crawler fetching one for a preview. The card follows `next`, so a
+ * pasted /invoices link previews as the invoices page, not as a sign-in form.
+ */
+const DESTINATION_CARDS: Record<string, CardKey> = {
+  dashboard: "dashboard",
+  bookings: "bookings",
+  invoices: "invoices",
+  receipts: "receipts",
+  services: "services",
+  settings: "settings",
+  onboarding: "onboarding",
+  link: "link",
 };
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const { next } = await searchParams;
+  if (next === undefined) return cardMetadata("signin", { path: "/signin" });
+  const path = safeNextPath(next).split(/[?#]/)[0]!;
+  const card = DESTINATION_CARDS[path.split("/")[1] ?? ""] ?? "signin";
+  return cardMetadata(card, {
+    path: card === "signin" ? "/signin" : path,
+    index: false,
+  });
+}
 
 function authorizeHref(provider: string, next: string) {
   return `/api/auth/${provider}?${new URLSearchParams({ next }).toString()}`;

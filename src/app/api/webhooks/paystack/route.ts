@@ -8,6 +8,7 @@ import {
 } from "@/backend/services/paystack";
 import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
+import { shareUrl } from "@/server/share";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -196,7 +197,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
       amountPaid: amount / 100,
       paymentMethod: "PAYSTACK",
     });
-    receiptUrl = receipt.url;
+    receiptUrl = shareUrl("receipt", receipt.slug);
   } catch (err) {
     console.warn("[Paystack Webhook] Receipt creation failed:", err);
   }

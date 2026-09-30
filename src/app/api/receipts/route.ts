@@ -13,6 +13,7 @@ import {
 } from "@/backend/validators/receipt.validator";
 import { receiptListInclude } from "@/backend/selects";
 import { db } from "@/server/db";
+import { shareUrl } from "@/server/share";
 import {
   ForbiddenException,
   InternalServerErrorException,
@@ -62,10 +63,14 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
         services: payload.services,
       });
 
-      const response: ApiResponse<Receipt> = {
+      // shareUrl is the customer's link (the page with the PDF), not the PDF.
+      const response: ApiResponse<Receipt & { shareUrl: string }> = {
         status: 201,
         message: "Receipt created successfully",
-        data: receiptResult,
+        data: {
+          ...receiptResult,
+          shareUrl: shareUrl("receipt", receiptResult.slug),
+        },
       };
 
       return NextResponse.json(response, { status: 201 });
