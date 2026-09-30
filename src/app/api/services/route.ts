@@ -25,7 +25,7 @@ import type { ApiResponse, ServiceListItem, PaginatedApiResponse } from "types";
 /**
  * @body ServiceValidatorSchema
  * @description Creates a new service for the user's business.
- * @contentType application/json
+ * @contentType multipart/form-data
  * @auth bearer
  */
 export const POST = withMiddleware<ServiceValidatorSchema>(

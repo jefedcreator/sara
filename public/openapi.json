@@ -32,8 +32,7 @@
             "type": "number"
           },
           "country": {
-            "type": "string",
-            "default": "NG"
+            "type": "string"
           },
           "lang": {
             "type": "string",
@@ -56,8 +55,7 @@
             "type": "number"
           },
           "country": {
-            "type": "string",
-            "default": "NG"
+            "type": "string"
           },
           "lang": {
             "type": "string",
@@ -250,8 +248,7 @@
             "type": "number"
           },
           "country": {
-            "type": "string",
-            "default": "NG"
+            "type": "string"
           }
         },
         "required": [
@@ -285,8 +282,7 @@
             "type": "number"
           },
           "country": {
-            "type": "string",
-            "default": "NG"
+            "type": "string"
           }
         },
         "required": [
@@ -546,6 +542,74 @@
           "clientName"
         ]
       },
+      "BusinessClosureValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "additionalProperties": false
+      },
+      "businessClosureValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "date"
+        ],
+        "additionalProperties": false
+      },
+      "BusinessHoursValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/dayEntrySchema"
+            },
+            "minItems": 7,
+            "maxItems": 7
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      },
+      "businessHoursValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/dayEntrySchema"
+            },
+            "minItems": 7,
+            "maxItems": 7
+          }
+        },
+        "required": [
+          "days"
+        ],
+        "additionalProperties": false
+      },
       "BusinessValidatorSchema": {
         "type": "object",
         "properties": {
@@ -678,7 +742,38 @@
         "type": "string",
         "format": "cuid"
       },
-      "date": {},
+      "dayEntrySchema": {
+        "type": "object",
+        "properties": {
+          "dayOfWeek": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "startTime": {
+            "type": "object",
+            "default": "09:00"
+          },
+          "endTime": {
+            "type": "object",
+            "default": "17:00"
+          },
+          "isClosed": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "dayOfWeek",
+          "startTime",
+          "endTime",
+          "isClosed"
+        ],
+        "additionalProperties": false
+      },
+      "id": {
+        "type": "object"
+      },
       "invoiceItemValidatorSchema": {
         "type": "object",
         "properties": {
@@ -1083,6 +1178,36 @@
           "amountPaid"
         ]
       },
+      "LinkValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "linkValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "additionalProperties": false
+      },
+      "mongoIdValidator": {
+        "type": "string",
+        "pattern": "^[0-9a-fA-F]{24}$"
+      },
       "nextAuthPathParamValidator": {
         "type": "object",
         "properties": {
@@ -1215,6 +1340,47 @@
           "CASH",
           "BANK_TRANSFER"
         ]
+      },
+      "publicBookingSchema": {
+        "type": "object",
+        "properties": {
+          "serviceSlug": {
+            "type": "string",
+            "minLength": 1
+          },
+          "startTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "clientName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "clientEmail": {
+            "type": "string",
+            "format": "email"
+          },
+          "clientPhone": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "serviceSlug",
+          "startTime",
+          "endTime",
+          "clientName"
+        ],
+        "additionalProperties": false
       },
       "receiptItemValidatorSchema": {
         "type": "object",
@@ -1554,7 +1720,8 @@
             "nullable": true
           },
           "price": {
-            "type": "object"
+            "type": "number",
+            "minimum": 0
           },
           "duration": {
             "type": "integer",
@@ -1584,6 +1751,26 @@
           "availableTo",
           "isActive"
         ]
+      },
+      "ServiceDetailQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "serviceDetailQueryValidatorSchema": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+          }
+        },
+        "additionalProperties": false
       },
       "ServiceQueryValidatorSchema": {
         "type": "object",
@@ -1706,10 +1893,106 @@
         "additionalProperties": false
       },
       "ServiceValidatorSchema": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "availableFrom": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "default": "08:00"
+          },
+          "availableTo": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "default": "17:00"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "price",
+          "duration",
+          "availableFrom",
+          "availableTo",
+          "isActive"
+        ]
       },
       "serviceValidatorSchema": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "availableFrom": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "default": "08:00"
+          },
+          "availableTo": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "default": "17:00"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        },
+        "required": [
+          "name",
+          "price",
+          "duration",
+          "availableFrom",
+          "availableTo",
+          "isActive"
+        ]
       },
       "slug": {
         "type": "object"
@@ -2209,10 +2492,90 @@
         "additionalProperties": false
       },
       "UpdateServiceValidatorSchema": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "availableFrom": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "default": "08:00"
+          },
+          "availableTo": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "default": "17:00"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        }
       },
       "updateServiceValidatorSchema": {
-        "type": "object"
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          },
+          "image": {
+            "type": "string",
+            "format": "binary",
+            "nullable": true
+          },
+          "price": {
+            "type": "number",
+            "minimum": 0
+          },
+          "duration": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 9007199254740991
+          },
+          "availableFrom": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "default": "08:00"
+          },
+          "availableTo": {
+            "type": "string",
+            "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+            "default": "17:00"
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        }
       }
     },
     "responses": {
@@ -2371,8 +2734,7 @@
             "name": "country",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "NG"
+              "type": "string"
             }
           },
           {
@@ -2545,8 +2907,7 @@
             "name": "country",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "NG"
+              "type": "string"
             }
           }
         ],
@@ -3412,7 +3773,7 @@
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/BusinessValidatorSchema"
               }
@@ -3482,6 +3843,140 @@
         }
       }
     },
+    "/business/closures": {
+      "get": {
+        "operationId": "get-business-closures",
+        "summary": "",
+        "description": "Lists the authenticated user's business's one-off closures",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-business-closures",
+        "summary": "",
+        "description": "Adds a one-off closure date for the authenticated user's",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessClosureValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/business/google-calendar": {
+      "delete": {
+        "operationId": "delete-business-google-calendar",
+        "summary": "",
+        "description": "Disconnects Google Calendar from the authenticated user's",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/business/hours": {
+      "get": {
+        "operationId": "get-business-hours",
+        "summary": "",
+        "description": "Retrieves the authenticated user's business's weekly working",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "put": {
+        "operationId": "put-business-hours",
+        "summary": "",
+        "description": "Replaces the authenticated user's business's full weekly",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BusinessHoursValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
     "/business/mono-url": {
       "get": {
         "operationId": "get-business-mono-url",
@@ -3494,6 +3989,102 @@
         "security": [
           {
             "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/business/closures/{id}": {
+      "delete": {
+        "operationId": "delete-business-closures-{id}",
+        "summary": "",
+        "description": "Deletes a one-off closure by id. Uses the cuid `id` rather",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/business/google-calendar/callback": {
+      "get": {
+        "operationId": "get-business-google-calendar-callback",
+        "summary": "",
+        "description": "Exchanges the Google OAuth `code` for tokens and persists",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/business/google-calendar/connect": {
+      "get": {
+        "operationId": "get-business-google-calendar-connect",
+        "summary": "",
+        "description": "Returns (or redirects to, with ?redirect=true) the Google",
+        "tags": [
+          "Business"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/cron/booking-reminders": {
+      "get": {
+        "operationId": "get-cron-booking-reminders",
+        "summary": "",
+        "description": "Dispatches the 24-hours-ahead reminder email for CONFIRMED",
+        "tags": [
+          "Cron"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "none — Authorization: Bearer <CRON_SECRET>": []
           }
         ],
         "responses": {
@@ -3734,7 +4325,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/invoiceValidatorSchema"
+                "$ref": "#/components/schemas/InvoiceValidatorSchema"
               }
             }
           }
@@ -3859,6 +4450,39 @@
         }
       }
     },
+    "/messaging/link": {
+      "post": {
+        "operationId": "post-messaging-link",
+        "summary": "",
+        "description": "Binds a WhatsApp/Instagram chat identity (from a link token) to the",
+        "tags": [
+          "Messaging"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkValidatorSchema"
+              }
+            }
+          }
+        },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
     "/overview": {
       "get": {
         "operationId": "get-overview",
@@ -3903,6 +4527,1411 @@
         "responses": {
           "400": {
             "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/public/bookings": {
+      "post": {
+        "operationId": "post-public-bookings",
+        "summary": "",
+        "description": "Public (unauthenticated) booking creation + Paystack payment init.",
+        "tags": [
+          "Public"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "paymentUrl": {
+                          "type": "object"
+                        },
+                        "paymentReference": {
+                          "type": "object"
+                        },
+                        "startTime": {
+                          "type": "object",
+                          "properties": {
+                            "toString": {
+                              "type": "object"
+                            },
+                            "toDateString": {
+                              "type": "object"
+                            },
+                            "toTimeString": {
+                              "type": "object"
+                            },
+                            "toLocaleString": {
+                              "type": "object"
+                            },
+                            "toLocaleDateString": {
+                              "type": "object"
+                            },
+                            "toLocaleTimeString": {
+                              "type": "object"
+                            },
+                            "valueOf": {
+                              "type": "object"
+                            },
+                            "getTime": {
+                              "type": "object"
+                            },
+                            "getFullYear": {
+                              "type": "object"
+                            },
+                            "getUTCFullYear": {
+                              "type": "object"
+                            },
+                            "getMonth": {
+                              "type": "object"
+                            },
+                            "getUTCMonth": {
+                              "type": "object"
+                            },
+                            "getDate": {
+                              "type": "object"
+                            },
+                            "getUTCDate": {
+                              "type": "object"
+                            },
+                            "getDay": {
+                              "type": "object"
+                            },
+                            "getUTCDay": {
+                              "type": "object"
+                            },
+                            "getHours": {
+                              "type": "object"
+                            },
+                            "getUTCHours": {
+                              "type": "object"
+                            },
+                            "getMinutes": {
+                              "type": "object"
+                            },
+                            "getUTCMinutes": {
+                              "type": "object"
+                            },
+                            "getSeconds": {
+                              "type": "object"
+                            },
+                            "getUTCSeconds": {
+                              "type": "object"
+                            },
+                            "getMilliseconds": {
+                              "type": "object"
+                            },
+                            "getUTCMilliseconds": {
+                              "type": "object"
+                            },
+                            "getTimezoneOffset": {
+                              "type": "object"
+                            },
+                            "setTime": {
+                              "type": "object"
+                            },
+                            "setMilliseconds": {
+                              "type": "object"
+                            },
+                            "setUTCMilliseconds": {
+                              "type": "object"
+                            },
+                            "setSeconds": {
+                              "type": "object"
+                            },
+                            "setUTCSeconds": {
+                              "type": "object"
+                            },
+                            "setMinutes": {
+                              "type": "object"
+                            },
+                            "setUTCMinutes": {
+                              "type": "object"
+                            },
+                            "setHours": {
+                              "type": "object"
+                            },
+                            "setUTCHours": {
+                              "type": "object"
+                            },
+                            "setDate": {
+                              "type": "object"
+                            },
+                            "setUTCDate": {
+                              "type": "object"
+                            },
+                            "setMonth": {
+                              "type": "object"
+                            },
+                            "setUTCMonth": {
+                              "type": "object"
+                            },
+                            "setFullYear": {
+                              "type": "object"
+                            },
+                            "setUTCFullYear": {
+                              "type": "object"
+                            },
+                            "toUTCString": {
+                              "type": "object"
+                            },
+                            "toISOString": {
+                              "type": "object"
+                            },
+                            "toJSON": {
+                              "type": "object"
+                            },
+                            "__@toPrimitive@991": {
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "toString",
+                            "toDateString",
+                            "toTimeString",
+                            "toLocaleString",
+                            "toLocaleDateString",
+                            "toLocaleTimeString",
+                            "valueOf",
+                            "getTime",
+                            "getFullYear",
+                            "getUTCFullYear",
+                            "getMonth",
+                            "getUTCMonth",
+                            "getDate",
+                            "getUTCDate",
+                            "getDay",
+                            "getUTCDay",
+                            "getHours",
+                            "getUTCHours",
+                            "getMinutes",
+                            "getUTCMinutes",
+                            "getSeconds",
+                            "getUTCSeconds",
+                            "getMilliseconds",
+                            "getUTCMilliseconds",
+                            "getTimezoneOffset",
+                            "setTime",
+                            "setMilliseconds",
+                            "setUTCMilliseconds",
+                            "setSeconds",
+                            "setUTCSeconds",
+                            "setMinutes",
+                            "setUTCMinutes",
+                            "setHours",
+                            "setUTCHours",
+                            "setDate",
+                            "setUTCDate",
+                            "setMonth",
+                            "setUTCMonth",
+                            "setFullYear",
+                            "setUTCFullYear",
+                            "toUTCString",
+                            "toISOString",
+                            "toJSON",
+                            "__@toPrimitive@991"
+                          ]
+                        },
+                        "endTime": {
+                          "type": "object"
+                        },
+                        "clientName": {
+                          "type": "object"
+                        },
+                        "clientEmail": {
+                          "type": "object",
+                          "nullable": true
+                        },
+                        "clientPhone": {
+                          "type": "object"
+                        },
+                        "notes": {
+                          "type": "object"
+                        },
+                        "status": {
+                          "oneOf": [
+                            {
+                              "type": "string",
+                              "enum": [
+                                "PENDING"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "CONFIRMED"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "COMPLETED"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "CANCELLED"
+                              ]
+                            }
+                          ]
+                        },
+                        "id": {
+                          "type": "object"
+                        },
+                        "slug": {
+                          "type": "object"
+                        },
+                        "businessId": {
+                          "type": "object"
+                        },
+                        "serviceId": {
+                          "type": "object"
+                        },
+                        "clientLat": {
+                          "type": "object",
+                          "properties": {
+                            "d": {
+                              "type": "array",
+                              "items": {
+                                "type": "object"
+                              }
+                            },
+                            "e": {
+                              "type": "object"
+                            },
+                            "s": {
+                              "type": "object"
+                            },
+                            "absoluteValue": {
+                              "type": "object"
+                            },
+                            "abs": {
+                              "type": "object"
+                            },
+                            "ceil": {
+                              "type": "object"
+                            },
+                            "clampedTo": {
+                              "type": "object"
+                            },
+                            "clamp": {
+                              "type": "object"
+                            },
+                            "comparedTo": {
+                              "type": "object"
+                            },
+                            "cmp": {
+                              "type": "object"
+                            },
+                            "cosine": {
+                              "type": "object"
+                            },
+                            "cos": {
+                              "type": "object"
+                            },
+                            "cubeRoot": {
+                              "type": "object"
+                            },
+                            "cbrt": {
+                              "type": "object"
+                            },
+                            "decimalPlaces": {
+                              "type": "object"
+                            },
+                            "dp": {
+                              "type": "object"
+                            },
+                            "dividedBy": {
+                              "type": "object"
+                            },
+                            "div": {
+                              "type": "object"
+                            },
+                            "dividedToIntegerBy": {
+                              "type": "object"
+                            },
+                            "divToInt": {
+                              "type": "object"
+                            },
+                            "equals": {
+                              "type": "object"
+                            },
+                            "eq": {
+                              "type": "object"
+                            },
+                            "floor": {
+                              "type": "object"
+                            },
+                            "greaterThan": {
+                              "type": "object"
+                            },
+                            "gt": {
+                              "type": "object"
+                            },
+                            "greaterThanOrEqualTo": {
+                              "type": "object"
+                            },
+                            "gte": {
+                              "type": "object"
+                            },
+                            "hyperbolicCosine": {
+                              "type": "object"
+                            },
+                            "cosh": {
+                              "type": "object"
+                            },
+                            "hyperbolicSine": {
+                              "type": "object"
+                            },
+                            "sinh": {
+                              "type": "object"
+                            },
+                            "hyperbolicTangent": {
+                              "type": "object"
+                            },
+                            "tanh": {
+                              "type": "object"
+                            },
+                            "inverseCosine": {
+                              "type": "object"
+                            },
+                            "acos": {
+                              "type": "object"
+                            },
+                            "inverseHyperbolicCosine": {
+                              "type": "object"
+                            },
+                            "acosh": {
+                              "type": "object"
+                            },
+                            "inverseHyperbolicSine": {
+                              "type": "object"
+                            },
+                            "asinh": {
+                              "type": "object"
+                            },
+                            "inverseHyperbolicTangent": {
+                              "type": "object"
+                            },
+                            "atanh": {
+                              "type": "object"
+                            },
+                            "inverseSine": {
+                              "type": "object"
+                            },
+                            "asin": {
+                              "type": "object"
+                            },
+                            "inverseTangent": {
+                              "type": "object"
+                            },
+                            "atan": {
+                              "type": "object"
+                            },
+                            "isFinite": {
+                              "type": "object"
+                            },
+                            "isInteger": {
+                              "type": "object"
+                            },
+                            "isInt": {
+                              "type": "object"
+                            },
+                            "isNaN": {
+                              "type": "object"
+                            },
+                            "isNegative": {
+                              "type": "object"
+                            },
+                            "isNeg": {
+                              "type": "object"
+                            },
+                            "isPositive": {
+                              "type": "object"
+                            },
+                            "isPos": {
+                              "type": "object"
+                            },
+                            "isZero": {
+                              "type": "object"
+                            },
+                            "lessThan": {
+                              "type": "object"
+                            },
+                            "lt": {
+                              "type": "object"
+                            },
+                            "lessThanOrEqualTo": {
+                              "type": "object"
+                            },
+                            "lte": {
+                              "type": "object"
+                            },
+                            "logarithm": {
+                              "type": "object"
+                            },
+                            "log": {
+                              "type": "object"
+                            },
+                            "minus": {
+                              "type": "object"
+                            },
+                            "sub": {
+                              "type": "object"
+                            },
+                            "modulo": {
+                              "type": "object"
+                            },
+                            "mod": {
+                              "type": "object"
+                            },
+                            "naturalExponential": {
+                              "type": "object"
+                            },
+                            "exp": {
+                              "type": "object"
+                            },
+                            "naturalLogarithm": {
+                              "type": "object"
+                            },
+                            "ln": {
+                              "type": "object"
+                            },
+                            "negated": {
+                              "type": "object"
+                            },
+                            "neg": {
+                              "type": "object"
+                            },
+                            "plus": {
+                              "type": "object"
+                            },
+                            "add": {
+                              "type": "object"
+                            },
+                            "precision": {
+                              "type": "object"
+                            },
+                            "sd": {
+                              "type": "object"
+                            },
+                            "round": {
+                              "type": "object"
+                            },
+                            "sine": {
+                              "type": "object"
+                            },
+                            "sin": {
+                              "type": "object"
+                            },
+                            "squareRoot": {
+                              "type": "object"
+                            },
+                            "sqrt": {
+                              "type": "object"
+                            },
+                            "tangent": {
+                              "type": "object"
+                            },
+                            "tan": {
+                              "type": "object"
+                            },
+                            "times": {
+                              "type": "object"
+                            },
+                            "mul": {
+                              "type": "object"
+                            },
+                            "toBinary": {
+                              "type": "object"
+                            },
+                            "toDecimalPlaces": {
+                              "type": "object"
+                            },
+                            "toDP": {
+                              "type": "object"
+                            },
+                            "toExponential": {
+                              "type": "object"
+                            },
+                            "toFixed": {
+                              "type": "object"
+                            },
+                            "toFraction": {
+                              "type": "object"
+                            },
+                            "toHexadecimal": {
+                              "type": "object"
+                            },
+                            "toHex": {
+                              "type": "object"
+                            },
+                            "toJSON": {
+                              "type": "object"
+                            },
+                            "toNearest": {
+                              "type": "object"
+                            },
+                            "toNumber": {
+                              "type": "object"
+                            },
+                            "toOctal": {
+                              "type": "object"
+                            },
+                            "toPower": {
+                              "type": "object"
+                            },
+                            "pow": {
+                              "type": "object"
+                            },
+                            "toPrecision": {
+                              "type": "object"
+                            },
+                            "toSignificantDigits": {
+                              "type": "object"
+                            },
+                            "toSD": {
+                              "type": "object"
+                            },
+                            "toString": {
+                              "type": "object"
+                            },
+                            "truncated": {
+                              "type": "object"
+                            },
+                            "trunc": {
+                              "type": "object"
+                            },
+                            "valueOf": {
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "d",
+                            "e",
+                            "s",
+                            "absoluteValue",
+                            "abs",
+                            "ceil",
+                            "clampedTo",
+                            "clamp",
+                            "comparedTo",
+                            "cmp",
+                            "cosine",
+                            "cos",
+                            "cubeRoot",
+                            "cbrt",
+                            "decimalPlaces",
+                            "dp",
+                            "dividedBy",
+                            "div",
+                            "dividedToIntegerBy",
+                            "divToInt",
+                            "equals",
+                            "eq",
+                            "floor",
+                            "greaterThan",
+                            "gt",
+                            "greaterThanOrEqualTo",
+                            "gte",
+                            "hyperbolicCosine",
+                            "cosh",
+                            "hyperbolicSine",
+                            "sinh",
+                            "hyperbolicTangent",
+                            "tanh",
+                            "inverseCosine",
+                            "acos",
+                            "inverseHyperbolicCosine",
+                            "acosh",
+                            "inverseHyperbolicSine",
+                            "asinh",
+                            "inverseHyperbolicTangent",
+                            "atanh",
+                            "inverseSine",
+                            "asin",
+                            "inverseTangent",
+                            "atan",
+                            "isFinite",
+                            "isInteger",
+                            "isInt",
+                            "isNaN",
+                            "isNegative",
+                            "isNeg",
+                            "isPositive",
+                            "isPos",
+                            "isZero",
+                            "lessThan",
+                            "lt",
+                            "lessThanOrEqualTo",
+                            "lte",
+                            "logarithm",
+                            "log",
+                            "minus",
+                            "sub",
+                            "modulo",
+                            "mod",
+                            "naturalExponential",
+                            "exp",
+                            "naturalLogarithm",
+                            "ln",
+                            "negated",
+                            "neg",
+                            "plus",
+                            "add",
+                            "precision",
+                            "sd",
+                            "round",
+                            "sine",
+                            "sin",
+                            "squareRoot",
+                            "sqrt",
+                            "tangent",
+                            "tan",
+                            "times",
+                            "mul",
+                            "toBinary",
+                            "toDecimalPlaces",
+                            "toDP",
+                            "toExponential",
+                            "toFixed",
+                            "toFraction",
+                            "toHexadecimal",
+                            "toHex",
+                            "toJSON",
+                            "toNearest",
+                            "toNumber",
+                            "toOctal",
+                            "toPower",
+                            "pow",
+                            "toPrecision",
+                            "toSignificantDigits",
+                            "toSD",
+                            "toString",
+                            "truncated",
+                            "trunc",
+                            "valueOf"
+                          ],
+                          "nullable": true
+                        },
+                        "clientLong": {
+                          "type": "object"
+                        },
+                        "distanceKm": {
+                          "type": "object"
+                        },
+                        "durationMin": {
+                          "type": "object",
+                          "nullable": true
+                        },
+                        "routePolyline": {
+                          "type": "object"
+                        },
+                        "reminderSentAt": {
+                          "type": "object",
+                          "nullable": true
+                        },
+                        "googleEventId": {
+                          "type": "object"
+                        },
+                        "createdAt": {
+                          "type": "object"
+                        },
+                        "updatedAt": {
+                          "type": "object"
+                        }
+                      },
+                      "required": [
+                        "paymentUrl",
+                        "paymentReference",
+                        "startTime",
+                        "endTime",
+                        "clientName",
+                        "clientEmail",
+                        "clientPhone",
+                        "notes",
+                        "status",
+                        "id",
+                        "slug",
+                        "businessId",
+                        "serviceId",
+                        "clientLat",
+                        "clientLong",
+                        "distanceKm",
+                        "durationMin",
+                        "routePolyline",
+                        "reminderSentAt",
+                        "googleEventId",
+                        "createdAt",
+                        "updatedAt"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "422": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/public/services/{slug}": {
+      "get": {
+        "operationId": "get-public-services-{slug}",
+        "summary": "",
+        "description": "Public (unauthenticated) service details + availability for a date.",
+        "tags": [
+          "Public"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "2023-01-01"
+          },
+          {
+            "name": "slug",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "slug",
+            "description": "Path parameter: slug"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "slug": {
+                          "type": "object"
+                        },
+                        "name": {
+                          "type": "object"
+                        },
+                        "description": {
+                          "type": "object",
+                          "nullable": true
+                        },
+                        "image": {
+                          "type": "object"
+                        },
+                        "price": {
+                          "type": "object",
+                          "properties": {
+                            "d": {
+                              "type": "array",
+                              "items": {
+                                "type": "object"
+                              }
+                            },
+                            "e": {
+                              "type": "object"
+                            },
+                            "s": {
+                              "type": "object"
+                            },
+                            "absoluteValue": {
+                              "type": "object"
+                            },
+                            "abs": {
+                              "type": "object"
+                            },
+                            "ceil": {
+                              "type": "object"
+                            },
+                            "clampedTo": {
+                              "type": "object"
+                            },
+                            "clamp": {
+                              "type": "object"
+                            },
+                            "comparedTo": {
+                              "type": "object"
+                            },
+                            "cmp": {
+                              "type": "object"
+                            },
+                            "cosine": {
+                              "type": "object"
+                            },
+                            "cos": {
+                              "type": "object"
+                            },
+                            "cubeRoot": {
+                              "type": "object"
+                            },
+                            "cbrt": {
+                              "type": "object"
+                            },
+                            "decimalPlaces": {
+                              "type": "object"
+                            },
+                            "dp": {
+                              "type": "object"
+                            },
+                            "dividedBy": {
+                              "type": "object"
+                            },
+                            "div": {
+                              "type": "object"
+                            },
+                            "dividedToIntegerBy": {
+                              "type": "object"
+                            },
+                            "divToInt": {
+                              "type": "object"
+                            },
+                            "equals": {
+                              "type": "object"
+                            },
+                            "eq": {
+                              "type": "object"
+                            },
+                            "floor": {
+                              "type": "object"
+                            },
+                            "greaterThan": {
+                              "type": "object"
+                            },
+                            "gt": {
+                              "type": "object"
+                            },
+                            "greaterThanOrEqualTo": {
+                              "type": "object"
+                            },
+                            "gte": {
+                              "type": "object"
+                            },
+                            "hyperbolicCosine": {
+                              "type": "object"
+                            },
+                            "cosh": {
+                              "type": "object"
+                            },
+                            "hyperbolicSine": {
+                              "type": "object"
+                            },
+                            "sinh": {
+                              "type": "object"
+                            },
+                            "hyperbolicTangent": {
+                              "type": "object"
+                            },
+                            "tanh": {
+                              "type": "object"
+                            },
+                            "inverseCosine": {
+                              "type": "object"
+                            },
+                            "acos": {
+                              "type": "object"
+                            },
+                            "inverseHyperbolicCosine": {
+                              "type": "object"
+                            },
+                            "acosh": {
+                              "type": "object"
+                            },
+                            "inverseHyperbolicSine": {
+                              "type": "object"
+                            },
+                            "asinh": {
+                              "type": "object"
+                            },
+                            "inverseHyperbolicTangent": {
+                              "type": "object"
+                            },
+                            "atanh": {
+                              "type": "object"
+                            },
+                            "inverseSine": {
+                              "type": "object"
+                            },
+                            "asin": {
+                              "type": "object"
+                            },
+                            "inverseTangent": {
+                              "type": "object"
+                            },
+                            "atan": {
+                              "type": "object"
+                            },
+                            "isFinite": {
+                              "type": "object"
+                            },
+                            "isInteger": {
+                              "type": "object"
+                            },
+                            "isInt": {
+                              "type": "object"
+                            },
+                            "isNaN": {
+                              "type": "object"
+                            },
+                            "isNegative": {
+                              "type": "object"
+                            },
+                            "isNeg": {
+                              "type": "object"
+                            },
+                            "isPositive": {
+                              "type": "object"
+                            },
+                            "isPos": {
+                              "type": "object"
+                            },
+                            "isZero": {
+                              "type": "object"
+                            },
+                            "lessThan": {
+                              "type": "object"
+                            },
+                            "lt": {
+                              "type": "object"
+                            },
+                            "lessThanOrEqualTo": {
+                              "type": "object"
+                            },
+                            "lte": {
+                              "type": "object"
+                            },
+                            "logarithm": {
+                              "type": "object"
+                            },
+                            "log": {
+                              "type": "object"
+                            },
+                            "minus": {
+                              "type": "object"
+                            },
+                            "sub": {
+                              "type": "object"
+                            },
+                            "modulo": {
+                              "type": "object"
+                            },
+                            "mod": {
+                              "type": "object"
+                            },
+                            "naturalExponential": {
+                              "type": "object"
+                            },
+                            "exp": {
+                              "type": "object"
+                            },
+                            "naturalLogarithm": {
+                              "type": "object"
+                            },
+                            "ln": {
+                              "type": "object"
+                            },
+                            "negated": {
+                              "type": "object"
+                            },
+                            "neg": {
+                              "type": "object"
+                            },
+                            "plus": {
+                              "type": "object"
+                            },
+                            "add": {
+                              "type": "object"
+                            },
+                            "precision": {
+                              "type": "object"
+                            },
+                            "sd": {
+                              "type": "object"
+                            },
+                            "round": {
+                              "type": "object"
+                            },
+                            "sine": {
+                              "type": "object"
+                            },
+                            "sin": {
+                              "type": "object"
+                            },
+                            "squareRoot": {
+                              "type": "object"
+                            },
+                            "sqrt": {
+                              "type": "object"
+                            },
+                            "tangent": {
+                              "type": "object"
+                            },
+                            "tan": {
+                              "type": "object"
+                            },
+                            "times": {
+                              "type": "object"
+                            },
+                            "mul": {
+                              "type": "object"
+                            },
+                            "toBinary": {
+                              "type": "object"
+                            },
+                            "toDecimalPlaces": {
+                              "type": "object"
+                            },
+                            "toDP": {
+                              "type": "object"
+                            },
+                            "toExponential": {
+                              "type": "object"
+                            },
+                            "toFixed": {
+                              "type": "object"
+                            },
+                            "toFraction": {
+                              "type": "object"
+                            },
+                            "toHexadecimal": {
+                              "type": "object"
+                            },
+                            "toHex": {
+                              "type": "object"
+                            },
+                            "toJSON": {
+                              "type": "object"
+                            },
+                            "toNearest": {
+                              "type": "object"
+                            },
+                            "toNumber": {
+                              "type": "object"
+                            },
+                            "toOctal": {
+                              "type": "object"
+                            },
+                            "toPower": {
+                              "type": "object"
+                            },
+                            "pow": {
+                              "type": "object"
+                            },
+                            "toPrecision": {
+                              "type": "object"
+                            },
+                            "toSignificantDigits": {
+                              "type": "object"
+                            },
+                            "toSD": {
+                              "type": "object"
+                            },
+                            "toString": {
+                              "type": "object"
+                            },
+                            "truncated": {
+                              "type": "object"
+                            },
+                            "trunc": {
+                              "type": "object"
+                            },
+                            "valueOf": {
+                              "type": "object"
+                            }
+                          },
+                          "required": [
+                            "d",
+                            "e",
+                            "s",
+                            "absoluteValue",
+                            "abs",
+                            "ceil",
+                            "clampedTo",
+                            "clamp",
+                            "comparedTo",
+                            "cmp",
+                            "cosine",
+                            "cos",
+                            "cubeRoot",
+                            "cbrt",
+                            "decimalPlaces",
+                            "dp",
+                            "dividedBy",
+                            "div",
+                            "dividedToIntegerBy",
+                            "divToInt",
+                            "equals",
+                            "eq",
+                            "floor",
+                            "greaterThan",
+                            "gt",
+                            "greaterThanOrEqualTo",
+                            "gte",
+                            "hyperbolicCosine",
+                            "cosh",
+                            "hyperbolicSine",
+                            "sinh",
+                            "hyperbolicTangent",
+                            "tanh",
+                            "inverseCosine",
+                            "acos",
+                            "inverseHyperbolicCosine",
+                            "acosh",
+                            "inverseHyperbolicSine",
+                            "asinh",
+                            "inverseHyperbolicTangent",
+                            "atanh",
+                            "inverseSine",
+                            "asin",
+                            "inverseTangent",
+                            "atan",
+                            "isFinite",
+                            "isInteger",
+                            "isInt",
+                            "isNaN",
+                            "isNegative",
+                            "isNeg",
+                            "isPositive",
+                            "isPos",
+                            "isZero",
+                            "lessThan",
+                            "lt",
+                            "lessThanOrEqualTo",
+                            "lte",
+                            "logarithm",
+                            "log",
+                            "minus",
+                            "sub",
+                            "modulo",
+                            "mod",
+                            "naturalExponential",
+                            "exp",
+                            "naturalLogarithm",
+                            "ln",
+                            "negated",
+                            "neg",
+                            "plus",
+                            "add",
+                            "precision",
+                            "sd",
+                            "round",
+                            "sine",
+                            "sin",
+                            "squareRoot",
+                            "sqrt",
+                            "tangent",
+                            "tan",
+                            "times",
+                            "mul",
+                            "toBinary",
+                            "toDecimalPlaces",
+                            "toDP",
+                            "toExponential",
+                            "toFixed",
+                            "toFraction",
+                            "toHexadecimal",
+                            "toHex",
+                            "toJSON",
+                            "toNearest",
+                            "toNumber",
+                            "toOctal",
+                            "toPower",
+                            "pow",
+                            "toPrecision",
+                            "toSignificantDigits",
+                            "toSD",
+                            "toString",
+                            "truncated",
+                            "trunc",
+                            "valueOf"
+                          ]
+                        },
+                        "duration": {
+                          "type": "object"
+                        },
+                        "currency": {
+                          "type": "object"
+                        },
+                        "businessName": {
+                          "type": "object"
+                        },
+                        "slots": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "startTime": {
+                                "type": "object"
+                              },
+                              "endTime": {
+                                "type": "object"
+                              },
+                              "isAvailable": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": [
+                              "startTime",
+                              "endTime",
+                              "isAvailable"
+                            ]
+                          }
+                        }
+                      },
+                      "required": [
+                        "slug",
+                        "name",
+                        "description",
+                        "image",
+                        "price",
+                        "duration",
+                        "currency",
+                        "businessName",
+                        "slots"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message",
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "404": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "number"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "message"
+                  ]
+                }
+              }
+            }
           },
           "500": {
             "$ref": "#/components/responses/500"
@@ -4080,7 +6109,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/receiptValidatorSchema"
+                "$ref": "#/components/schemas/ReceiptValidatorSchema"
               }
             }
           }
@@ -4348,9 +6377,14 @@
         ],
         "requestBody": {
           "content": {
-            "application/json": {
+            "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/ServiceValidatorSchema"
+              },
+              "encoding": {
+                "image": {
+                  "contentType": "application/octet-stream"
+                }
               }
             }
           }
@@ -4374,6 +6408,15 @@
           "Services"
         ],
         "parameters": [
+          {
+            "in": "query",
+            "name": "date",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+            }
+          },
           {
             "in": "path",
             "name": "slug",
@@ -4475,6 +6518,78 @@
         }
       }
     },
+    "/webhooks/instagram": {
+      "get": {
+        "operationId": "get-webhooks-instagram",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Webhooks"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-webhooks-instagram",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Webhooks"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
     "/webhooks/paystack": {
       "post": {
         "operationId": "post-webhooks-paystack",
@@ -4529,6 +6644,78 @@
           }
         }
       }
+    },
+    "/webhooks/whatsapp": {
+      "get": {
+        "operationId": "get-webhooks-whatsapp",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Webhooks"
+        ],
+        "parameters": [],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-webhooks-whatsapp",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Webhooks"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "message"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
     }
   },
   "tags": [
@@ -4545,10 +6732,19 @@
       "name": "Business"
     },
     {
+      "name": "Cron"
+    },
+    {
       "name": "Invoices"
     },
     {
+      "name": "Messaging"
+    },
+    {
       "name": "Overview"
+    },
+    {
+      "name": "Public"
     },
     {
       "name": "Receipts"

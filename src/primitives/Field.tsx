@@ -30,7 +30,14 @@ interface FieldProps {
  * Label above the control, never placeholder-as-label (DESIGN.md). The error
  * sits under the field in danger text and replaces the hint.
  */
-export function Field({ id, label, hint, error, className, children }: FieldProps) {
+export function Field({
+  id,
+  label,
+  hint,
+  error,
+  className,
+  children,
+}: FieldProps) {
   const hintId = hint ? `${id}-hint` : undefined;
   const errorId = error ? `${id}-error` : undefined;
 
@@ -39,7 +46,10 @@ export function Field({ id, label, hint, error, className, children }: FieldProp
       value={{ id, describedBy: errorId ?? hintId, invalid: Boolean(error) }}
     >
       <div className={cn("grid gap-1.5", className)}>
-        <label htmlFor={id} className="text-ink-2 text-sm leading-[1.3] font-semibold">
+        <label
+          htmlFor={id}
+          className="text-ink-2 text-sm leading-[1.3] font-semibold"
+        >
           {label}
         </label>
         {children}

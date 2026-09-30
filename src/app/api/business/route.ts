@@ -66,6 +66,7 @@ export const GET = withMiddleware<unknown>(
  *              bank linking so you can test the rest of the onboarding flow
  *              independently.
  *
+ * @contentType multipart/form-data
  * @auth bearer
  */
 export const POST = withMiddleware<BusinessValidatorSchema>(

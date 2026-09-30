@@ -2,7 +2,11 @@
 
 import { X } from "@phosphor-icons/react/dist/ssr";
 import { Dialog } from "radix-ui";
-import { forwardRef, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import {
+  forwardRef,
+  type ComponentPropsWithoutRef,
+  type ReactNode,
+} from "react";
 
 import { cn } from "@/utils/cn";
 
@@ -30,7 +34,11 @@ interface ModalProps {
 
 function Modal({ open, onOpenChange, defaultOpen, children }: ModalProps) {
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange} defaultOpen={defaultOpen}>
+    <Dialog.Root
+      open={open}
+      onOpenChange={onOpenChange}
+      defaultOpen={defaultOpen}
+    >
       {children}
     </Dialog.Root>
   );
@@ -67,7 +75,7 @@ const ModalContent = forwardRef<
   <Dialog.Content
     ref={ref}
     className={cn(
-      "bg-canvas shadow-float relative w-full rounded-t-panel px-5 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] focus-visible:outline-none",
+      "bg-canvas shadow-float rounded-t-panel relative w-full px-5 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] focus-visible:outline-none",
       "data-[state=closed]:animate-sheet-out data-[state=open]:animate-sheet-in",
       "sm:rounded-panel sm:max-w-[480px] sm:p-7",
       "sm:data-[state=closed]:animate-pop-out sm:data-[state=open]:animate-pop-in",
