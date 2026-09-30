@@ -3,39 +3,40 @@ import { cn } from "@/utils/cn";
 /**
  * The Sara marks.
  *
- * Sara sells one idea: the back office of a salon chain, run from the chat the
- * owner already has open. "Reply with a number. Sara does the rest." Both marks
- * are drawn from that exchange, in the product's own bubble language (18 : 6
- * radii, tail corners) and its colour rule: green belongs to the owner's own
- * voice, ink to Sara.
+ * Sara is a software assistant for small service businesses: it takes the
+ * administrative weight (invoices, receipts, bookings, payments, the day's
+ * numbers) off the owner so the owner can do the work itself. The marks say
+ * that, not where Sara happens to be reached. Each is two parts, the owner's
+ * business in ink and Sara's help in the one green, drawn heavy and soft to sit
+ * beside Bricolage the way the reference marks sit beside their names.
  *
- * - `reply`   Sara's bubble (ink, tail bottom-left) with the owner's green
- *             reply, the numeral disc from the menu, landing on its corner.
- *             One chat, a number in, the business answered. **Default.**
- * - `thread`  the exchange written out: Sara's menu in two lines, the owner's
- *             green reply below on the right. For wide, quiet places where the
- *             conversation should read as a conversation.
+ * - `handoff`  an `s` in two halves: the owner's half on top, the half Sara
+ *              takes off their hands below, in green. Admin handed over, the
+ *              business whole. **Default.**
+ * - `cradle`   an arm that holds a green disc up: support, the business carried.
+ *              The friendliest of the three; reads as a helper.
+ * - `clover`   four petals for the four jobs (bookings, invoices, receipts,
+ *              payments) round an open centre, the green one handled. Set on
+ *              the diagonal so it never reads as an AI sparkle.
  *
- * Both were proofed from 16px up (`yarn brand:generate` writes the sheet to
- * public/brand/sara-specimen.png). Rejected on that sheet, so not re-proposed:
- * two stacked bubbles (reads as any messaging app, says nothing of the
- * business), a six-petal menu burst (reads as an AI sparkle, and Sara is never
- * AI), an `s` strung from menu beads (the letter vanishes into a molecule), and
- * a torn-receipt bubble (reads as a ghost).
+ * All three were proofed from 16px up (`yarn brand:generate` writes the sheet
+ * to public/brand/sara-specimen.png). Rejected, not to be re-proposed: any chat
+ * bubble (Sara is not a messaging brand), a six-petal burst (AI sparkle), an
+ * `s` of beads, a receipt bubble (reads as a ghost), a concierge bell (reads
+ * as a food cloche), stacked list rows (a list icon), and a fully rounded
+ * `handoff`, which stops being an `s` and becomes two pills.
  *
- * `reply`'s notch is cut into the path itself rather than masked, so the mark
- * needs no ids and survives export to anything that reads bare SVG. Path data
- * here is the source of truth; scripts/gen-brand-assets.mjs restates it and
- * asserts every path still appears in this file.
+ * Path data here is the source of truth; scripts/gen-brand-assets.mjs restates
+ * it and asserts every path still appears in this file.
  */
 
-export type MarkName = "reply" | "thread";
+export type MarkName = "handoff" | "cradle" | "clover";
 
 type MarkProps = {
   name?: MarkName;
   /**
-   * Fill the owner's shape WhatsApp green. Turn it off for single-ink uses (a
-   * stamp, print) and on a green ground, where it would vanish.
+   * Fill Sara's part green. Turn it off for single-ink uses (a stamp, print)
+   * and on a green ground, where it would vanish.
    */
   accent?: boolean;
   className?: string;
@@ -47,7 +48,7 @@ type MarkProps = {
  * ink both work without variants.
  */
 export function LogoMark({
-  name = "reply",
+  name = "handoff",
   accent = true,
   className,
 }: MarkProps) {
@@ -65,45 +66,25 @@ export function LogoMark({
 }
 
 function Glyph({ name, accent }: { name: MarkName; accent: boolean }) {
-  if (name === "thread") return <Thread accent={accent} />;
-  return <Reply accent={accent} />;
+  if (name === "cradle") return <Cradle accent={accent} />;
+  if (name === "clover") return <Clover accent={accent} />;
+  return <Handoff accent={accent} />;
 }
 
 /**
- * An 84 x 66 bubble, 28 radius with a 5 tail corner (the system's bubble ratio
- * at mark scale), notched by a 22-radius moat round the 15-radius disc at
- * (73, 30). The moat is 7 units, wide enough to stay open at 16px, so the two
- * voices never touch.
+ * Two 76 x 35 halves, 6 apart, each round (17.5) on its outer end and nearly
+ * square (3) on its inner one. The near-square corners are what make it an
+ * `s`: rounded to match, the halves read as two stacked pills.
  */
-function Reply({ accent }: { accent: boolean }) {
+function Handoff({ accent }: { accent: boolean }) {
   return (
     <g>
       <path
-        d="M34 22H52.51A22 22 0 0 0 89.47 44.58A28 28 0 0 1 90 50V60A28 28 0 0 1 62 88H11A5 5 0 0 1 6 83V50A28 28 0 0 1 34 22Z"
-        fill="currentColor"
-      />
-      <Shape d="M58 30A15 15 0 1 0 88 30A15 15 0 1 0 58 30Z" accent={accent} />
-    </g>
-  );
-}
-
-/**
- * Three 20-unit rows, 6 apart: Sara's two lines left-aligned, the last with
- * Sara's tail corner; the owner's reply right-aligned with the owner's.
- */
-function Thread({ accent }: { accent: boolean }) {
-  return (
-    <g>
-      <path
-        d="M18 14H82A10 10 0 0 1 82 34H18A10 10 0 0 1 18 14Z"
-        fill="currentColor"
-      />
-      <path
-        d="M18 40H54A10 10 0 0 1 64 50V50A10 10 0 0 1 54 60H12A4 4 0 0 1 8 56V50A10 10 0 0 1 18 40Z"
+        d="M29.5 12H85A3 3 0 0 1 88 15V44A3 3 0 0 1 85 47H29.5A17.5 17.5 0 0 1 29.5 12Z"
         fill="currentColor"
       />
       <Shape
-        d="M46 66H82A10 10 0 0 1 92 76V82A4 4 0 0 1 88 86H46A10 10 0 0 1 36 76V76A10 10 0 0 1 46 66Z"
+        d="M15 53H70.5A17.5 17.5 0 0 1 70.5 88H15A3 3 0 0 1 12 85V56A3 3 0 0 1 15 53Z"
         accent={accent}
       />
     </g>
@@ -111,7 +92,44 @@ function Thread({ accent }: { accent: boolean }) {
 }
 
 /**
- * The owner's shape: `fill-accent` when accented, `currentColor` when not. A
+ * A 35-radius half-ring in a 15-unit round-capped stroke, holding a
+ * 17-radius disc clear of it by 11: held, never touching.
+ */
+function Cradle({ accent }: { accent: boolean }) {
+  return (
+    <g>
+      <path
+        d="M15 40A35 35 0 0 0 85 40"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={15}
+        strokeLinecap="round"
+      />
+      <Shape d="M33 34A17 17 0 1 0 67 34A17 17 0 1 0 33 34Z" accent={accent} />
+    </g>
+  );
+}
+
+/**
+ * Four teardrop petals struck from radius 6, tips 14-radius bulbs at radius
+ * 33, on the diagonals. The green petal points up-right.
+ */
+function Clover({ accent }: { accent: boolean }) {
+  return (
+    <g fill="currentColor">
+      <path d="M54.24 54.24L76.67 59.74A14 14 0 1 1 59.74 76.67Z" />
+      <path d="M45.76 54.24L40.26 76.67A14 14 0 1 1 23.33 59.74Z" />
+      <path d="M45.76 45.76L23.33 40.26A14 14 0 1 1 40.26 23.33Z" />
+      <Shape
+        d="M54.24 45.76L59.74 23.33A14 14 0 1 1 76.67 40.26Z"
+        accent={accent}
+      />
+    </g>
+  );
+}
+
+/**
+ * Sara's part: `fill-accent` when accented, `currentColor` when not. A
  * component rather than a ternary so the accented case emits no `fill`
  * attribute for the utility to fight with.
  */
@@ -122,12 +140,11 @@ function Shape({ d, accent }: { d: string; accent: boolean }) {
 
 /**
  * The mark in a filled tile: favicon, app icon, avatar. `ink` (the default and
- * the favicon) keeps the green reply; green on ink is a fill on a dark ground,
- * not text, and it keeps the tab icon from passing for WhatsApp's own green
- * tile. `accent` draws the whole mark in on-accent.
+ * the favicon) keeps Sara's part green; green on ink is a fill on a dark
+ * ground, not text. `accent` draws the whole mark in on-accent.
  */
 export function LogoTile({
-  name = "reply",
+  name = "handoff",
   ground = "ink",
   className,
 }: {
@@ -159,7 +176,11 @@ export function LogoTile({
 }
 
 /** A bare mark that carries the name, for places with no wordmark beside it. */
-export function Logo({ name = "reply", accent = true, className }: MarkProps) {
+export function Logo({
+  name = "handoff",
+  accent = true,
+  className,
+}: MarkProps) {
   return (
     <span role="img" aria-label="Sara" className={cn("inline-flex", className)}>
       <LogoMark name={name} accent={accent} />
