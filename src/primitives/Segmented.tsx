@@ -41,7 +41,9 @@ export function Segmented<T extends string>({
             onClick={() => onChange(option.value)}
             className={cn(
               "shrink-0 cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap transition-[background-color,color] duration-200",
-              selected ? "bg-canvas text-ink shadow-bubble" : "text-muted hover:text-ink",
+              selected
+                ? "bg-canvas text-ink shadow-bubble"
+                : "text-muted hover:text-ink",
             )}
           >
             {option.label}

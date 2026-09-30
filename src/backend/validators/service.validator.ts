@@ -1,10 +1,5 @@
 import { z } from "zod";
-import {
-  baseQueryValidatorSchema,
-  decimalValidator,
-  timeValidator,
-  withoutDefaults,
-} from "./index.validator";
+import { baseQueryValidatorSchema, withoutDefaults } from "./index.validator";
 
 const cuidValidator = z.string().cuid("id must be a valid cuid");
 
@@ -24,40 +19,56 @@ const serviceBaseSchema = z.object({
     })
     .nullable()
     .optional(),
-  price: decimalValidator("price"),
+  price: z.coerce
+    .number()
+    .finite("price must be a finite number")
+    .min(0, "price cannot be negative"),
   duration: z.coerce
     .number()
     .int("duration must be an integer")
     .min(1, "duration must be at least 1 minute"),
-  availableFrom: timeValidator("availableFrom").default("08:00"),
-  availableTo: timeValidator("availableTo").default("17:00"),
+  availableFrom: z
+    .string()
+    .regex(
+      /^([01]\d|2[0-3]):[0-5]\d$/,
+      'availableFrom must be in HH:MM 24-hour format (e.g. "08:00")',
+    )
+    .default("08:00"),
+  availableTo: z
+    .string()
+    .regex(
+      /^([01]\d|2[0-3]):[0-5]\d$/,
+      'availableTo must be in HH:MM 24-hour format (e.g. "08:00")',
+    )
+    .default("17:00"),
   isActive: z.boolean().default(true),
 });
 
-const availabilityWindowRefine = <
-  T extends { availableFrom?: string; availableTo?: string },
->(
-  schema: z.ZodType<T>,
-) =>
-  schema.refine(
-    (data) => {
-      if (data.availableFrom && data.availableTo) {
-        return data.availableFrom < data.availableTo;
-      }
-      return true;
-    },
-    {
-      message: "availableFrom must be earlier than availableTo",
-      path: ["availableFrom"],
-    },
-  );
+const checkAvailabilityWindow = (data: {
+  availableFrom?: string;
+  availableTo?: string;
+}) => {
+  if (data.availableFrom && data.availableTo) {
+    return data.availableFrom < data.availableTo;
+  }
+  return true;
+};
 
-export const serviceValidatorSchema =
-  availabilityWindowRefine(serviceBaseSchema);
+const availabilityWindowRefineOptions = {
+  message: "availableFrom must be earlier than availableTo",
+  path: ["availableFrom"],
+};
 
-export const updateServiceValidatorSchema = availabilityWindowRefine(
-  z.object(withoutDefaults(serviceBaseSchema.shape)).partial().strict(),
+export const serviceValidatorSchema = serviceBaseSchema.refine(
+  checkAvailabilityWindow,
+  availabilityWindowRefineOptions,
 );
+
+export const updateServiceValidatorSchema = z
+  .object(withoutDefaults(serviceBaseSchema.shape))
+  .partial()
+  .strict()
+  .refine(checkAvailabilityWindow, availabilityWindowRefineOptions);
 
 export const serviceQueryValidatorSchema = baseQueryValidatorSchema
   .partial()

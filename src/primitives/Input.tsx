@@ -15,21 +15,22 @@ import { useFieldContext } from "./Field";
 export const controlClasses =
   "w-full rounded-chip border border-line bg-canvas px-3.5 text-[15px] text-ink transition-[border-color,box-shadow] duration-200 placeholder:text-muted focus:border-accent-ink focus:ring-3 focus:ring-accent-tint focus-visible:outline-none aria-invalid:border-danger aria-invalid:focus:ring-danger-soft disabled:cursor-not-allowed disabled:bg-surface disabled:text-faint";
 
-const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, id, ...props }, ref) => {
-    const field = useFieldContext();
-    return (
-      <input
-        ref={ref}
-        id={id ?? field?.id}
-        aria-invalid={field?.invalid ? true : undefined}
-        aria-describedby={field?.describedBy}
-        className={cn(controlClasses, "h-11", className)}
-        {...props}
-      />
-    );
-  },
-);
+const Input = forwardRef<
+  HTMLInputElement,
+  InputHTMLAttributes<HTMLInputElement>
+>(({ className, id, ...props }, ref) => {
+  const field = useFieldContext();
+  return (
+    <input
+      ref={ref}
+      id={id ?? field?.id}
+      aria-invalid={field?.invalid ? true : undefined}
+      aria-describedby={field?.describedBy}
+      className={cn(controlClasses, "h-11", className)}
+      {...props}
+    />
+  );
+});
 Input.displayName = "Input";
 
 const Textarea = forwardRef<
@@ -44,7 +45,11 @@ const Textarea = forwardRef<
       rows={rows}
       aria-invalid={field?.invalid ? true : undefined}
       aria-describedby={field?.describedBy}
-      className={cn(controlClasses, "resize-y py-2.5 leading-normal", className)}
+      className={cn(
+        controlClasses,
+        "resize-y py-2.5 leading-normal",
+        className,
+      )}
       {...props}
     />
   );

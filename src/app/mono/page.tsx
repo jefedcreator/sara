@@ -9,17 +9,20 @@ export default function BusinessForm() {
   const { open, isLoading } = useMonoConnect({
     publicKey: env.NEXT_PUBLIC_MONO_PUBLIC_KEY ?? "",
     onSuccess: ({ code }) => {
-        console.log('code',code);
-        
+      console.log("code", code);
       setMonoCode(code); // store it, then include in POST /api/business
     },
     onClose: () => console.log("Widget closed"),
   });
 
   const handleSubmit = async (formData: FormData) => {
+    if (monoCode) {
+      formData.set("monoCode", monoCode);
+    }
+
     await fetch("/api/business", {
       method: "POST",
-      body: JSON.stringify({ ...formData, monoCode }), // monoCode is optional
+      body: formData,
     });
   };
 
