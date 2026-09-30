@@ -10,9 +10,11 @@ const config = {
     // Service photos are uploaded to Cloudinary.
     remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
   },
-  // Fonts the PDF service reads from disk, for hosts that deploy traced output.
+  // Fonts the PDF service and the Open Graph cards read from disk, for hosts
+  // that deploy traced output.
   outputFileTracingIncludes: {
     "/api/**/*": ["./assets/fonts/**/*"],
+    "/**/opengraph-image*": ["./assets/fonts/**/*"],
   },
   // Sign-in moved from /sign-in; keep old links and bookmarks working.
   async redirects() {

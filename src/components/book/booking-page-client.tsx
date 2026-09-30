@@ -191,7 +191,7 @@ export function BookingPageClient({ slug, today, initialService }: BookingPageCl
         </div>
 
         <footer className="text-faint mt-16 hidden items-center gap-2 text-[13px] lg:flex">
-          Bookings by <Wordmark mark={false} className="text-faint text-[17px]" />
+          Bookings by <Wordmark accent={false} className="text-faint text-[17px]" />
         </footer>
       </div>
 

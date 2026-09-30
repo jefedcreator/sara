@@ -13,6 +13,7 @@ import {
 } from "pdf-lib";
 import sharp from "sharp";
 
+import { MARK_ACCENT, MARK_BODY, MARK_VIEWBOX } from "@/utils/brand";
 import { formatMoney } from "@/utils/format";
 import { INVOICE_STATUS, PAYMENT_METHOD, formatDate } from "@/utils/labels";
 
@@ -137,7 +138,7 @@ const SIDE_LEFT = 340;
 
 // --- Fonts ------------------------------------------------------------------
 
-type Font = "display" | "regular" | "bold" | "mono";
+type Font = "display" | "brand" | "regular" | "bold" | "mono";
 
 /*
  * Read from assets/fonts at the project root, which the Docker image copies
@@ -145,6 +146,8 @@ type Font = "display" | "regular" | "bold" | "mono";
  */
 const FONT_FILES = {
   display: "BricolageGrotesque-Regular.ttf",
+  // The wordmark's weight, for the "Made with sara" credit.
+  brand: "BricolageGrotesque-SemiBold.ttf",
   regular: "HankenGrotesk-Regular.ttf",
   bold: "HankenGrotesk-SemiBold.ttf",
 } as const;
@@ -165,6 +168,7 @@ const embedFonts = async (doc: PDFDocument) => {
   const bytes = await loadFontBytes();
   const fonts: Record<Font, PDFFont> = {
     display: await doc.embedFont(bytes.display, { subset: true }),
+    brand: await doc.embedFont(bytes.brand, { subset: true }),
     regular: await doc.embedFont(bytes.regular, { subset: true }),
     bold: await doc.embedFont(bytes.bold, { subset: true }),
     // The document number, like the landing invoice's monospace number.
@@ -299,6 +303,21 @@ class PdfCanvas {
       ].join(" "),
       { x: 0, y: PAGE_HEIGHT, color: fill },
     );
+  }
+
+  /**
+   * The Sara mark in one colour, its 100-unit box `size` points square with
+   * the top-left at (x, top).
+   */
+  mark(x: number, top: number, size: number, color: Color) {
+    for (const path of [MARK_BODY, MARK_ACCENT]) {
+      this.page.drawSvgPath(path, {
+        x,
+        y: PAGE_HEIGHT - top,
+        scale: size / MARK_VIEWBOX,
+        color,
+      });
+    }
   }
 
   image(image: PDFImage, x: number, y: number, width: number, height: number) {
@@ -629,21 +648,41 @@ const renderDocument = async (data: DocumentData) => {
     });
   }
 
-  // Footer on every page.
+  // Footer on every page: the business on the left; the number, then a quiet
+  // single-ink "Made with [mark] sara" credit on the right, set right to left.
   canvas.eachPage((index, count) => {
     const footer = PAGE_HEIGHT - 36;
+    const quiet = { size: 8.5, color: COLOR.faint, align: "right" as const };
     canvas.line(MARGIN, footer - 18, RIGHT);
     canvas.text(data.business.name, MARGIN, footer, {
       size: 8.5,
       color: COLOR.faint,
     });
+
+    let x = RIGHT;
+    canvas.text("sara", x, footer, { ...quiet, size: 9.5, font: "brand" });
+    x -= canvas.measure("sara", 9.5, "brand") + 2.5;
+    // The mark's drawn extent is 12-88 of its box: a 10pt box stands 7.6pt,
+    // the wordmark's ascender height, centred on its x-height.
+    const markSize = 10;
+    canvas.mark(
+      x - markSize * 0.88,
+      footer - 2.5 - markSize / 2,
+      markSize,
+      COLOR.faint,
+    );
+    x -= markSize * 0.76 + 3;
+    canvas.text("Made with", x, footer, quiet);
+    x -= canvas.measure("Made with", 8.5, "regular") + 4;
+    canvas.text("·", x, footer, quiet);
+    x -= canvas.measure("·", 8.5, "regular") + 4;
     canvas.text(
       count > 1
         ? `${data.number} · Page ${index + 1} of ${count}`
-        : `${data.number} · Made with Sara`,
-      RIGHT,
+        : data.number,
+      x,
       footer,
-      { size: 8.5, color: COLOR.faint, align: "right" },
+      quiet,
     );
   });
 
