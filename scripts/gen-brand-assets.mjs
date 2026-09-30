@@ -1,13 +1,15 @@
 /**
  * Emits the static brand assets (public/brand, the favicons, the app icons)
- * from the same geometry the `Logo` primitive draws.
+ * from the mark's one definition in `src/utils/brand.ts`, the same data the
+ * `Logo` primitive, the PDFs and the Open Graph cards draw from.
  *
- * `src/primitives/Logo.tsx` is the source of truth. This file restates its path
- * data so it can render without React, then asserts every path appears verbatim
- * in the component, so a mark redrawn there and not here fails loudly instead
- * of shipping a favicon that disagrees with the nav. Colours are checked
- * against `src/styles/globals.css` for the same reason: an exported SVG has no
- * stylesheet to read tokens from.
+ * The paths and colours are read out of that file rather than restated here,
+ * so a redrawn mark cannot ship with a stale favicon. Colours are also checked
+ * against `src/styles/globals.css`: an exported SVG has no stylesheet to read
+ * tokens from, so the hex values must match the tokens exactly.
+ *
+ * The lockup exports outline "sara" from assets/fonts/BricolageGrotesque-
+ * SemiBold.ttf (the nav's weight, opsz 48), so they need no font installed.
  *
  *   yarn brand:generate
  */
@@ -16,99 +18,100 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import fontkit from "@pdf-lib/fontkit";
 import sharp from "sharp";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const brandDir = join(root, "public", "brand");
 
-const logoSource = readFileSync(join(root, "src/primitives/Logo.tsx"), "utf8");
-const tokenSource = readFileSync(join(root, "src/styles/globals.css"), "utf8");
+/* ── the mark, read from src/utils/brand.ts ─────────────────────────────── */
+const brandSource = readFileSync(join(root, "src/utils/brand.ts"), "utf8");
+const constant = (name) => {
+  const match = brandSource.match(new RegExp(`${name}\\s*=\\s*"([^"]+)"`));
+  assert.ok(match, `${name} not found in src/utils/brand.ts`);
+  return match[1];
+};
+const color = (name) => {
+  const match = brandSource.match(new RegExp(`${name}:\\s*"(#[0-9a-f]{6})"`));
+  assert.ok(match, `BRAND_COLOR.${name} not found in src/utils/brand.ts`);
+  return match[1];
+};
 
-/* Palette, from the @theme tokens. */
+const BODY = constant("MARK_BODY");
+const ACCENT = constant("MARK_ACCENT");
 const C = {
-  ink: "#0f1a14",
-  canvas: "#ffffff",
-  accent: "#25d366",
-  onAccent: "#0b2b1a",
+  ink: color("ink"),
+  canvas: color("canvas"),
+  accent: color("accent"),
+  onAccent: color("onAccent"),
   faint: "#7f8a84",
 };
+
+const tokenSource = readFileSync(join(root, "src/styles/globals.css"), "utf8");
 for (const hex of Object.values(C)) {
   assert.ok(
     tokenSource.includes(hex),
-    `${hex} is not in globals.css; the palette here has drifted`,
+    `${hex} is not in globals.css; the brand palette has drifted from the tokens`,
   );
 }
 
-/* Geometry, mirrored from Logo.tsx: each mark is its body paths plus the one
-   accent shape (Sara's part, in green). `cradle`'s body is a stroke. */
-const marks = {
-  handoff: {
-    accent:
-      "M15 53H70.5A17.5 17.5 0 0 1 70.5 88H15A3 3 0 0 1 12 85V56A3 3 0 0 1 15 53Z",
-    body: [
-      "M29.5 12H85A3 3 0 0 1 88 15V44A3 3 0 0 1 85 47H29.5A17.5 17.5 0 0 1 29.5 12Z",
-    ],
-  },
-  cradle: {
-    accent: "M33 34A17 17 0 1 0 67 34A17 17 0 1 0 33 34Z",
-    stroke: { d: "M15 40A35 35 0 0 0 85 40", width: 15 },
-  },
-  clover: {
-    accent: "M54.24 45.76L59.74 23.33A14 14 0 1 1 76.67 40.26Z",
-    body: [
-      "M54.24 54.24L76.67 59.74A14 14 0 1 1 59.74 76.67Z",
-      "M45.76 54.24L40.26 76.67A14 14 0 1 1 23.33 59.74Z",
-      "M45.76 45.76L23.33 40.26A14 14 0 1 1 40.26 23.33Z",
-    ],
-  },
-};
+/** The mark as SVG markup: the owner's half in `body`, Sara's in `accent`. */
+const glyph = ({ body, accent }) =>
+  `<g><path d="${BODY}" fill="${body}"/><path d="${ACCENT}" fill="${accent ?? body}"/></g>`;
 
-for (const [name, m] of Object.entries(marks)) {
-  for (const d of [
-    m.accent,
-    ...(m.body ?? []),
-    ...(m.stroke ? [m.stroke.d] : []),
-  ]) {
-    assert.ok(
-      logoSource.includes(`"${d}"`),
-      `${name}: "${d}" is not in Logo.tsx; these exports are stale`,
-    );
-  }
-  if (m.stroke)
-    assert.ok(
-      logoSource.includes(`strokeWidth={${m.stroke.width}}`),
-      `${name}: stroke width drifted`,
-    );
-}
-
-/** One mark as SVG markup: body in `body`, the accent shape in `accent` (or body). */
-const glyph = (name, { body, accent }) => {
-  const m = marks[name];
-  const parts = (m.body ?? []).map((d) => `<path d="${d}" fill="${body}"/>`);
-  if (m.stroke) {
-    parts.push(
-      `<path d="${m.stroke.d}" fill="none" stroke="${body}" stroke-width="${m.stroke.width}" stroke-linecap="round"/>`,
-    );
-  }
-  parts.push(`<path d="${m.accent}" fill="${accent ?? body}"/>`);
-  return `<g>${parts.join("")}</g>`;
-};
-
-const svg = (inner) =>
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100" height="100" role="img" aria-label="Sara">${inner}</svg>\n`;
+const svg = (inner, w = 100, h = 100) =>
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="Sara">${inner}</svg>\n`;
 
 /** The tile, inset to 70%: ink ground keeps the green, green ground drops it. */
-const tile = (name, ground = "ink") =>
+const tile = (ground = "ink") =>
   `<rect width="100" height="100" rx="22" fill="${ground === "ink" ? C.ink : C.accent}"/>` +
   `<g transform="translate(50 50) scale(0.7) translate(-50 -50)">` +
   glyph(
-    name,
     ground === "ink"
       ? { body: C.canvas, accent: C.accent }
       : { body: C.onAccent },
   ) +
   `</g>`;
 
+/* ── the lockup: mark + outlined "sara", set as the Wordmark primitive sets
+   it (display 600, -0.04em tracking, mark 0.95em, gap 0.28em, mark centred on
+   the x-height). Units: 1em = 100.                                        */
+const font = fontkit.create(
+  readFileSync(join(root, "assets/fonts/BricolageGrotesque-SemiBold.ttf")),
+);
+const EM = 100;
+const scale = EM / font.unitsPerEm;
+let pen = 0;
+const letters = [...font.layout("sara").glyphs].map((g) => {
+  const d = g.path.toSVG();
+  const x = pen;
+  pen += g.advanceWidth * scale - 0.04 * EM;
+  return { d, x };
+});
+const wordWidth = pen + 0.04 * EM;
+const baseline = font.ascent * scale; // text box top = 0
+const xCentre = baseline - (font.xHeight * scale) / 2;
+const markSize = 0.95 * EM;
+// Centred on the x-height, which is where the browser's 0.07em nudge lands it.
+const markTop = xCentre - markSize / 2;
+const gap = 0.28 * EM;
+const top = Math.min(markTop, 0);
+const bottom = Math.max(markTop + markSize, baseline + -font.descent * scale);
+const lockupW = Math.ceil(markSize + gap + wordWidth);
+const lockupH = Math.ceil(bottom - top);
+const lockup = ({ body, accent, text }) =>
+  `<g transform="translate(0 ${-top})">` +
+  `<g transform="translate(0 ${markTop}) scale(${markSize / 100})">${glyph({ body, accent })}</g>` +
+  `<g fill="${text}" transform="translate(${markSize + gap} ${baseline})">` +
+  letters
+    .map(
+      ({ d, x }) =>
+        `<path transform="translate(${x.toFixed(2)} 0) scale(${scale} ${-scale})" d="${d}"/>`,
+    )
+    .join("") +
+  `</g></g>`;
+
+/* ── write ───────────────────────────────────────────────────────────────── */
 mkdirSync(brandDir, { recursive: true });
 const written = [];
 const write = (path, contents) => {
@@ -116,25 +119,38 @@ const write = (path, contents) => {
   written.push(path);
 };
 
-for (const name of Object.keys(marks)) {
-  write(
-    `brand/sara-${name}-ink.svg`,
-    svg(glyph(name, { body: C.ink, accent: C.accent })),
-  );
-  write(
-    `brand/sara-${name}-paper.svg`,
-    svg(glyph(name, { body: C.canvas, accent: C.accent })),
-  );
-  write(
-    `brand/sara-${name}-mono.svg`,
-    svg(glyph(name, { body: "currentColor" })),
-  );
-  write(`brand/sara-${name}-tile.svg`, svg(tile(name)));
-  write(`brand/sara-${name}-tile-green.svg`, svg(tile(name, "accent")));
-}
+write("brand/sara-mark-ink.svg", svg(glyph({ body: C.ink, accent: C.accent })));
+write(
+  "brand/sara-mark-paper.svg",
+  svg(glyph({ body: C.canvas, accent: C.accent })),
+);
+write("brand/sara-mark-mono.svg", svg(glyph({ body: "currentColor" })));
+write("brand/sara-tile.svg", svg(tile()));
+write("brand/sara-tile-green.svg", svg(tile("accent")));
 
-/* Favicons and app icons: the recommended mark on the ink tile. */
-const icon = svg(tile("handoff"));
+const lockupInk = svg(
+  lockup({ body: C.ink, accent: C.accent, text: C.ink }),
+  lockupW,
+  lockupH,
+);
+write("brand/sara-lockup-ink.svg", lockupInk);
+write(
+  "brand/sara-lockup-paper.svg",
+  svg(
+    lockup({ body: C.canvas, accent: C.accent, text: C.canvas }),
+    lockupW,
+    lockupH,
+  ),
+);
+write(
+  "brand/sara-lockup-ink.png",
+  await sharp(Buffer.from(lockupInk), { density: 72 * 8 })
+    .png()
+    .toBuffer(),
+);
+
+/* Favicons and app icons: the mark on the ink tile. */
+const icon = svg(tile());
 write("favicon.svg", icon);
 const png = (size) =>
   sharp(Buffer.from(icon), { density: 384 })
@@ -170,43 +186,31 @@ images.forEach((img, i) => {
 });
 write("favicon.ico", Buffer.concat([header, ...images]));
 
-/* Specimen: every mark at each size class it has to survive, on both tiles
-   and on ink. Rendered from the geometry above, so it cannot flatter a mark
-   the code does not draw. No lockup: Bricolage is loaded by the app, not by a
-   standalone SVG, so judge the lockup in the browser. */
+/* Specimen: the mark at each size class it has to survive, on both tiles and
+   on ink, and the lockup on white and ink. Rendered from the data above, so it
+   cannot flatter a mark the code does not draw. */
 const rows = [];
-let y = 24;
-for (const name of Object.keys(marks)) {
+let x = 24;
+for (const size of [16, 24, 32, 48, 96]) {
   rows.push(
-    `<text x="24" y="${y + 54}" font-family="monospace" font-size="13" fill="${C.faint}">${name}</text>`,
+    `<g transform="translate(${x} ${24 + (96 - size) / 2}) scale(${size / 100})">${glyph({ body: C.ink, accent: C.accent })}</g>`,
   );
-  let x = 110;
-  for (const size of [16, 24, 32, 48, 96]) {
-    rows.push(
-      `<g transform="translate(${x} ${y + (96 - size) / 2}) scale(${size / 100})">${glyph(name, { body: C.ink, accent: C.accent })}</g>`,
-    );
-    x += size + 30;
-  }
-  rows.push(
-    `<g transform="translate(${x} ${y + 8}) scale(0.8)">${tile(name)}</g>`,
-  );
-  rows.push(
-    `<g transform="translate(${x + 100} ${y + 8}) scale(0.8)">${tile(name, "accent")}</g>`,
-  );
-  rows.push(
-    `<g transform="translate(${x + 200} ${y + 40}) scale(0.16)">${tile(name)}</g>`,
-  );
-  rows.push(
-    `<rect x="${x + 240}" y="${y}" width="120" height="96" rx="14" fill="${C.ink}"/>`,
-  );
-  rows.push(
-    `<g transform="translate(${x + 264} ${y + 12}) scale(0.72)">${glyph(name, { body: C.canvas, accent: C.accent })}</g>`,
-  );
-  y += 124;
+  x += size + 30;
 }
-const W = 1080;
-const H = y + 30;
-const sheet = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.canvas}"/>${rows.join("")}<text x="24" y="${H - 18}" font-family="monospace" font-size="11" fill="${C.faint}">Sara marks · yarn brand:generate</text></svg>`;
+rows.push(`<g transform="translate(${x} 32) scale(0.8)">${tile()}</g>`);
+rows.push(
+  `<g transform="translate(${x + 100} 32) scale(0.8)">${tile("accent")}</g>`,
+);
+rows.push(`<g transform="translate(${x + 200} 64) scale(0.16)">${tile()}</g>`);
+const lockupScale = 0.64;
+rows.push(
+  `<g transform="translate(24 164) scale(${lockupScale})">${lockup({ body: C.ink, accent: C.accent, text: C.ink })}</g>`,
+  `<rect x="${24 + lockupW * lockupScale + 40}" y="144" width="${lockupW * lockupScale + 48}" height="${lockupH * lockupScale + 40}" rx="16" fill="${C.ink}"/>`,
+  `<g transform="translate(${24 + lockupW * lockupScale + 64} 164) scale(${lockupScale})">${lockup({ body: C.canvas, accent: C.accent, text: C.canvas })}</g>`,
+);
+const W = Math.max(x + 240, 24 + lockupW * lockupScale * 2 + 136);
+const H = 164 + lockupH * lockupScale + 64;
+const sheet = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${C.canvas}"/>${rows.join("")}<text x="24" y="${H - 18}" font-family="monospace" font-size="11" fill="${C.faint}">Sara · handoff · yarn brand:generate</text></svg>`;
 write(
   "brand/sara-specimen.png",
   await sharp(Buffer.from(sheet), { density: 192 }).png().toBuffer(),

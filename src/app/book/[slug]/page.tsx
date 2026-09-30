@@ -16,9 +16,13 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   try {
     const service = await getPublicService(slug, todayIso());
     if (!service) return { title: "Booking link not found · Sara" };
+    const title = `${service.name} · ${service.businessName}`;
+    const description = `Book ${serviceLabel(service)} with ${service.businessName}. Pick a free time and pay with Paystack.`;
+    // The card itself is ./opengraph-image.tsx.
     return {
-      title: `${service.name} · ${service.businessName}`,
-      description: `Book ${serviceLabel(service)} with ${service.businessName}. Pick a free time and pay with Paystack.`,
+      title,
+      description,
+      openGraph: { siteName: "Sara", title, description },
     };
   } catch {
     return { title: "Book a time · Sara" };
@@ -44,5 +48,7 @@ export default async function BookingPage({ params }: Params) {
 
   if (!service) notFound();
 
-  return <BookingPageClient slug={slug} today={today} initialService={service} />;
+  return (
+    <BookingPageClient slug={slug} today={today} initialService={service} />
+  );
 }

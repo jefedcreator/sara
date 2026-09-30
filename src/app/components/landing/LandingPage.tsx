@@ -9,7 +9,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import { env } from "@/env";
-import { Wordmark } from "@/primitives";
+import { LogoMark, Wordmark } from "@/primitives";
 import { cn } from "@/utils/cn";
 
 import { CopyLinkButton } from "./CopyLinkButton";
@@ -842,10 +842,15 @@ export function LandingPage() {
           <div
             className={cn(WRAP, "grid justify-items-center gap-7 text-center")}
           >
+            {/* The closing lockup, all green: the mark in single ink so it reads as one word with the name. */}
             <p
-              className="font-display text-accent text-[clamp(5rem,3rem_+_14vw,13rem)] leading-[0.9] font-semibold tracking-[-0.06em] [font-variation-settings:'opsz'_96]"
+              className="font-display text-accent inline-flex items-center gap-[0.2em] text-[clamp(5rem,3rem_+_14vw,13rem)] leading-[0.9] font-semibold tracking-[-0.06em] [font-variation-settings:'opsz'_96]"
               aria-hidden="true"
             >
+              <LogoMark
+                accent={false}
+                className="size-[0.95em] translate-y-[0.07em]"
+              />
               sara
             </p>
             <h2
