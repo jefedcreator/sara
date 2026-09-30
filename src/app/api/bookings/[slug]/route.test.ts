@@ -148,7 +148,7 @@ describe("PUT /api/bookings/[slug]", () => {
     expect(mockedEmail.sendBookingRescheduledEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: EXISTING_BOOKING.clientEmail,
-        businessName: BUSINESS.name,
+        business: expect.objectContaining({ name: BUSINESS.name }),
         serviceName: EXISTING_BOOKING.service.name,
       }),
     );
@@ -277,7 +277,7 @@ describe("DELETE /api/bookings/[slug]", () => {
     expect(mockedEmail.sendBookingCancellationEmail).toHaveBeenCalledWith(
       expect.objectContaining({
         to: EXISTING_BOOKING.clientEmail,
-        businessName: BUSINESS.name,
+        business: expect.objectContaining({ name: BUSINESS.name }),
         serviceName: EXISTING_BOOKING.service.name,
       }),
     );

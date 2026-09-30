@@ -1,191 +1,137 @@
-import { Resend } from 'resend';
 import { env } from "@/env";
-// import InviteEmail from './templates/InviteNotification';
+import { appBaseUrl } from "@/utils/url";
 
+import { ConsoleEmailSender } from "./console";
+import {
+  bookingCancelledEmail,
+  bookingConfirmedEmail,
+  bookingReminderEmail,
+  bookingRescheduledEmail,
+  invoiceEmail,
+  newBookingEmail,
+  receiptEmail,
+  welcomeEmail,
+} from "./messages";
+import { ResendEmailSender } from "./resend";
+import type { EmailMessage, EmailSender } from "./types";
+
+export type { EmailMessage, EmailSender } from "./types";
+export { renderEmail } from "./render";
+
+/** The sender Sara used before EMAIL_FROM existed; kept as the default. */
+const DEFAULT_FROM = "Sara <bookings@sara.app>";
+
+export type SendResult = { success: true } | { success: false; error: unknown };
+
+/** A builder's input, less the origin the service supplies. */
+type Input<Build extends (input: never) => EmailMessage> = Omit<
+  Parameters<Build>[0],
+  "origin"
+>;
+
+/**
+ * Every email Sara sends. Each method builds its message (messages.tsx),
+ * hands it to the sender, and reports rather than throws: an email is always
+ * a side effect of something that has already happened (a booking, a
+ * payment), and must never be what fails it.
+ */
 class EmailService {
-  private resendClient: Resend | null = null;
+  private sender: EmailSender | undefined;
 
   /**
-   * Constructed lazily — Resend's constructor throws synchronously if the
-   * API key is missing, and RESEND_API_KEY is an optional integration (same
-   * as Paystack/Mono). Constructing eagerly would throw at module-evaluation
-   * time for any code path that merely imports this module, including
-   * Next.js's build-time route analysis.
+   * Resend when RESEND_API_KEY is set, the console otherwise. Chosen on first
+   * use, not at import: Resend's constructor throws without a key, and this
+   * module is imported during Next's build-time route analysis.
    */
-  private get resend(): Resend {
-    this.resendClient ??= new Resend(env.RESEND_API_KEY);
-    return this.resendClient;
+  private get transport(): EmailSender {
+    if (this.sender) return this.sender;
+    if (env.RESEND_API_KEY) {
+      this.sender = new ResendEmailSender(
+        env.RESEND_API_KEY,
+        env.EMAIL_FROM ?? DEFAULT_FROM,
+      );
+    } else {
+      if (env.NODE_ENV === "production") {
+        console.warn(
+          "[email] RESEND_API_KEY unset: emails are logged, not delivered",
+        );
+      }
+      this.sender = new ConsoleEmailSender();
+    }
+    return this.sender;
   }
 
-  async sendInviteEmail({
-    to,
-    invitedByUsername,
-    invitedByEmail,
-    entityName,
-    entityType,
-    inviteLink,
-    invitedUserAvatar,
-  }: {
-    to: string;
-    invitedByUsername: string | null;
-    invitedByEmail: string | null;
-    entityName: string;
-    entityType: 'leaderboard' | 'club';
-    inviteLink: string;
-    invitedUserAvatar: string | null;
-  }) {
+  private async deliver(
+    message: EmailMessage,
+    label: string,
+  ): Promise<SendResult> {
     try {
-      const { data, error } = await this.resend.emails.send({
-        from: 'Strive <invites@usestrive.run>',
-        to,
-        subject: `You've been invited to join ${entityName} on Strive`,
-        react: null
-        // react: InviteEmail({
-        //   invitedByUsername: invitedByUsername ?? undefined,
-        //   invitedByEmail: invitedByEmail ?? undefined,
-        //   entityName,
-        //   entityType,
-        //   inviteLink,
-        //   invitedUserAvatar: invitedUserAvatar ?? undefined,
-        // }),
-      });
-
-      if (error) {
-        console.error('Error sending invite email:', error);
-        return { success: false, error };
-      }
-
-      return { success: true, data };
+      await this.transport.send(message);
+      return { success: true };
     } catch (error) {
-      console.error('Unexpected error sending invite email:', error);
+      console.error(`[email] ${label} email failed:`, error);
       return { success: false, error };
     }
   }
 
-  async sendBookingConfirmationEmail({
-    to,
-    businessName,
-    serviceName,
-    startTime,
-  }: {
-    to: string;
-    businessName: string;
-    serviceName: string;
-    startTime: Date;
-  }) {
-    try {
-      const { data, error } = await this.resend.emails.send({
-        from: 'Sara <bookings@sara.app>',
-        to,
-        subject: `Your booking with ${businessName} is confirmed`,
-        html: `<p>Your appointment for <strong>${serviceName}</strong> with ${businessName} on ${startTime.toLocaleString()} is confirmed.</p>`,
-      });
-
-      if (error) {
-        console.error('Error sending booking confirmation email:', error);
-        return { success: false, error };
-      }
-
-      return { success: true, data };
-    } catch (error) {
-      console.error('Unexpected error sending booking confirmation email:', error);
-      return { success: false, error };
-    }
+  /** To a new owner, on their first sign-in. */
+  sendWelcomeEmail(input: Input<typeof welcomeEmail>) {
+    return this.deliver(
+      welcomeEmail({ ...input, origin: appBaseUrl() }),
+      "welcome",
+    );
   }
 
-  async sendBookingCancellationEmail({
-    to,
-    businessName,
-    serviceName,
-    startTime,
-  }: {
-    to: string;
-    businessName: string;
-    serviceName: string;
-    startTime: Date;
-  }) {
-    try {
-      const { data, error } = await this.resend.emails.send({
-        from: 'Sara <bookings@sara.app>',
-        to,
-        subject: `Your booking with ${businessName} has been cancelled`,
-        html: `<p>Your appointment for <strong>${serviceName}</strong> with ${businessName} on ${startTime.toLocaleString()} has been cancelled.</p>`,
-      });
-
-      if (error) {
-        console.error('Error sending booking cancellation email:', error);
-        return { success: false, error };
-      }
-
-      return { success: true, data };
-    } catch (error) {
-      console.error('Unexpected error sending booking cancellation email:', error);
-      return { success: false, error };
-    }
+  /** To the owner, when a customer pays for a booking. */
+  sendNewBookingEmail(input: Input<typeof newBookingEmail>) {
+    return this.deliver(
+      newBookingEmail({ ...input, origin: appBaseUrl() }),
+      "new booking",
+    );
   }
 
-  async sendBookingRescheduledEmail({
-    to,
-    businessName,
-    serviceName,
-    previousStartTime,
-    newStartTime,
-  }: {
-    to: string;
-    businessName: string;
-    serviceName: string;
-    previousStartTime: Date;
-    newStartTime: Date;
-  }) {
-    try {
-      const { data, error } = await this.resend.emails.send({
-        from: 'Sara <bookings@sara.app>',
-        to,
-        subject: `Your booking with ${businessName} has been rescheduled`,
-        html: `<p>Your appointment for <strong>${serviceName}</strong> with ${businessName} has been moved from ${previousStartTime.toLocaleString()} to ${newStartTime.toLocaleString()}.</p>`,
-      });
-
-      if (error) {
-        console.error('Error sending booking rescheduled email:', error);
-        return { success: false, error };
-      }
-
-      return { success: true, data };
-    } catch (error) {
-      console.error('Unexpected error sending booking rescheduled email:', error);
-      return { success: false, error };
-    }
+  sendBookingConfirmationEmail(input: Input<typeof bookingConfirmedEmail>) {
+    return this.deliver(
+      bookingConfirmedEmail({ ...input, origin: appBaseUrl() }),
+      "booking confirmation",
+    );
   }
 
-  async sendBookingReminderEmail({
-    to,
-    businessName,
-    serviceName,
-    startTime,
-  }: {
-    to: string;
-    businessName: string;
-    serviceName: string;
-    startTime: Date;
-  }) {
-    try {
-      const { data, error } = await this.resend.emails.send({
-        from: 'Sara <bookings@sara.app>',
-        to,
-        subject: `Reminder: your booking with ${businessName} is tomorrow`,
-        html: `<p>This is a reminder that your appointment for <strong>${serviceName}</strong> with ${businessName} is on ${startTime.toLocaleString()}.</p>`,
-      });
+  sendBookingReminderEmail(input: Input<typeof bookingReminderEmail>) {
+    return this.deliver(
+      bookingReminderEmail({ ...input, origin: appBaseUrl() }),
+      "booking reminder",
+    );
+  }
 
-      if (error) {
-        console.error('Error sending booking reminder email:', error);
-        return { success: false, error };
-      }
+  sendBookingRescheduledEmail(input: Input<typeof bookingRescheduledEmail>) {
+    return this.deliver(
+      bookingRescheduledEmail({ ...input, origin: appBaseUrl() }),
+      "booking rescheduled",
+    );
+  }
 
-      return { success: true, data };
-    } catch (error) {
-      console.error('Unexpected error sending booking reminder email:', error);
-      return { success: false, error };
-    }
+  sendBookingCancellationEmail(input: Input<typeof bookingCancelledEmail>) {
+    return this.deliver(
+      bookingCancelledEmail({ ...input, origin: appBaseUrl() }),
+      "booking cancellation",
+    );
+  }
+
+  /** To the customer, when an invoice is sent to them. */
+  sendInvoiceEmail(input: Input<typeof invoiceEmail>) {
+    return this.deliver(
+      invoiceEmail({ ...input, origin: appBaseUrl() }),
+      "invoice",
+    );
+  }
+
+  /** To the customer, when a receipt is issued for their payment. */
+  sendReceiptEmail(input: Input<typeof receiptEmail>) {
+    return this.deliver(
+      receiptEmail({ ...input, origin: appBaseUrl() }),
+      "receipt",
+    );
   }
 }
 

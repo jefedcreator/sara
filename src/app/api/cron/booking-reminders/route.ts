@@ -43,7 +43,9 @@ export const GET = withMiddleware<unknown>(
           startTime: { gte: now, lte: in24h },
         },
         include: {
-          business: { select: { name: true } },
+          business: {
+            select: { name: true, email: true, address: true, city: true, state: true },
+          },
           service: { select: { name: true } },
         },
       });
@@ -55,7 +57,7 @@ export const GET = withMiddleware<unknown>(
         if (booking.clientEmail) {
           const result = await emailService.sendBookingReminderEmail({
             to: booking.clientEmail,
-            businessName: booking.business.name,
+            business: booking.business,
             serviceName: booking.service.name,
             startTime: booking.startTime,
           });

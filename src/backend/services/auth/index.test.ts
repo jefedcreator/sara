@@ -2,6 +2,11 @@ import { NextRequest } from "next/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/server/db", () => ({ db: {} }));
+vi.mock("@/backend/services/email", () => ({
+  emailService: {
+    sendWelcomeEmail: vi.fn().mockResolvedValue({ success: true }),
+  },
+}));
 vi.mock("@/env", () => ({
   env: {
     CLIENT_ID: "google-id",
@@ -13,6 +18,7 @@ vi.mock("@/env", () => ({
   },
 }));
 
+import { emailService } from "@/backend/services/email";
 import { SESSION_COOKIE } from "@/server/auth/shared";
 
 import { AuthService } from "./index";
@@ -48,6 +54,7 @@ let prisma: ReturnType<typeof mockPrisma>;
 let service: AuthService;
 
 beforeEach(() => {
+  vi.clearAllMocks();
   prisma = mockPrisma();
   service = new AuthService(prisma as never);
 });
@@ -206,8 +213,38 @@ describe("signInWithOAuth", () => {
     expect(prisma.user.create).not.toHaveBeenCalled();
   });
 
-  it("creates an Instagram owner without an email", async () => {
+  it("welcomes someone new at their verified address", async () => {
     prisma.account.findUnique.mockResolvedValue(null);
+    prisma.user.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({
+      id: "user_3",
+      name: "Ada",
+      email: "ada@example.com",
+    });
+    await service.signInWithOAuth("facebook", result);
+    expect(emailService.sendWelcomeEmail).toHaveBeenCalledWith({
+      to: "ada@example.com",
+      name: "Ada",
+    });
+  });
+
+  it("doesn't welcome a returning owner", async () => {
+    prisma.account.findUnique.mockResolvedValue({
+      id: "acc_1",
+      userId: "user_1",
+      user: { name: "Ada", image: null },
+    });
+    await service.signInWithOAuth("facebook", result);
+    expect(emailService.sendWelcomeEmail).not.toHaveBeenCalled();
+  });
+
+  it("creates an Instagram owner without an email, and sends nothing", async () => {
+    prisma.account.findUnique.mockResolvedValue(null);
+    prisma.user.create.mockResolvedValue({
+      id: "user_4",
+      name: "Ada",
+      email: null,
+    });
     await service.signInWithOAuth("instagram", {
       ...result,
       profile: { ...result.profile, email: null },
@@ -219,6 +256,7 @@ describe("signInWithOAuth", () => {
       emailVerified: null,
       provider: "instagram",
     });
+    expect(emailService.sendWelcomeEmail).not.toHaveBeenCalled();
   });
 });
 

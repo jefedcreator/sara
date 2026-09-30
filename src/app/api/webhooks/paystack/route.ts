@@ -111,12 +111,14 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
       clientName: true,
       clientEmail: true,
       clientPhone: true,
-      service: { select: { name: true } },
+      service: { select: { name: true, duration: true } },
       business: {
         select: {
           id: true,
           name: true,
+          email: true,
           currency: true,
+          owner: { select: { email: true } },
           googleCalendarId: true,
           googleCalendarAccessToken: true,
           googleCalendarRefreshToken: true,
@@ -219,18 +221,41 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
     console.warn("[Paystack Webhook] Owner notification failed:", err);
   }
 
-  // Best-effort: a failed confirmation email must never fail the webhook.
+  // Best-effort: a failed email must never fail the webhook. The customer's
+  // confirmation carries the receipt link, so the receipt isn't emailed on
+  // its own; the owner gets the chat notice above and this email.
   const clientEmail = booking.clientEmail ?? customer.email;
   if (clientEmail) {
     try {
       await emailService.sendBookingConfirmationEmail({
         to: clientEmail,
-        businessName: booking.business.name,
+        business: booking.business,
         serviceName: booking.service.name,
         startTime: booking.startTime,
+        duration: booking.service.duration,
+        amount: amount / 100,
+        currency: booking.business.currency,
+        receiptUrl,
       });
     } catch (err) {
       console.warn("[Paystack Webhook] Confirmation email failed:", err);
+    }
+  }
+  const ownerEmail = booking.business.owner.email;
+  if (ownerEmail) {
+    try {
+      await emailService.sendNewBookingEmail({
+        to: ownerEmail,
+        clientName: booking.clientName ?? "A customer",
+        clientEmail,
+        clientPhone: booking.clientPhone,
+        serviceName: booking.service.name,
+        startTime: booking.startTime,
+        amount: amount / 100,
+        currency: booking.business.currency,
+      });
+    } catch (err) {
+      console.warn("[Paystack Webhook] Owner booking email failed:", err);
     }
   }
 

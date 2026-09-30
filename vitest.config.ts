@@ -13,6 +13,10 @@ Object.assign(process.env, loadEnv("test", process.cwd(), ""));
 process.env.AUTH_SECRET ||= "test-auth-secret";
 
 export default defineConfig({
+  // tsconfig's "jsx": "preserve" is for Next, which compiles JSX itself; left
+  // alone, vite passes it through and can't run a .tsx module (the email
+  // templates). Compile it here with the automatic runtime.
+  oxc: { jsx: { runtime: "automatic" } },
   test: {
     environment: "node",
   },

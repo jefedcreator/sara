@@ -11,6 +11,7 @@ import { publicBusinessSelect } from "@/backend/selects";
 import { db } from "@/server/db";
 import { generateInvoicePdf } from "@/backend/services/pdf";
 import { cloudinaryService } from "@/backend/services/cloudinary";
+import { emailInvoice } from "@/backend/services/email/documents";
 import { type ApiResponse, type InvoiceListItem } from "types";
 import {
   BadRequestException,
@@ -172,13 +173,19 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
           data: { url: uploadResult.secure_url },
         });
 
-        return finalInvoice;
+        return { invoice: finalInvoice, business: invoiceRecord.business };
       });
+
+      // Marking a draft as sent sends it: to the customer too, if they have
+      // an address. (A new invoice created as SENT is emailed on create.)
+      if (invoice.status === "DRAFT" && updatedInvoicedata.invoice.status === "SENT") {
+        await emailInvoice(updatedInvoicedata.invoice, updatedInvoicedata.business);
+      }
 
       const response: ApiResponse<Invoice> = {
         status: 200,
         message: "Invoice updated successfully",
-        data: updatedInvoicedata,
+        data: updatedInvoicedata.invoice,
       };
 
       return NextResponse.json(response);

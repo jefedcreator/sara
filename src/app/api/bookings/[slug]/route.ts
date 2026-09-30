@@ -110,13 +110,14 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
               id: true,
               ownerId: true,
               name: true,
+              email: true,
               googleCalendarId: true,
               googleCalendarAccessToken: true,
               googleCalendarRefreshToken: true,
               googleCalendarTokenExpiry: true,
             },
           },
-          service: { select: { duration: true, name: true } },
+          service: { select: { duration: true, name: true, slug: true } },
         },
       });
 
@@ -230,14 +231,15 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
           if (isNowCancelled) {
             await emailService.sendBookingCancellationEmail({
               to: clientEmail,
-              businessName: booking.business.name,
+              business: booking.business,
               serviceName: booking.service.name,
+              serviceSlug: booking.service.slug,
               startTime: updatedBooking.startTime,
             });
           } else if (wasRescheduled) {
             await emailService.sendBookingRescheduledEmail({
               to: clientEmail,
-              businessName: booking.business.name,
+              business: booking.business,
               serviceName: booking.service.name,
               previousStartTime,
               newStartTime: updatedBooking.startTime,
@@ -308,13 +310,14 @@ export const DELETE = withMiddleware<unknown>(
               id: true,
               ownerId: true,
               name: true,
+              email: true,
               googleCalendarId: true,
               googleCalendarAccessToken: true,
               googleCalendarRefreshToken: true,
               googleCalendarTokenExpiry: true,
             },
           },
-          service: { select: { name: true } },
+          service: { select: { name: true, slug: true } },
         },
       });
 
@@ -346,8 +349,9 @@ export const DELETE = withMiddleware<unknown>(
         try {
           await emailService.sendBookingCancellationEmail({
             to: booking.clientEmail,
-            businessName: booking.business.name,
+            business: booking.business,
             serviceName: booking.service.name,
+            serviceSlug: booking.service.slug,
             startTime: booking.startTime,
           });
         } catch (err) {

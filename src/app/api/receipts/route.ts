@@ -4,6 +4,7 @@ import {
   queryValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
+import { emailReceipt } from "@/backend/services/email/documents";
 import { receiptService } from "@/backend/services/receipt";
 import {
   receiptValidatorSchema,
@@ -62,6 +63,9 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
         paymentId: payload.paymentId,
         services: payload.services,
       });
+
+      // A receipt with an address goes to the customer too.
+      await emailReceipt(receiptResult, business);
 
       // shareUrl is the customer's link (the page with the PDF), not the PDF.
       const response: ApiResponse<Receipt & { shareUrl: string }> = {
