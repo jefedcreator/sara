@@ -1,3 +1,4 @@
+import { blockingBookingsWhere } from "@/backend/services/booking/conflicts";
 import { emailService } from "@/backend/services/email";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { formatMoney } from "@/backend/services/messaging/engine/amount";
@@ -9,6 +10,7 @@ import {
 import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
 import { shareUrl } from "@/server/share";
+import { bookingWhen } from "@/utils/format";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -105,13 +107,26 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
       id: true,
       status: true,
       businessId: true,
+      serviceId: true,
+      units: true,
+      amount: true,
+      holdExpiresAt: true,
       startTime: true,
       endTime: true,
       notes: true,
       clientName: true,
       clientEmail: true,
       clientPhone: true,
-      service: { select: { name: true, duration: true } },
+      service: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          duration: true,
+          price: true,
+          bookingMode: true,
+        },
+      },
       business: {
         select: {
           id: true,
@@ -149,6 +164,88 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
     return;
   }
 
+  const span = {
+    bookingMode: booking.service.bookingMode,
+    endTime: booking.endTime,
+    units: booking.units,
+  };
+  const whenText = bookingWhen({
+    bookingMode: booking.service.bookingMode,
+    startTime: booking.startTime.toISOString(),
+    endTime: booking.endTime.toISOString(),
+    units: booking.units,
+  });
+  const paymentData = {
+    businessId,
+    amount: amount / 100, // Convert from smallest unit (kobo/cents) to main unit
+    method: "PAYSTACK" as const,
+    reference,
+    clientName:
+      booking.clientName ||
+      [customer.first_name, customer.last_name].filter(Boolean).join(" ") ||
+      undefined,
+    clientEmail: booking.clientEmail || customer.email,
+    clientPhone: booking.clientPhone,
+  };
+
+  // The hold ran out before Paystack told us. Confirm only if nobody has
+  // taken the time since; otherwise cancel, keep the payment on record, and
+  // tell the owner to refund it.
+  const now = new Date();
+  if (booking.holdExpiresAt && booking.holdExpiresAt <= now) {
+    const taken = await db.booking.findFirst({
+      where: blockingBookingsWhere(
+        {
+          id: booking.serviceId,
+          businessId: booking.businessId,
+          bookingMode: booking.service.bookingMode,
+        },
+        { start: booking.startTime, end: booking.endTime },
+        { now, excludeId: booking.id },
+      ),
+      select: { id: true },
+    });
+    if (taken) {
+      await db.$transaction(async (tx) => {
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { status: "CANCELLED" },
+        });
+        await tx.payment.create({ data: paymentData });
+      });
+      console.warn(
+        `[Paystack Webhook] Late payment for resold time; booking ${bookingId} cancelled. Ref: ${reference}`,
+      );
+      try {
+        await ownerNotifier.notify(
+          businessId,
+          `⚠️ ${booking.clientName ?? "A customer"} paid ${formatMoney(
+            amount / 100,
+            booking.business.currency,
+          )} for ${booking.service.name} (${whenText}), but that time was already booked. The booking is cancelled. Refund it from your Paystack dashboard.`,
+        );
+      } catch (err) {
+        console.warn("[Paystack Webhook] Owner notification failed:", err);
+      }
+      const lateEmail = booking.clientEmail ?? customer.email;
+      if (lateEmail) {
+        try {
+          await emailService.sendBookingCancellationEmail({
+            to: lateEmail,
+            business: booking.business,
+            serviceName: booking.service.name,
+            serviceSlug: booking.service.slug,
+            startTime: booking.startTime,
+            span,
+          });
+        } catch (err) {
+          console.warn("[Paystack Webhook] Cancellation email failed:", err);
+        }
+      }
+      return;
+    }
+  }
+
   // Atomically confirm booking + create payment
   await db.$transaction(async (tx) => {
     await tx.booking.update({
@@ -156,22 +253,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
       data: { status: "CONFIRMED" },
     });
 
-    await tx.payment.create({
-      data: {
-        businessId,
-        amount: amount / 100, // Convert from smallest unit (kobo/cents) to main unit
-        method: "PAYSTACK",
-        reference,
-        clientName:
-          booking.clientName ||
-          [customer.first_name, customer.last_name]
-            .filter(Boolean)
-            .join(" ") ||
-          undefined,
-        clientEmail: booking.clientEmail || customer.email,
-        clientPhone: booking.clientPhone,
-      },
-    });
+    await tx.payment.create({ data: paymentData });
   });
 
   console.log(
@@ -198,6 +280,15 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
       total: amount / 100,
       amountPaid: amount / 100,
       paymentMethod: "PAYSTACK",
+      services: [
+        {
+          serviceId: booking.serviceId,
+          description: booking.service.name,
+          quantity: booking.units,
+          unitPrice: amount / 100 / booking.units,
+          total: amount / 100,
+        },
+      ],
     });
     receiptUrl = shareUrl("receipt", receipt.slug);
   } catch (err) {
@@ -206,15 +297,10 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
 
   // Best-effort: notify the owner on their linked chat channel(s).
   try {
-    const when = booking.startTime.toLocaleString("en-US", {
-      weekday: "short",
-      hour: "numeric",
-      minute: "2-digit",
-    });
     const paidLine = `💰 ${booking.clientName ?? "A customer"} paid ${formatMoney(
       amount / 100,
       booking.business.currency,
-    )} for ${booking.service.name} (${when}).`;
+    )} for ${booking.service.name} (${whenText}).`;
     const text = receiptUrl ? `${paidLine}\nReceipt: ${receiptUrl}` : paidLine;
     await ownerNotifier.notify(businessId, text);
   } catch (err) {
@@ -236,6 +322,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
         amount: amount / 100,
         currency: booking.business.currency,
         receiptUrl,
+        span,
       });
     } catch (err) {
       console.warn("[Paystack Webhook] Confirmation email failed:", err);
@@ -253,6 +340,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
         startTime: booking.startTime,
         amount: amount / 100,
         currency: booking.business.currency,
+        span,
       });
     } catch (err) {
       console.warn("[Paystack Webhook] Owner booking email failed:", err);

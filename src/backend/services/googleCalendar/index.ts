@@ -1,7 +1,13 @@
 import { env } from "@/env";
 import { appBaseUrl } from "@/utils/url";
 import { db } from "@/server/db";
-import { type Booking, type Business, type Service } from "@prisma/client";
+import { unitCount } from "@/utils/format";
+import {
+  type Booking,
+  type BookingMode,
+  type Business,
+  type Service,
+} from "@prisma/client";
 import axios from "axios";
 
 export type CalendarBusinessFields = Pick<
@@ -16,9 +22,11 @@ export type CalendarBusinessFields = Pick<
 type CalendarBookingFields = Pick<
   Booking,
   "startTime" | "endTime" | "clientName" | "notes"
->;
+> & { units?: number };
 
-type CalendarServiceFields = Pick<Service, "name">;
+type CalendarServiceFields = Pick<Service, "name"> & {
+  bookingMode?: BookingMode;
+};
 
 type GoogleTokenResponse = {
   access_token: string;
@@ -147,7 +155,10 @@ class GoogleCalendarService {
     service: CalendarServiceFields,
   ) {
     return {
-      summary: `${service.name} — ${booking.clientName}`,
+      summary:
+        service.bookingMode && service.bookingMode !== "SLOT" && booking.units
+          ? `${service.name} — ${booking.clientName} (${unitCount(service.bookingMode, booking.units)})`
+          : `${service.name} — ${booking.clientName}`,
       description: booking.notes ?? undefined,
       start: { dateTime: booking.startTime.toISOString() },
       end: { dateTime: booking.endTime.toISOString() },

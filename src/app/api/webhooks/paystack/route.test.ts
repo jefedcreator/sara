@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/server/db", () => ({
   db: {
     payment: { findUnique: vi.fn(), create: vi.fn() },
-    booking: { findUnique: vi.fn(), update: vi.fn() },
+    booking: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
@@ -18,6 +18,7 @@ vi.mock("@/backend/services/email", () => ({
   emailService: {
     sendBookingConfirmationEmail: vi.fn().mockResolvedValue({ success: true }),
     sendNewBookingEmail: vi.fn().mockResolvedValue({ success: true }),
+    sendBookingCancellationEmail: vi.fn().mockResolvedValue({ success: true }),
   },
 }));
 
@@ -54,13 +55,17 @@ const BOOKING = {
   id: "bkg_1",
   status: "PENDING",
   businessId: "biz_1",
+  serviceId: "svc_1",
+  units: 1,
+  amount: 50,
+  holdExpiresAt: new Date(Date.now() + 10 * 60 * 1000),
   startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
   endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
   notes: null,
   clientName: "Jane Doe",
   clientEmail: "jane@example.com",
   clientPhone: null,
-  service: { name: "Haircut", duration: 45 },
+  service: { id: "svc_1", name: "Haircut", slug: "haircut", duration: 45, price: 50, bookingMode: "SLOT" },
   business: {
     id: "biz_1",
     name: "Acme Salon",
@@ -107,6 +112,7 @@ beforeEach(() => {
     .mockResolvedValueOnce(null)
     .mockResolvedValue({ id: "pay_1" });
   mockedDb.booking.findUnique.mockResolvedValue(BOOKING);
+  mockedDb.booking.findFirst.mockResolvedValue(null);
   mockedDb.$transaction.mockImplementation(async (cb: (tx: typeof mockedDb) => unknown) =>
     cb(mockedDb),
   );
@@ -236,5 +242,48 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     const response = await POST(buildRequest(buildEvent()));
 
     expect(response.status).toBe(200);
+  });
+  it("puts the service on the receipt as a line, quantity = units", async () => {
+    mockedDb.booking.findUnique.mockResolvedValue({
+      ...BOOKING,
+      units: 3,
+      service: { ...BOOKING.service, name: "Lekki 2-bed 4B", bookingMode: "NIGHTLY", price: 50 / 3 },
+    });
+    await POST(buildRequest(buildEvent()));
+    expect(mockedReceipt.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        services: [
+          expect.objectContaining({ serviceId: "svc_1", quantity: 3, total: 50 }),
+        ],
+      }),
+    );
+  });
+
+  it("confirms a late payment when the time is still free", async () => {
+    mockedDb.booking.findUnique.mockResolvedValue({ ...BOOKING, holdExpiresAt: new Date(Date.now() - 60 * 1000) });
+    await POST(buildRequest(buildEvent()));
+    expect(mockedDb.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "CONFIRMED" } }),
+    );
+  });
+
+  it("cancels a late payment whose time was resold, and tells the owner to refund", async () => {
+    mockedDb.booking.findUnique.mockResolvedValue({ ...BOOKING, holdExpiresAt: new Date(Date.now() - 60 * 1000) });
+    mockedDb.booking.findFirst.mockResolvedValue({ id: "bkg_other" });
+
+    const response = await POST(buildRequest(buildEvent()));
+
+    expect(response.status).toBe(200);
+    expect(mockedDb.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "CANCELLED" } }),
+    );
+    expect(mockedDb.payment.create).toHaveBeenCalled();
+    expect(mockedReceipt.create).not.toHaveBeenCalled();
+    expect(mockedEmail.sendBookingConfirmationEmail).not.toHaveBeenCalled();
+    expect(mockedEmail.sendBookingCancellationEmail).toHaveBeenCalled();
+    expect(mockedNotifier.notify).toHaveBeenCalledWith(
+      BOOKING.businessId,
+      expect.stringContaining("Refund it from your Paystack dashboard"),
+    );
   });
 });

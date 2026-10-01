@@ -235,6 +235,11 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
               serviceName: booking.service.name,
               serviceSlug: booking.service.slug,
               startTime: updatedBooking.startTime,
+              span: {
+                bookingMode: booking.service.bookingMode,
+                endTime: updatedBooking.endTime,
+                units: updatedBooking.units,
+              },
             });
           } else if (wasRescheduled) {
             await emailService.sendBookingRescheduledEmail({
@@ -243,6 +248,16 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
               serviceName: booking.service.name,
               previousStartTime,
               newStartTime: updatedBooking.startTime,
+              span: {
+                bookingMode: booking.service.bookingMode,
+                endTime: updatedBooking.endTime,
+                units: updatedBooking.units,
+              },
+              previousSpan: {
+                bookingMode: booking.service.bookingMode,
+                endTime: booking.endTime,
+                units: booking.units,
+              },
             });
           }
         } catch (err) {
@@ -317,7 +332,7 @@ export const DELETE = withMiddleware<unknown>(
               googleCalendarTokenExpiry: true,
             },
           },
-          service: { select: { name: true, slug: true } },
+          service: { select: { name: true, slug: true, bookingMode: true } },
         },
       });
 
@@ -353,6 +368,11 @@ export const DELETE = withMiddleware<unknown>(
             serviceName: booking.service.name,
             serviceSlug: booking.service.slug,
             startTime: booking.startTime,
+            span: {
+              bookingMode: booking.service.bookingMode,
+              endTime: cancelledBooking.endTime,
+              units: cancelledBooking.units,
+            },
           });
         } catch (err) {
           console.warn("[Bookings] Cancellation email failed:", err);

@@ -46,7 +46,7 @@ export const GET = withMiddleware<unknown>(
           business: {
             select: { name: true, email: true, address: true, city: true, state: true },
           },
-          service: { select: { name: true } },
+          service: { select: { name: true, bookingMode: true } },
         },
       });
 
@@ -60,6 +60,11 @@ export const GET = withMiddleware<unknown>(
             business: booking.business,
             serviceName: booking.service.name,
             startTime: booking.startTime,
+            span: {
+              bookingMode: booking.service.bookingMode,
+              endTime: booking.endTime,
+              units: booking.units,
+            },
           });
           if (result.success) {
             sent++;

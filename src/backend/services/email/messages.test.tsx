@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   bookingCancelledEmail,
+  bookingConfirmedEmail,
   bookingReminderEmail,
   bookingRescheduledEmail,
   invoiceEmail,
@@ -156,5 +157,34 @@ describe("customer emails", () => {
     expect(text).toContain("Hi,");
     expect(text).toContain("NGN 15,000");
     expect(text).toContain("Bank transfer");
+  });
+  it("describes a stay in the confirmation email", async () => {
+    const message = bookingConfirmedEmail({
+      origin,
+      to: "bisi@example.com",
+      business: { name: "Lekki Stays" },
+      serviceName: "Lekki 2-bed 4B",
+      startTime: new Date("2026-10-02T14:00:00.000Z"),
+      duration: 1440,
+      amount: 255000,
+      currency: "NGN",
+      receiptUrl: null,
+      span: { bookingMode: "NIGHTLY", endTime: new Date("2026-10-05T12:00:00.000Z"), units: 3 },
+    });
+    const { text } = await rendered(message);
+    expect(text).toContain("Check-in Fri 2 Oct from 14:00 · Check-out Mon 5 Oct by 12:00 · 3 nights");
+    expect(text).toContain("3 nights");
+  });
+
+  it("uses the short span in a stay's reminder subject", () => {
+    const message = bookingReminderEmail({
+      origin,
+      to: "bisi@example.com",
+      business: { name: "Lekki Stays" },
+      serviceName: "Lekki 2-bed 4B",
+      startTime: new Date("2026-10-02T14:00:00.000Z"),
+      span: { bookingMode: "NIGHTLY", endTime: new Date("2026-10-05T12:00:00.000Z"), units: 3 },
+    });
+    expect(message.subject).toBe("Reminder: Lekki 2-bed 4B with Lekki Stays, 2–5 Oct · 3 nights");
   });
 });
