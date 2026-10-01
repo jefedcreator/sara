@@ -42,7 +42,53 @@ const serviceBaseSchema = z.object({
     )
     .default("17:00"),
   isActive: z.boolean().default(true),
+  bookingMode: z
+    .enum(["SLOT", "NIGHTLY", "DAILY"], "bookingMode must be one of: SLOT, NIGHTLY, DAILY")
+    .default("SLOT"),
+  checkInTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'checkInTime must be in HH:MM 24-hour format (e.g. "14:00")')
+    .nullable()
+    .optional(),
+  checkOutTime: z
+    .string()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'checkOutTime must be in HH:MM 24-hour format (e.g. "12:00")')
+    .nullable()
+    .optional(),
+  minUnits: z.coerce
+    .number()
+    .int("minUnits must be an integer")
+    .min(1, "minUnits must be at least 1")
+    .max(90, "minUnits cannot exceed 90")
+    .default(1),
+  maxUnits: z.coerce
+    .number()
+    .int("maxUnits must be an integer")
+    .min(1, "maxUnits must be at least 1")
+    .max(90, "maxUnits cannot exceed 90")
+    .default(30),
 });
+
+/**
+ * What's wrong with a service's booking setup, or null. Checked on the
+ * merged values (an update may change only some of them).
+ */
+export function bookingSetupProblem(s: {
+  bookingMode: "SLOT" | "NIGHTLY" | "DAILY";
+  checkInTime?: string | null;
+  checkOutTime?: string | null;
+  minUnits: number;
+  maxUnits: number;
+}): string | null {
+  if (s.minUnits > s.maxUnits) return "minUnits cannot be more than maxUnits";
+  if (s.bookingMode === "NIGHTLY") {
+    if (!s.checkInTime || !s.checkOutTime) return "checkInTime and checkOutTime are required for nightly booking";
+    if (s.checkOutTime > s.checkInTime) {
+      return "checkOutTime must be no later than checkInTime, so a guest can arrive the day another leaves";
+    }
+  }
+  return null;
+}
 
 const checkAvailabilityWindow = (data: {
   availableFrom?: string;

@@ -6,6 +6,7 @@ import {
 } from "@/backend/middleware";
 import { cloudinaryService } from "@/backend/services/cloudinary";
 import {
+  bookingSetupProblem,
   serviceQueryValidatorSchema,
   serviceValidatorSchema,
   type ServiceQueryValidatorSchema,
@@ -13,6 +14,7 @@ import {
 } from "@/backend/validators/service.validator";
 import { db } from "@/server/db";
 import {
+  BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
@@ -44,6 +46,9 @@ export const POST = withMiddleware<ServiceValidatorSchema>(
           "You do not have permission to manage services for this business",
         );
       }
+
+      const problem = bookingSetupProblem(payload);
+      if (problem) throw new BadRequestException(problem);
 
       const serviceResult = await db.$transaction(async (tx) => {
         let slug = slugify(`${payload.name}`, {
@@ -80,6 +85,11 @@ export const POST = withMiddleware<ServiceValidatorSchema>(
           availableFrom: payload.availableFrom,
           availableTo: payload.availableTo,
           isActive: payload.isActive,
+          bookingMode: payload.bookingMode,
+          checkInTime: payload.bookingMode === "NIGHTLY" ? payload.checkInTime : null,
+          checkOutTime: payload.bookingMode === "NIGHTLY" ? payload.checkOutTime : null,
+          minUnits: payload.minUnits,
+          maxUnits: payload.maxUnits,
         };
 
         if (payload.image instanceof File) {

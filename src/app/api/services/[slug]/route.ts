@@ -6,7 +6,9 @@ import {
 } from "@/backend/middleware";
 import { availabilityService } from "@/backend/services/availability";
 import { cloudinaryService } from "@/backend/services/cloudinary";
+import { activeBookingWhere } from "@/backend/services/booking/conflicts";
 import {
+  bookingSetupProblem,
   serviceDetailQueryValidatorSchema,
   updateServiceValidatorSchema,
   type ServiceDetailQueryValidatorSchema,
@@ -14,6 +16,7 @@ import {
 } from "@/backend/validators/service.validator";
 import { db } from "@/server/db";
 import {
+  BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
@@ -55,6 +58,23 @@ export const PUT = withMiddleware<UpdateServiceValidatorSchema>(
         throw new ForbiddenException(
           "You are not authorized to update this service",
         );
+      }
+
+      const merged = {
+        bookingMode: payload.bookingMode ?? service.bookingMode,
+        checkInTime: payload.checkInTime !== undefined ? payload.checkInTime : service.checkInTime,
+        checkOutTime: payload.checkOutTime !== undefined ? payload.checkOutTime : service.checkOutTime,
+        minUnits: payload.minUnits ?? service.minUnits,
+        maxUnits: payload.maxUnits ?? service.maxUnits,
+      };
+      const problem = bookingSetupProblem(merged);
+      if (problem) throw new BadRequestException(problem);
+
+      if (merged.bookingMode !== service.bookingMode) {
+        const upcoming = await db.booking.count({
+          where: { serviceId: service.id, endTime: { gt: new Date() }, AND: [activeBookingWhere()] },
+        });
+        if (upcoming > 0) throw new BadRequestException("Finish or cancel the upcoming bookings first.");
       }
 
       const updatedService = await db.$transaction(async (tx) => {
@@ -105,6 +125,11 @@ export const PUT = withMiddleware<UpdateServiceValidatorSchema>(
         if (payload.availableTo !== undefined)
           data.availableTo = payload.availableTo;
         if (payload.isActive !== undefined) data.isActive = payload.isActive;
+        if (payload.bookingMode !== undefined) data.bookingMode = payload.bookingMode;
+        if (payload.checkInTime !== undefined) data.checkInTime = payload.checkInTime;
+        if (payload.checkOutTime !== undefined) data.checkOutTime = payload.checkOutTime;
+        if (payload.minUnits !== undefined) data.minUnits = payload.minUnits;
+        if (payload.maxUnits !== undefined) data.maxUnits = payload.maxUnits;
 
         return await tx.service.update({
           where: { id: service.id },
