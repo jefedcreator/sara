@@ -36,27 +36,33 @@ export function usePublicServiceQuery(
   });
 }
 
-/** A stay's nights over [from, to). `initial` seeds the server-rendered window. */
+/** A stay's nights over [from, to). `initial` seeds only its own window. */
 export function usePublicNightsQuery(
   slug: string,
   window: { from: string; to: string },
-  initial?: PublicServiceDto,
+  initial?: { from: string; to: string; data: PublicServiceDto },
 ) {
   return useQuery({
     queryKey: publicServiceKeys.nights(slug, window.from, window.to),
     queryFn: () => api.public.nights(slug, window.from, window.to),
-    initialData: initial,
+    initialData:
+      initial && initial.from === window.from && initial.to === window.to ? initial.data : undefined,
     placeholderData: keepPreviousData,
     staleTime: STALE_MS,
   });
 }
 
-/** A car's pickup times on a day for a rental of `units` days. */
-export function usePublicPickupsQuery(slug: string, date: string, units: number, initial?: PublicServiceDto) {
+/** A car's pickup times on a day for a rental of `units` days. `initial` seeds only its own day and units. */
+export function usePublicPickupsQuery(
+  slug: string,
+  date: string,
+  units: number,
+  initial?: { date: string; units: number; data: PublicServiceDto },
+) {
   return useQuery({
     queryKey: publicServiceKeys.pickups(slug, date, units),
     queryFn: () => api.public.pickups(slug, date, units),
-    initialData: initial,
+    initialData: initial && initial.date === date && initial.units === units ? initial.data : undefined,
     placeholderData: keepPreviousData,
     staleTime: STALE_MS,
   });
