@@ -10,7 +10,9 @@ const publicBookingSchema = z
   .object({
     serviceSlug: z.string().min(1, "serviceSlug is required"),
     startTime: z.coerce.date(),
-    endTime: z.coerce.date(),
+    // Slot services only; stays and rentals send units and the server works out the end.
+    endTime: z.coerce.date().optional(),
+    units: z.coerce.number().int().min(1).max(90).optional(),
     clientName: z.string().min(1, "clientName is required").max(255),
     clientEmail: z.string().email("clientEmail must be a valid email").optional(),
     clientPhone: z.string().max(20).optional(),
@@ -39,6 +41,7 @@ export async function POST(request: Request) {
       serviceSlug: data.serviceSlug,
       startTime: data.startTime,
       endTime: data.endTime,
+      units: data.units,
       clientName: data.clientName,
       clientEmail: data.clientEmail,
       clientPhone: data.clientPhone,

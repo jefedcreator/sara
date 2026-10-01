@@ -6,7 +6,8 @@ const cuidValidator = z.string().cuid("id must be a valid cuid");
 export const bookingValidatorSchema = z.object({
   serviceId: cuidValidator,
   startTime: dateValidator("startTime"),
-  endTime: dateValidator("endTime"),
+  endTime: dateValidator("endTime").optional(),
+  units: z.coerce.number().int().min(1, "units must be at least 1").max(90, "units cannot exceed 90").optional(),
 
   // Client Details
   clientName: z

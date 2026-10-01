@@ -41,7 +41,8 @@ export const POST = withMiddleware<BookingValidatorSchema>(
         await bookingService.createWithPayment({
           serviceId: payload.serviceId,
           startTime: new Date(payload.startTime),
-          endTime: new Date(payload.endTime),
+          endTime: payload.endTime ? new Date(payload.endTime) : undefined,
+          units: payload.units,
           clientName: payload.clientName,
           clientEmail: payload.clientEmail,
           clientPhone: payload.clientPhone,
