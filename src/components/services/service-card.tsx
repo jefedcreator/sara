@@ -4,7 +4,7 @@ import type { ServiceDto } from "types";
 import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
 import { Button, StatusPill, Switch } from "@/primitives";
 import { cn } from "@/utils/cn";
-import { formatDuration, formatMoney } from "@/utils/format";
+import { formatDuration, formatMoney, unitNoun } from "@/utils/format";
 
 interface ServiceCardProps {
   service: ServiceDto;
@@ -37,7 +37,7 @@ export function ServiceCard({
             {service.name}
           </h3>
           <p className="text-muted mt-1 text-sm">
-            {formatMoney(service.price, currency)} · {formatDuration(service.duration)} ·{" "}
+            {formatMoney(service.price, currency)} · {service.bookingMode === "SLOT" ? formatDuration(service.duration) : `per ${unitNoun(service.bookingMode, 1)}`} ·{" "}
             {service.availableFrom}–{service.availableTo}
           </p>
         </div>
