@@ -243,7 +243,7 @@ The chat's own `(${duration} min)` label in `messaging/dispatch` is replaced by
 
 `PublicService` gains `bookingMode`, `checkInTime`, `checkOutTime`, `minUnits`,
 `maxUnits`. `GET /api/public/services/[slug]` accepts, by mode: `date` (SLOT, as today);
-`from` + `to` (NIGHTLY, max 62 days apart); `date` + `units` (DAILY). It returns `slots`
+`from` + `to` (NIGHTLY, at most 125 days apart: a month plus the longest stay); `date` + `units` (DAILY). It returns `slots`
 (SLOT/DAILY) or `nights` (NIGHTLY).
 
 `BookingPageClient` keeps the service column and the pinned pay bar and swaps the picker
