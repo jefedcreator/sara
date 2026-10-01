@@ -10,6 +10,7 @@ import type {
   InvoiceService,
   ReceiptService,
   Booking,
+  BookingMode,
 } from "@prisma/client";
 
 /**
@@ -127,6 +128,11 @@ export type BusinessHoursDto = Serialized<BusinessHours>;
 
 export type BusinessClosureDto = Serialized<BusinessClosure>;
 
+export interface NightDto {
+  date: string; // YYYY-MM-DD
+  isAvailable: boolean;
+}
+
 /** GET /api/public/services/[slug] — what a customer may see. */
 export interface PublicServiceDto {
   slug: string;
@@ -137,14 +143,25 @@ export interface PublicServiceDto {
   duration: number;
   currency: string;
   businessName: string;
+  bookingMode: BookingMode;
+  checkInTime: string | null;
+  checkOutTime: string | null;
+  minUnits: number;
+  maxUnits: number;
+  /** SLOT: the day's slots. DAILY: pickup times. NIGHTLY: empty. */
   slots: TimeSlot[];
+  /** NIGHTLY: the requested window's nights. Otherwise empty. */
+  nights: NightDto[];
 }
 
 /** POST /api/public/bookings body. */
 export interface PublicBookingInput {
   serviceSlug: string;
   startTime: string;
-  endTime: string;
+  /** Slot services only. */
+  endTime?: string;
+  /** Stays and rentals: nights or days. */
+  units?: number;
   clientName: string;
   clientEmail?: string;
   clientPhone?: string;
