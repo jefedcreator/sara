@@ -7,7 +7,7 @@ import { db } from "@/server/db";
 /** The booking page's first paint: a service and one day of slots. */
 export const getPublicService = cache(
   async (slug: string, date: string): Promise<PublicServiceDto | null> =>
-    catalogService.getPublicService(slug, date),
+    catalogService.getPublicService(slug, { date }),
 );
 
 /**
@@ -20,8 +20,10 @@ export const getBookingReceipt = cache(async (bookingSlug: string) => {
     select: {
       status: true,
       startTime: true,
+      endTime: true,
+      units: true,
       clientName: true,
-      service: { select: { slug: true, name: true } },
+      service: { select: { slug: true, name: true, bookingMode: true } },
       business: { select: { name: true } },
     },
   });
@@ -29,6 +31,9 @@ export const getBookingReceipt = cache(async (bookingSlug: string) => {
   return {
     status: booking.status,
     startTime: booking.startTime.toISOString(),
+    endTime: booking.endTime.toISOString(),
+    units: booking.units,
+    bookingMode: booking.service.bookingMode,
     clientName: booking.clientName,
     serviceSlug: booking.service.slug,
     serviceName: booking.service.name,

@@ -148,6 +148,10 @@ export const api = {
           params: { date },
         }),
       ),
+    nights: (slug: string, from: string, to: string) =>
+      data<PublicServiceDto>(http.get(`/public/services/${encodeURIComponent(slug)}`, { params: { from, to } })),
+    pickups: (slug: string, date: string, units: number) =>
+      data<PublicServiceDto>(http.get(`/public/services/${encodeURIComponent(slug)}`, { params: { date, units } })),
     book: (input: PublicBookingInput) =>
       data<PublicBookingDto>(http.post("/public/bookings", input)),
   },
