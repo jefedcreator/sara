@@ -4,7 +4,7 @@ import { AwaitConfirmation } from "@/components/book/await-confirmation";
 import { PublicError } from "@/components/public-error";
 import { Button } from "@/primitives";
 import { getBookingReceipt } from "@/server";
-import { formatSlotMoment } from "@/utils/format";
+import { bookingWhen } from "@/utils/format";
 import { pageMetadata } from "@/utils/metadata";
 
 export const dynamic = "force-dynamic";
@@ -46,7 +46,12 @@ export async function generateMetadata({
       index: false,
     });
   }
-  const when = formatSlotMoment(booking.startTime);
+  const when = bookingWhen({
+    bookingMode: booking.bookingMode,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    units: booking.units,
+  });
   return pageMetadata({
     title: `${booking.serviceName} with ${booking.businessName}`,
     description: (PREVIEW[booking.status] ?? PREVIEW.CONFIRMED!)(when),
@@ -86,7 +91,12 @@ export default async function BookingDonePage({ params, searchParams }: Props) {
     );
   }
 
-  const when = formatSlotMoment(booking.startTime);
+  const when = bookingWhen({
+    bookingMode: booking.bookingMode,
+    startTime: booking.startTime,
+    endTime: booking.endTime,
+    units: booking.units,
+  });
 
   if (booking.status === "CANCELLED") {
     return (

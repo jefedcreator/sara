@@ -26,9 +26,15 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
         index: false,
       });
     }
+    const pick =
+      service.bookingMode === "NIGHTLY"
+        ? "Pick your dates"
+        : service.bookingMode === "DAILY"
+          ? "Pick your days"
+          : "Pick a free time";
     return pageMetadata({
       title: `${service.name} · ${service.businessName}`,
-      description: `Book ${serviceLabel(service)} with ${service.businessName}. Pick a free time and pay with Paystack.`,
+      description: `Book ${serviceLabel(service)} with ${service.businessName}. ${pick} and pay with Paystack.`,
       path,
     });
   } catch {
