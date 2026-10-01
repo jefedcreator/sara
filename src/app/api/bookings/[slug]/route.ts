@@ -3,6 +3,8 @@ import {
   bodyValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
+import { blockingBookingsWhere } from "@/backend/services/booking/conflicts";
+import { bookingTerms } from "@/backend/services/booking/terms";
 import { emailService } from "@/backend/services/email";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
 import {
@@ -12,6 +14,7 @@ import {
 import { db } from "@/server/db";
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
@@ -117,7 +120,13 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
               googleCalendarTokenExpiry: true,
             },
           },
-          service: { select: { duration: true, name: true, slug: true } },
+          service: {
+            select: {
+              id: true, businessId: true, bookingMode: true, price: true, duration: true,
+              checkInTime: true, checkOutTime: true, minUnits: true, maxUnits: true,
+              name: true, slug: true,
+            },
+          },
         },
       });
 
@@ -165,51 +174,42 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
             );
           }
 
-          const newStartTime = payload.startTime
-            ? new Date(payload.startTime)
-            : booking.startTime;
-          const newEndTime = payload.endTime
-            ? new Date(payload.endTime)
-            : booking.endTime;
+          const newStartTime = payload.startTime ? new Date(payload.startTime) : booking.startTime;
 
-          if (newStartTime >= newEndTime) {
-            throw new BadRequestException("startTime must be before endTime");
-          }
+          // Same length as booked, so the amount already paid stays right.
+          const terms = bookingTerms(booking.service, newStartTime, booking.units, {
+            enforceUnitLimits: false,
+          });
 
-          if (newStartTime < new Date()) {
-            throw new BadRequestException("Cannot reschedule to a past slot");
-          }
-
-          // Verify slot duration matches service duration
-          const slotDurationMinutes =
-            (newEndTime.getTime() - newStartTime.getTime()) / (60 * 1000);
-          if (slotDurationMinutes !== booking.service.duration) {
+          if (
+            booking.service.bookingMode === "SLOT" &&
+            payload.endTime &&
+            new Date(payload.endTime).getTime() !== terms.endTime.getTime()
+          ) {
+            const slotMinutes = (new Date(payload.endTime).getTime() - newStartTime.getTime()) / (60 * 1000);
             throw new BadRequestException(
-              `Slot duration (${slotDurationMinutes} min) does not match service duration (${booking.service.duration} min)`,
+              `Slot duration (${slotMinutes} min) does not match service duration (${booking.service.duration} min)`,
             );
           }
 
-          // Check for overlapping bookings (exclude the current booking).
-          // Scoped by businessId, not serviceId — one business is one
-          // provider with one calendar.
           const overlapping = await tx.booking.findFirst({
-            where: {
-              businessId: booking.businessId,
-              id: { not: booking.id },
-              status: { in: ["PENDING", "CONFIRMED"] },
-              startTime: { lt: newEndTime },
-              endTime: { gt: newStartTime },
-            },
+            where: blockingBookingsWhere(
+              booking.service,
+              { start: newStartTime, end: terms.endTime },
+              { excludeId: booking.id },
+            ),
+            select: { id: true },
           });
-
           if (overlapping) {
-            throw new BadRequestException(
-              "This time slot is already booked. Please select a different slot.",
+            throw new ConflictException(
+              booking.service.bookingMode === "SLOT"
+                ? "This time slot is already booked. Please select a different slot."
+                : "Those dates are already booked. Pick different dates.",
             );
           }
 
           data.startTime = newStartTime;
-          data.endTime = newEndTime;
+          data.endTime = terms.endTime;
         }
 
         return await tx.booking.update({

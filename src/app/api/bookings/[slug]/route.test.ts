@@ -35,6 +35,7 @@ vi.mock("@/backend/services/googleCalendar", () => ({
 import { emailService } from "@/backend/services/email";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { db } from "@/server/db";
+import { addDays, todayIso } from "@/utils/format";
 import { DELETE, PUT } from "./route";
 
 const mockedDb = db as any;
@@ -66,7 +67,12 @@ const EXISTING_BOOKING = {
   startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
   endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
   business: BUSINESS,
-  service: { duration: 60, name: "Haircut" },
+  service: {
+    id: "cservice0000000000000001", businessId: BUSINESS.id, bookingMode: "SLOT",
+    price: 5000, duration: 60, checkInTime: null, checkOutTime: null, minUnits: 1, maxUnits: 30,
+    name: "Haircut", slug: "haircut",
+  },
+  units: 1,
 };
 
 beforeEach(() => {
@@ -128,8 +134,35 @@ describe("PUT /api/bookings/[slug]", () => {
       params: Promise.resolve({ slug: EXISTING_BOOKING.slug }),
     });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
     expect(mockedDb.booking.update).not.toHaveBeenCalled();
+  });
+
+  it("moves a stay by its check-in date, keeping its nights, against this apartment only", async () => {
+    const checkIn = addDays(todayIso(), 10);
+    mockedDb.booking.findUnique.mockResolvedValue({
+      ...EXISTING_BOOKING,
+      units: 3,
+      service: { ...EXISTING_BOOKING.service, bookingMode: "NIGHTLY", price: 85000, duration: 1440, checkInTime: "14:00", checkOutTime: "12:00" },
+    });
+    const request = createMockRequest({
+      method: "PUT",
+      cookies: authenticatedCookies(),
+      headers: { "content-type": "application/json" },
+      body: { startTime: `${checkIn}T14:00:00.000Z` },
+    });
+
+    const response = await PUT(request, { params: Promise.resolve({ slug: EXISTING_BOOKING.slug }) });
+
+    expect(response.status).toBe(200);
+    const where = mockedDb.booking.findFirst.mock.calls[0]![0].where;
+    expect(where.serviceId).toBe(EXISTING_BOOKING.service.id);
+    expect(where.id).toEqual({ not: EXISTING_BOOKING.id });
+    expect(mockedDb.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ endTime: new Date(`${addDays(checkIn, 3)}T12:00:00.000Z`) }),
+      }),
+    );
   });
 
   it("sends a reschedule email when startTime/endTime change", async () => {
