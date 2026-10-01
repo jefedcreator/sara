@@ -2,32 +2,21 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
-import { useMemo, useState } from "react";
-import type { PublicServiceDto, TimeSlot } from "types";
+import { useState } from "react";
+import type { PublicServiceDto } from "types";
 
 import type { BookingDetailsFormSchema } from "@/backend/validators/booking.validator";
 import { useCreatePublicBookingMutation } from "@/hooks/mutations/use-booking-mutations";
-import {
-  publicServiceKeys,
-  usePublicServiceQuery,
-} from "@/hooks/queries/use-public-service";
-import { Button, Notice, StatusPill, Wordmark } from "@/primitives";
+import { publicServiceKeys } from "@/hooks/queries/use-public-service";
+import { Button, StatusPill, Wordmark } from "@/primitives";
 import { errorMessage } from "@/utils/axios";
-import {
-  addDays,
-  formatDuration,
-  formatLongDate,
-  formatMoney,
-  formatSlotMoment,
-  formatSlotTime,
-  serviceLabel,
-} from "@/utils/format";
+import { formatDuration, formatMoney, formatSlotTime, serviceLabel, unitCount, unitNoun } from "@/utils/format";
 
-import { DayStrip } from "./day-strip";
 import { DetailsModal } from "./details-modal";
-import { SlotGrid, SlotGridSkeleton } from "./slot-grid";
-
-const DAYS_AHEAD = 14;
+import { RentalPicker } from "./rental-picker";
+import { SlotPicker } from "./slot-picker";
+import { StayPicker } from "./stay-picker";
+import type { Selection } from "./types";
 
 interface BookingPageClientProps {
   slug: string;
@@ -35,58 +24,54 @@ interface BookingPageClientProps {
   initialService: PublicServiceDto;
 }
 
+const PROMPT = {
+  SLOT: "Pick a free time to continue",
+  NIGHTLY: "Pick your check-in and check-out dates",
+  DAILY: "Pick a pickup time to continue",
+} as const;
+
+const PANEL_LABEL = { SLOT: "Book a time", NIGHTLY: "Book your stay", DAILY: "Book your rental" } as const;
+
 /**
- * The customer booking page: pick a day, pick a free time, add details,
- * pay with Paystack. Owns the picked day and slot; children are pure UI.
+ * The customer booking page: the service on the left, a picker for its
+ * booking mode on the right, then details and Paystack. Owns the selection;
+ * the pickers own their own day, dates or days.
  */
-export function BookingPageClient({ slug, today, initialService }: BookingPageClientProps) {
+export function BookingPageClient({ slug, today, initialService: service }: BookingPageClientProps) {
   const queryClient = useQueryClient();
-  const [date, setDate] = useState(today);
-  const [slot, setSlot] = useState<TimeSlot | null>(null);
+  const [selection, setSelection] = useState<Selection | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
-
-  const days = useMemo(
-    () => Array.from({ length: DAYS_AHEAD }, (_, i) => addDays(today, i)),
-    [today],
-  );
-
-  const query = usePublicServiceQuery(slug, date, { date: today, data: initialService });
-  const service = query.data ?? initialService;
   const booking = useCreatePublicBookingMutation();
+  const mode = service.bookingMode;
 
-  const hasOpenSlot = service.slots.some(
-    (s) => s.isAvailable && new Date(s.startTime).getTime() > Date.now(),
-  );
   const price = formatMoney(service.price, service.currency);
-  const payText = `Pay ${price} with Paystack`;
-
-  function pickDay(next: string) {
-    setDate(next);
-    setSlot(null);
-  }
+  const payText = `Pay ${formatMoney(selection ? selection.total : service.price, service.currency)} with Paystack`;
+  const buttonText = !selection
+    ? "Continue"
+    : mode === "SLOT"
+      ? `Book ${formatSlotTime(selection.startTime)}`
+      : `Book ${unitCount(mode, selection.units)}`;
 
   function submit(values: BookingDetailsFormSchema) {
-    if (!slot) return;
+    if (!selection) return;
     booking.mutate(
       {
         serviceSlug: slug,
-        startTime: slot.startTime,
-        endTime: slot.endTime,
+        startTime: selection.startTime,
+        ...(mode === "SLOT" ? { endTime: selection.endTime } : { units: selection.units }),
         clientName: values.clientName,
         clientEmail: values.clientEmail,
         clientPhone: values.clientPhone || undefined,
         notes: values.notes || undefined,
       },
       {
-        onError: () => {
-          // The slot may have just gone; show the day as it is now.
-          void queryClient.invalidateQueries({
-            queryKey: publicServiceKeys.detail(slug, date),
-          });
-        },
+        // The time may have just gone; show availability as it is now.
+        onError: () => void queryClient.invalidateQueries({ queryKey: publicServiceKeys.service(slug) }),
       },
     );
   }
+
+  const picker = { slug, service, today, onChange: setSelection };
 
   return (
     <main className="bg-canvas text-ink min-h-dvh pb-32 lg:pb-16">
@@ -105,16 +90,32 @@ export function BookingPageClient({ slug, today, initialService }: BookingPageCl
               {service.name}
             </h1>
             <div className="mt-4 flex flex-wrap gap-2">
-              <StatusPill>{price}</StatusPill>
-              <StatusPill tone="muted">{formatDuration(service.duration)}</StatusPill>
+              {mode === "SLOT" ? (
+                <>
+                  <StatusPill>{price}</StatusPill>
+                  <StatusPill tone="muted">{formatDuration(service.duration)}</StatusPill>
+                </>
+              ) : (
+                <>
+                  <StatusPill>
+                    {price} / {unitNoun(mode, 1)}
+                  </StatusPill>
+                  {mode === "NIGHTLY" ? (
+                    <>
+                      <StatusPill tone="muted">Check-in from {service.checkInTime}</StatusPill>
+                      <StatusPill tone="muted">Check-out by {service.checkOutTime}</StatusPill>
+                    </>
+                  ) : service.minUnits > 1 ? (
+                    <StatusPill tone="muted">Minimum {unitCount(mode, service.minUnits)}</StatusPill>
+                  ) : null}
+                </>
+              )}
             </div>
             {service.description ? (
-              <p className="text-muted mt-5 max-w-[52ch] text-pretty whitespace-pre-line">
-                {service.description}
-              </p>
+              <p className="text-muted mt-5 max-w-[52ch] text-pretty whitespace-pre-line">{service.description}</p>
             ) : null}
             {service.image ? (
-              <div className="rounded-shot bg-surface relative mt-8 aspect-[4/3] max-w-[560px] overflow-hidden outline outline-1 -outline-offset-1 outline-ink/5">
+              <div className="rounded-shot bg-surface outline-ink/5 relative mt-8 aspect-[4/3] max-w-[560px] overflow-hidden outline outline-1 -outline-offset-1">
                 <Image
                   src={service.image}
                   alt={service.name}
@@ -127,64 +128,36 @@ export function BookingPageClient({ slug, today, initialService }: BookingPageCl
             ) : null}
           </section>
 
-          {/* Day, time, pay */}
+          {/* Pick, then pay */}
           <section
-            aria-label="Book a time"
+            aria-label={PANEL_LABEL[mode]}
             className="rounded-panel lg:bg-canvas lg:shadow-float animate-rise-2 lg:self-start lg:px-6 lg:pt-6 lg:pb-6"
           >
-            <h2 className="text-ink-2 text-sm font-semibold">Pick a day</h2>
-            <div className="mt-2.5">
-              <DayStrip days={days} selected={date} onSelect={pickDay} />
-            </div>
-
-            <h2 className="text-ink-2 mt-6 text-sm font-semibold">
-              Free times, {formatLongDate(date)}
-            </h2>
-            <div className="mt-2.5">
-              {query.isError && !query.data ? (
-                <Notice tone="danger">
-                  We couldn&apos;t load this day.{" "}
-                  <button
-                    type="button"
-                    className="cursor-pointer font-semibold underline"
-                    onClick={() => void query.refetch()}
-                  >
-                    Try again
-                  </button>
-                </Notice>
-              ) : query.isPending ? (
-                <SlotGridSkeleton />
-              ) : !hasOpenSlot && !query.isPlaceholderData ? (
-                <Notice tone="neutral">
-                  No free times on this day. Try another day.
-                </Notice>
-              ) : (
-                <SlotGrid
-                  slots={service.slots}
-                  selected={slot?.startTime ?? null}
-                  onSelect={setSlot}
-                  isStale={query.isPlaceholderData}
-                />
-              )}
-            </div>
+            {mode === "NIGHTLY" ? (
+              <StayPicker {...picker} />
+            ) : mode === "DAILY" ? (
+              <RentalPicker {...picker} />
+            ) : (
+              <SlotPicker {...picker} />
+            )}
 
             {/* Phone: pinned to the bottom edge. Desktop: the card's foot. */}
             <div className="border-line bg-canvas/92 fixed inset-x-0 bottom-0 z-10 border-t px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-md lg:static lg:mt-6 lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none">
               <p className="text-muted mb-2 text-center text-[13px] lg:hidden" aria-live="polite">
-                {slot
-                  ? `${formatSlotMoment(slot.startTime)} · ${price}`
-                  : "Pick a free time to continue"}
+                {selection
+                  ? `${selection.short} · ${formatMoney(selection.total, service.currency)}`
+                  : PROMPT[mode]}
               </p>
               <Button
                 size="lg"
                 className="w-full"
-                disabled={!slot}
+                disabled={!selection}
                 onClick={() => {
                   booking.reset();
                   setDetailsOpen(true);
                 }}
               >
-                {slot ? `Book ${formatSlotTime(slot.startTime)}` : "Continue"}
+                {buttonText}
               </Button>
             </div>
           </section>
@@ -195,13 +168,13 @@ export function BookingPageClient({ slug, today, initialService }: BookingPageCl
         </footer>
       </div>
 
-      {slot ? (
+      {selection ? (
         <DetailsModal
           open={detailsOpen}
           onOpenChange={setDetailsOpen}
           businessName={service.businessName}
           serviceText={serviceLabel(service)}
-          slotText={formatSlotMoment(slot.startTime)}
+          slotText={selection.when}
           payText={payText}
           onSubmit={submit}
           isPending={booking.isPending || booking.isSuccess}
