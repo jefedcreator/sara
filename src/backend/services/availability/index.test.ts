@@ -47,13 +47,13 @@ const NO_CALENDAR_BUSINESS = {
 };
 
 function setup({
-  service = { duration: 60, availableFrom: "09:00", availableTo: "12:00" },
+  service = { id: SERVICE_ID, businessId: BUSINESS_ID, bookingMode: "SLOT", duration: 60, availableFrom: "09:00", availableTo: "12:00" },
   businessHours = null,
   closure = null,
   bookings = [] as { startTime: Date; endTime: Date }[],
   business = NO_CALENDAR_BUSINESS,
 }: {
-  service?: { duration: number; availableFrom: string; availableTo: string };
+  service?: { id?: string; businessId?: string; bookingMode?: string; duration: number; availableFrom: string; availableTo: string };
   businessHours?: {
     isClosed: boolean;
     startTime: string;
