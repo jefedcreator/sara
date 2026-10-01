@@ -95,7 +95,8 @@ export function RescheduleModal({
   const days = useMemo(() => Array.from({ length: 14 }, (_, i) => addDays(today, i)), [today]);
   const [date, setDate] = useState(today);
   const [slot, setSlot] = useState<TimeSlot | null>(null);
-  const slots = useServiceSlotsQuery(booking.service.slug, date);
+  // Stays and rentals load their own nights or pickup times below.
+  const slots = useServiceSlotsQuery(booking.service.bookingMode === "SLOT" ? booking.service.slug : null, date);
 
   return (
     <Modal open={open} onOpenChange={onOpenChange}>

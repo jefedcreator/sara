@@ -46,7 +46,7 @@ export function usePublicNightsQuery(
     queryKey: publicServiceKeys.nights(slug, window.from, window.to),
     queryFn: () => api.public.nights(slug, window.from, window.to),
     initialData:
-      initial && initial.from === window.from && initial.to === window.to ? initial.data : undefined,
+      initial?.from === window.from && initial?.to === window.to ? initial.data : undefined,
     placeholderData: keepPreviousData,
     staleTime: STALE_MS,
   });
@@ -62,7 +62,7 @@ export function usePublicPickupsQuery(
   return useQuery({
     queryKey: publicServiceKeys.pickups(slug, date, units),
     queryFn: () => api.public.pickups(slug, date, units),
-    initialData: initial && initial.date === date && initial.units === units ? initial.data : undefined,
+    initialData: initial?.date === date && initial?.units === units ? initial.data : undefined,
     placeholderData: keepPreviousData,
     staleTime: STALE_MS,
   });
