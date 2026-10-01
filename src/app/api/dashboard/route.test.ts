@@ -35,17 +35,21 @@ describe("GET /api/dashboard", () => {
     mockedDb.invoice.aggregate.mockResolvedValue({
       _sum: { total: 50000, amountPaid: 10000 },
     });
-    const start = new Date("2026-09-29T13:00:00.000Z");
+    const start = new Date();
+    start.setHours(13, 0, 0, 0);
+    const end = new Date(start);
+    end.setHours(17);
     mockedDb.booking.findMany
       // today's bookings
       .mockResolvedValueOnce([
         {
           slug: "b-1",
           startTime: start,
-          endTime: new Date("2026-09-29T17:00:00.000Z"),
+          endTime: end,
+          units: 1,
           status: "CONFIRMED",
           clientName: "Funke Bello",
-          service: { name: "Knotless braids" },
+          service: { name: "Knotless braids", bookingMode: "SLOT" },
         },
       ])
       // confirmed bookings for revenue

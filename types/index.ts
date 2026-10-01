@@ -206,6 +206,9 @@ export interface DashboardData {
   };
   todayBookings: {
     slug: string;
+    kind: "SLOT" | "CHECK_IN" | "CHECK_OUT" | "PICKUP" | "RETURN";
+    at: string;
+    units: number;
     startTime: string;
     endTime: string;
     status: "PENDING" | "CONFIRMED";
