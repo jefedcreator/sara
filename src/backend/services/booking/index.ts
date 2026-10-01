@@ -117,6 +117,7 @@ class BookingService {
         clientEmail: input.clientEmail ?? null,
         clientPhone: input.clientPhone ?? null,
         notes: input.notes ?? null,
+        amount: service.price,
         status: "PENDING",
       };
       return tx.booking.create({ data });

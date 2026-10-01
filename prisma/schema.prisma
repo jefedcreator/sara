@@ -17,6 +17,12 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum BookingMode {
+  SLOT
+  NIGHTLY
+  DAILY
+}
+
 enum InvoiceStatus {
   DRAFT
   SENT
@@ -149,6 +155,11 @@ model Service {
   availableFrom String @default("08:00") // Start of availability window (24hr, e.g. "08:00")
   availableTo   String @default("17:00") // End of availability window (24hr, e.g. "17:00")
   isActive    Boolean  @default(true)
+  bookingMode  BookingMode @default(SLOT)
+  checkInTime  String? // NIGHTLY only, "HH:mm"
+  checkOutTime String? // NIGHTLY only, "HH:mm"; never later than checkInTime
+  minUnits     Int         @default(1) // min nights (NIGHTLY) or days (DAILY); ignored for SLOT
+  maxUnits     Int         @default(30) // max nights or days, at most 90; ignored for SLOT
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -189,6 +200,10 @@ model Booking {
   reminderSentAt DateTime? // Set once the 24h-ahead reminder email has been sent
   googleEventId  String? // The synced Google Calendar event id, if the business has Calendar connected
 
+  units         Int       @default(1) // nights (NIGHTLY) or days (DAILY); 1 for SLOT
+  amount        Decimal   @db.Decimal(10, 2) // price × units when booked; what Paystack charges
+  holdExpiresAt DateTime? // a PENDING booking stops blocking time after this
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -199,6 +214,7 @@ model Booking {
   @@index([businessId])
   @@index([serviceId])
   @@index([slug])
+  @@index([serviceId, startTime, endTime])
 }
 
 model Invoice {
