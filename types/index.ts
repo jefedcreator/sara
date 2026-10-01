@@ -108,6 +108,7 @@ export interface TimeSlot {
 
 export type ServiceDetail = Service & {
   slots: TimeSlot[];
+  nights: NightDto[];
 };
 
 export type CreatedBooking = Booking & {
@@ -243,7 +244,7 @@ export interface Page<T> {
 
 /** GET /api/bookings row. */
 export type BookingDto = Serialized<Booking> & {
-  service: { id: string; name: string; slug: string; price: string; duration: number };
+  service: { id: string; name: string; slug: string; price: string; duration: number; bookingMode: BookingMode };
 };
 
 export type InvoiceDto = Serialized<InvoiceListItem>;

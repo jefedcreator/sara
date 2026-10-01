@@ -137,10 +137,12 @@ export const serviceQueryValidatorSchema = baseQueryValidatorSchema
 
 export const serviceDetailQueryValidatorSchema = z
   .object({
-    date: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "date must be in YYYY-MM-DD format")
-      .optional(),
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be in YYYY-MM-DD format").optional(),
+    from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "from must be in YYYY-MM-DD format").optional(),
+    to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "to must be in YYYY-MM-DD format").optional(),
+    units: z.coerce.number().int().min(1).max(90).optional(),
+    /** A booking's slug whose own time counts as free (it's the one being moved). */
+    exclude: z.string().max(255).optional(),
   })
   .strict();
 

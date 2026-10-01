@@ -229,10 +229,14 @@ export const api = {
       ),
     setStatus: (slug: string, status: BookingStatus) =>
       data<BookingDto>(http.put(`/bookings/${encodeURIComponent(slug)}`, { status })),
-    reschedule: (slug: string, startTime: string, endTime: string) =>
+    reschedule: (slug: string, startTime: string, endTime?: string) =>
       data<BookingDto>(
-        http.put(`/bookings/${encodeURIComponent(slug)}`, { startTime, endTime }),
+        http.put(`/bookings/${encodeURIComponent(slug)}`, endTime ? { startTime, endTime } : { startTime }),
       ),
+    nights: (serviceSlug: string, from: string, to: string, exclude: string) =>
+      data<ServiceSlotsDto>(http.get(`/services/${encodeURIComponent(serviceSlug)}`, { params: { from, to, exclude } })),
+    pickups: (serviceSlug: string, date: string, units: number, exclude: string) =>
+      data<ServiceSlotsDto>(http.get(`/services/${encodeURIComponent(serviceSlug)}`, { params: { date, units, exclude } })),
     /** A service's slots for a day, as the owner sees them. */
     slots: (serviceSlug: string, date: string) =>
       data<ServiceSlotsDto>(

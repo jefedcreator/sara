@@ -45,6 +45,6 @@ export const receiptListInclude = {
 /** What a booking list row carries (GET /api/bookings and the bookings page). */
 export const bookingListInclude = {
   service: {
-    select: { id: true, name: true, slug: true, price: true, duration: true },
+    select: { id: true, name: true, slug: true, price: true, duration: true, bookingMode: true },
   },
 } satisfies Prisma.BookingInclude;
