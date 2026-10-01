@@ -282,6 +282,17 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     );
   });
 
+  it("returns 500 when serialization fails twice to force a retry", async () => {
+    mockedDb.$transaction.mockRejectedValueOnce(Object.assign(new Error("conflict"), { code: "P2034" }));
+    mockedDb.$transaction.mockRejectedValueOnce(Object.assign(new Error("conflict"), { code: "P2034" }));
+    
+    const response = await POST(buildRequest(buildEvent()));
+    expect(response.status).toBe(500);
+    expect(mockedDb.$transaction).toHaveBeenCalledTimes(2);
+    const body = await response.json();
+    expect(body.message).toBe("Serialization conflict, please retry");
+  });
+
   it("cancels a late payment whose time was resold, and tells the owner to refund", async () => {
     mockedDb.booking.findUnique.mockResolvedValue({ ...BOOKING, holdExpiresAt: new Date(Date.now() - 60 * 1000) });
     mockedDb.booking.findFirst.mockResolvedValue({ id: "bkg_other" });
