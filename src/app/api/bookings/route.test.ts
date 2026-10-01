@@ -55,6 +55,12 @@ const SERVICE = {
   duration: 60,
   isActive: true,
   price: 50,
+  businessId: "biz_1",
+  bookingMode: "SLOT",
+  checkInTime: null,
+  checkOutTime: null,
+  minUnits: 1,
+  maxUnits: 30,
   business: BUSINESS,
 };
 
@@ -125,7 +131,7 @@ describe("POST /api/bookings overlap check", () => {
 
     const response = await POST(request, { params: Promise.resolve({}) });
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(409);
     expect(mockedDb.booking.create).not.toHaveBeenCalled();
   });
 });
