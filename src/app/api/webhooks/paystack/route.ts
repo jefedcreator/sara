@@ -65,6 +65,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ status: "ok" }, { status: 200 });
   } catch (error: any) {
     console.error("[Paystack Webhook] Error:", error.message || error);
+    if (isSerializationFailure(error)) {
+      return NextResponse.json(
+        { message: "Serialization conflict, please retry" },
+        { status: 500 }
+      );
+    }
     // Still return 200 to prevent Paystack from retrying endlessly
     return NextResponse.json({ status: "ok" }, { status: 200 });
   }

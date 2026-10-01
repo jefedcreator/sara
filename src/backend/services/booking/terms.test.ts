@@ -32,6 +32,9 @@ describe("bookingTerms: SLOT", () => {
     // 09:30 wall-clock is before 10:00 Lagos now, though after 09:00 real UTC.
     expect(() => bookingTerms(SLOT, at("2026-10-01T09:30:00.000Z"), 1, { now: NOW })).toThrow(BadRequestException);
   });
+  it("rejects invalid date", () => {
+    expect(() => bookingTerms(SLOT, new Date("invalid"), 1, { now: NOW })).toThrow(new BadRequestException("Invalid booking start time."));
+  });
 });
 
 describe("bookingTerms: NIGHTLY", () => {

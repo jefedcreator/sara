@@ -38,6 +38,7 @@ export function bookingTerms(
   units = 1,
   options: { now?: Date; enforceUnitLimits?: boolean } = {},
 ): BookingTerms {
+  if (Number.isNaN(startTime.getTime())) throw new BadRequestException("Invalid booking start time.");
   const now = wallClockNow(options.now);
   const today = dateOf(now);
 
