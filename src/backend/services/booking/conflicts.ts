@@ -53,3 +53,8 @@ export function blockingBookingsWhere(
     AND: [activeBookingWhere(options.now)],
   };
 }
+
+/** Postgres refused a serializable transaction because another one won the race. */
+export function isSerializationFailure(error: unknown) {
+  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2034";
+}

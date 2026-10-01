@@ -1,4 +1,7 @@
-import { blockingBookingsWhere } from "@/backend/services/booking/conflicts";
+import {
+  blockingBookingsWhere,
+  isSerializationFailure,
+} from "@/backend/services/booking/conflicts";
 import { emailService } from "@/backend/services/email";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { formatMoney } from "@/backend/services/messaging/engine/amount";
@@ -11,6 +14,7 @@ import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
 import { shareUrl } from "@/server/share";
 import { bookingWhen } from "@/utils/format";
+import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -188,31 +192,56 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
     clientPhone: booking.clientPhone,
   };
 
-  // The hold ran out before Paystack told us. Confirm only if nobody has
-  // taken the time since; otherwise cancel, keep the payment on record, and
-  // tell the owner to refund it.
-  const now = new Date();
-  if (booking.holdExpiresAt && booking.holdExpiresAt <= now) {
-    const taken = await db.booking.findFirst({
-      where: blockingBookingsWhere(
-        {
-          id: booking.serviceId,
-          businessId: booking.businessId,
-          bookingMode: booking.service.bookingMode,
-        },
-        { start: booking.startTime, end: booking.endTime },
-        { now, excludeId: booking.id },
-      ),
-      select: { id: true },
-    });
-    if (taken) {
-      await db.$transaction(async (tx) => {
+  // Decide and record in one serializable transaction, so a new booking
+  // cannot slip into the time between the check and the confirmation. If the
+  // hold ran out before Paystack told us, confirm only when nobody has taken
+  // the time since; otherwise cancel, keep the payment on record, and tell
+  // the owner to refund it.
+  const decide = () =>
+    db.$transaction(
+      async (tx) => {
+        const now = new Date();
+        if (booking.holdExpiresAt && booking.holdExpiresAt <= now) {
+          const taken = await tx.booking.findFirst({
+            where: blockingBookingsWhere(
+              {
+                id: booking.serviceId,
+                businessId: booking.businessId,
+                bookingMode: booking.service.bookingMode,
+              },
+              { start: booking.startTime, end: booking.endTime },
+              { now, excludeId: booking.id },
+            ),
+            select: { id: true },
+          });
+          if (taken) {
+            await tx.booking.update({
+              where: { id: bookingId },
+              data: { status: "CANCELLED" },
+            });
+            await tx.payment.create({ data: paymentData });
+            return "cancelled" as const;
+          }
+        }
         await tx.booking.update({
           where: { id: bookingId },
-          data: { status: "CANCELLED" },
+          data: { status: "CONFIRMED" },
         });
         await tx.payment.create({ data: paymentData });
-      });
+        return "confirmed" as const;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+
+  let outcome: "cancelled" | "confirmed";
+  try {
+    outcome = await decide();
+  } catch (error) {
+    if (!isSerializationFailure(error)) throw error;
+    outcome = await decide();
+  }
+
+  if (outcome === "cancelled") {
       console.warn(
         `[Paystack Webhook] Late payment for resold time; booking ${bookingId} cancelled. Ref: ${reference}`,
       );
@@ -243,18 +272,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
         }
       }
       return;
-    }
   }
-
-  // Atomically confirm booking + create payment
-  await db.$transaction(async (tx) => {
-    await tx.booking.update({
-      where: { id: bookingId },
-      data: { status: "CONFIRMED" },
-    });
-
-    await tx.payment.create({ data: paymentData });
-  });
 
   console.log(
     `[Paystack Webhook] Booking ${bookingId} confirmed. Payment ref: ${reference}, amount: ${amount / 100}, channel: ${channel}`,

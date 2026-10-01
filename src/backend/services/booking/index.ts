@@ -4,7 +4,7 @@ import { BadRequestException, ConflictException, NotFoundException } from "@/uti
 import { Prisma, type Booking } from "@prisma/client";
 import slugify from "slugify";
 
-import { blockingBookingsWhere, holdExpiresFrom } from "./conflicts";
+import { blockingBookingsWhere, holdExpiresFrom, isSerializationFailure } from "./conflicts";
 import { bookingTerms } from "./terms";
 
 export type CreateBookingInput = {
@@ -32,11 +32,6 @@ export type BookingWithPayment = {
 
 const SLOT_TAKEN = "This time slot is already booked. Please select a different slot.";
 const DATES_TAKEN = "Those dates were just taken. Pick different dates.";
-
-/** Postgres refused a serializable transaction because another one won the race. */
-function isSerializationFailure(error: unknown) {
-  return typeof error === "object" && error !== null && (error as { code?: unknown }).code === "P2034";
-}
 
 class BookingService {
   async createWithPayment(input: CreateBookingInput): Promise<BookingWithPayment> {

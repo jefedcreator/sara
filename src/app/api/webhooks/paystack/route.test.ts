@@ -253,7 +253,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     expect(mockedReceipt.create).toHaveBeenCalledWith(
       expect.objectContaining({
         services: [
-          expect.objectContaining({ serviceId: "svc_1", quantity: 3, total: 50 }),
+          expect.objectContaining({ serviceId: "svc_1", quantity: 3, unitPrice: 50 / 3, total: 50 }),
         ],
       }),
     );
@@ -262,6 +262,21 @@ describe("POST /api/webhooks/paystack charge.success", () => {
   it("confirms a late payment when the time is still free", async () => {
     mockedDb.booking.findUnique.mockResolvedValue({ ...BOOKING, holdExpiresAt: new Date(Date.now() - 60 * 1000) });
     await POST(buildRequest(buildEvent()));
+    expect(mockedDb.booking.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ id: { not: "bkg_1" } }) }),
+    );
+    expect(mockedDb.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "CONFIRMED" } }),
+    );
+  });
+
+  it("retries once when the serializable transaction loses a race", async () => {
+    const real = mockedDb.$transaction.getMockImplementation();
+    mockedDb.$transaction.mockRejectedValueOnce(Object.assign(new Error("conflict"), { code: "P2034" }));
+    mockedDb.$transaction.mockImplementation(real);
+    const response = await POST(buildRequest(buildEvent()));
+    expect(response.status).toBe(200);
+    expect(mockedDb.$transaction).toHaveBeenCalledTimes(2);
     expect(mockedDb.booking.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: { status: "CONFIRMED" } }),
     );
