@@ -39,7 +39,8 @@ A guided, deterministic numbered chat menu (not an AI chatbot) on top of serious
 - Business summary: today's revenue, this week's revenue, unpaid count; revenue per service.
 - Home service: route and distance between customer and business address.
 - Web dashboard (decided by the owner 2026-09-29): a superset of the chat. Today (the chat's six menu items: new invoice, new receipt, share a service, unpaid invoices, today's bookings, business summary, plus revenue by service), Bookings (confirm, mark done, reschedule, cancel), Invoices (itemised or custom amount, record full or part payments with an optional receipt, void), Receipts, Services (create, edit, pause, booking links) and Settings (profile, hours, days off, Google Calendar). The chat and the dashboard read the same numbers (dashboardService).
-- Does NOT exist yet (never claim): deposit-gated bookings, no-show/reliability scores, buffer times, QR codes, customer-side WhatsApp booking. Sara is not AI and must never be described as one.
+- Booking modes per service: by time slot (default), by the night (shortlets: check-in/check-out times, min/max nights, priced per night) and by the day (self-drive: 24-hour days from a chosen pickup time, priced per day). Each apartment or car is its own service with its own calendar; stays and rentals never block other units or the owner's slot bookings. Unpaid bookings hold their time for 30 minutes.
+- Does NOT exist yet (never claim): caution fees / security deposits, iCal sync with Airbnb or Booking.com, guest count or ID capture, pickup and drop-off locations, no-show/reliability scores, buffer times, QR codes, customer-side WhatsApp booking. Sara is not AI and must never be described as one.
 - Money: "NGN 15,000" in UI chrome, "₦15,000" in headline and stat copy.
 
 ## Brand Commitments
