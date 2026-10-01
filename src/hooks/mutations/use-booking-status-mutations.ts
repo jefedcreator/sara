@@ -24,7 +24,7 @@ export function useSetBookingStatusMutation() {
 export function useRescheduleBookingMutation() {
   const invalidate = useInvalidateBookings();
   return useMutation({
-    mutationFn: ({ slug, startTime, endTime }: { slug: string; startTime: string; endTime: string }) =>
+    mutationFn: ({ slug, startTime, endTime }: { slug: string; startTime: string; endTime?: string }) =>
       api.bookings.reschedule(slug, startTime, endTime),
     onSuccess: invalidate,
   });

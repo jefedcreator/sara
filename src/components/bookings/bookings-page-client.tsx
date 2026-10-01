@@ -142,7 +142,7 @@ export function BookingsPageClient({ currency, initial }: BookingsPageClientProp
           error={reschedule.isError ? errorMessage(reschedule.error) : null}
           onSubmit={(slot) =>
             reschedule.mutate(
-              { slug: target.slug, startTime: slot.startTime, endTime: slot.endTime },
+              { slug: target.slug, startTime: slot.startTime, endTime: target.service.bookingMode === "SLOT" ? slot.endTime : undefined },
               { onSuccess: () => setMoveOpen(false) },
             )
           }

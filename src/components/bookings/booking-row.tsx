@@ -1,7 +1,7 @@
 import type { BookingDto } from "types";
 
 import { Button, StatusPill } from "@/primitives";
-import { formatMoney, formatSlotTime } from "@/utils/format";
+import { formatMoney, formatSlotTime, bookingSpan } from "@/utils/format";
 import { BOOKING_STATUS } from "@/utils/labels";
 
 interface BookingRowProps {
@@ -39,7 +39,11 @@ export function BookingRow({
   return (
     <article className="rounded-card bg-surface grid gap-4 px-4 py-4 sm:grid-cols-[112px_1fr_auto] sm:items-center sm:px-5">
       <div className="flex items-baseline gap-2 sm:block">
-        <p className="text-accent-ink text-[17px] font-semibold">{formatSlotTime(booking.startTime)}</p>
+        <p className="text-accent-ink text-[17px] font-semibold">
+          {booking.service.bookingMode === "SLOT"
+            ? formatSlotTime(booking.startTime)
+            : bookingSpan({ bookingMode: booking.service.bookingMode, startTime: booking.startTime, endTime: booking.endTime, units: booking.units })}
+        </p>
         <p className="text-muted text-sm">{dayLabel(booking.startTime)}</p>
       </div>
 

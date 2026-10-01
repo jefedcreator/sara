@@ -22,6 +22,7 @@ import {
   NotFoundException,
 } from "@/utils/exceptions";
 import { type Service, type Prisma } from "@prisma/client";
+import { addDays } from "@/utils/format";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
 import type { ApiResponse, ServiceDetail, TimeSlot } from "types";
@@ -260,17 +261,40 @@ export const GET = withMiddleware<unknown, ServiceDetailQueryValidatorSchema>(
         );
       }
 
-      const availableSlots = await availabilityService.getAvailableSlots({
-        businessId: service.businessId,
-        serviceId: service.id,
-        date: targetDate,
-      });
+      const excluded = request.query?.exclude
+        ? await db.booking.findFirst({
+            where: { slug: request.query.exclude, serviceId: service.id },
+            select: { id: true },
+          })
+        : null;
+      const excludeBookingId = excluded?.id;
 
-      const slots: TimeSlot[] = availableSlots.map((slot) => ({
-        startTime: slot.startTime.toISOString(),
-        endTime: slot.endTime.toISOString(),
-        isAvailable: slot.isAvailable,
-      }));
+      let slots: TimeSlot[] = [];
+      let nights: { date: string; isAvailable: boolean }[] = [];
+      if (service.bookingMode === "NIGHTLY") {
+        const from = request.query?.from ?? targetDate;
+        const to = request.query?.to ?? addDays(from, 31);
+        nights = await availabilityService.getNights({ serviceId: service.id, from, to, excludeBookingId });
+      } else {
+        const available =
+          service.bookingMode === "DAILY"
+            ? await availabilityService.getPickupTimes({
+                serviceId: service.id,
+                date: targetDate,
+                units: request.query?.units ?? service.minUnits,
+                excludeBookingId,
+              })
+            : await availabilityService.getAvailableSlots({
+                businessId: service.businessId,
+                serviceId: service.id,
+                date: targetDate,
+              });
+        slots = available.map((slot) => ({
+          startTime: slot.startTime.toISOString(),
+          endTime: slot.endTime.toISOString(),
+          isAvailable: slot.isAvailable,
+        }));
+      }
 
       const response: ApiResponse<ServiceDetail> = {
         status: 200,
@@ -278,6 +302,7 @@ export const GET = withMiddleware<unknown, ServiceDetailQueryValidatorSchema>(
         data: {
           ...service,
           slots,
+          nights,
         },
       };
 
