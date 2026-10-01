@@ -7,7 +7,7 @@ import { DocumentModal } from "@/components/documents/document-modal";
 import { useDashboardQuery } from "@/hooks/queries/use-dashboard";
 import { useDocumentComposer } from "@/hooks/use-document-composer";
 import { StatusPill } from "@/primitives";
-import { formatLongDate, formatMoney, formatSlotTime, todayIso } from "@/utils/format";
+import { formatLongDate, formatMoney, formatSlotTime, todayEventLabel, todayIso } from "@/utils/format";
 import { BOOKING_STATUS } from "@/utils/labels";
 
 import { MenuNumeral } from "./menu-numeral";
@@ -71,13 +71,15 @@ export function DashboardPageClient({ initialData, services }: DashboardPageClie
               {data.todayBookings.map((booking) => {
                 const status = BOOKING_STATUS[booking.status];
                 return (
-                  <li key={booking.slug} className="bg-canvas rounded-card flex items-center gap-3 px-4 py-3">
+                  <li key={`${booking.slug}-${booking.kind}`} className="bg-canvas rounded-card flex items-center gap-3 px-4 py-3">
                     <span className="text-accent-ink min-w-[3.2em] font-semibold">
-                      {formatSlotTime(booking.startTime)}
+                      {formatSlotTime(booking.at)}
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-[15px] font-semibold">{booking.serviceName}</p>
-                      <p className="text-muted truncate text-sm">{booking.clientName}</p>
+                      <p className="text-muted truncate text-sm">
+                        {booking.kind === "SLOT" ? booking.clientName : `${todayEventLabel(booking.kind)} · ${booking.clientName}`}
+                      </p>
                     </div>
                     {status ? <StatusPill tone={status.tone}>{status.label}</StatusPill> : null}
                   </li>

@@ -62,10 +62,10 @@ describe("createReceipt", () => {
 describe("service options + booking link", () => {
   it("lists active services and builds a booking link", async () => {
     mockedDb.service.findMany.mockResolvedValue([
-      { slug: "acme-haircut", name: "Haircut", price: 5000, duration: 60, currency: "NGN" },
+      { slug: "acme-haircut", name: "Haircut", price: 5000, duration: 60, currency: "NGN", bookingMode: "SLOT" },
     ]);
     const options = await intentDispatcher.listServiceOptions("biz_1");
-    expect(options).toEqual([{ slug: "acme-haircut", label: "Haircut — NGN 5,000 (60 min)" }]);
+    expect(options).toEqual([{ slug: "acme-haircut", label: "Haircut — NGN 5,000 (1 hr)" }]);
     expect(intentDispatcher.bookingLinkText(options[0]!)).toContain("https://app.sara.ng/book/acme-haircut");
   });
 });

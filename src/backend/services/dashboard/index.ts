@@ -2,7 +2,9 @@ import type { InvoiceStatus, Prisma } from "@prisma/client";
 
 import type { DashboardData } from "types";
 
+import { activeBookingWhere } from "@/backend/services/booking/conflicts";
 import { db } from "@/server/db";
+import type { TodayEventKind } from "@/utils/format";
 
 /*
  * The owner's day at a glance. One source for both the chat menu (items 4-6)
@@ -42,12 +44,19 @@ export type UnpaidInvoice = {
 
 export type TodayBooking = {
   slug: string;
+  /** What happens at `at`: a slot, or a stay/rental starting or ending. */
+  kind: TodayEventKind;
+  at: Date;
   startTime: Date;
   endTime: Date;
+  units: number;
   status: "PENDING" | "CONFIRMED";
   clientName: string;
   serviceName: string;
 };
+
+const START_KIND = { SLOT: "SLOT", NIGHTLY: "CHECK_IN", DAILY: "PICKUP" } as const;
+const END_KIND = { NIGHTLY: "CHECK_OUT", DAILY: "RETURN" } as const;
 
 export type ServiceRevenue = {
   serviceId: string;
@@ -96,33 +105,50 @@ class DashboardService {
     }));
   }
 
-  /** Still-happening bookings today, in time order. */
+  /**
+   * Today's moments, in time order: slot bookings, and stays and rentals
+   * that start (check-in, pickup) or end (check-out, return) today.
+   */
   async todayBookings(businessId: string): Promise<TodayBooking[]> {
+    const start = startOfToday();
+    const end = endOfToday();
     const bookings = await db.booking.findMany({
       where: {
         businessId,
-        startTime: { gte: startOfToday(), lt: endOfToday() },
-        status: { in: ["PENDING", "CONFIRMED"] },
+        AND: [
+          activeBookingWhere(),
+          {
+            OR: [
+              { startTime: { gte: start, lt: end } },
+              { endTime: { gte: start, lt: end }, service: { bookingMode: { not: "SLOT" } } },
+            ],
+          },
+        ],
       },
       orderBy: { startTime: "asc" },
-      take: 20,
+      take: 40,
       select: {
-        slug: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-        clientName: true,
-        service: { select: { name: true } },
+        slug: true, startTime: true, endTime: true, units: true, status: true, clientName: true,
+        service: { select: { name: true, bookingMode: true } },
       },
     });
-    return bookings.map((b) => ({
-      slug: b.slug,
-      startTime: b.startTime,
-      endTime: b.endTime,
-      status: b.status as TodayBooking["status"],
-      clientName: b.clientName,
-      serviceName: b.service.name,
-    }));
+
+    const events: TodayBooking[] = [];
+    for (const b of bookings) {
+      const base = {
+        slug: b.slug,
+        startTime: b.startTime,
+        endTime: b.endTime,
+        units: b.units,
+        status: b.status as TodayBooking["status"],
+        clientName: b.clientName,
+        serviceName: b.service.name,
+      };
+      const mode = b.service.bookingMode;
+      if (b.startTime >= start && b.startTime < end) events.push({ ...base, kind: START_KIND[mode], at: b.startTime });
+      if (mode !== "SLOT" && b.endTime >= start && b.endTime < end) events.push({ ...base, kind: END_KIND[mode], at: b.endTime });
+    }
+    return events.sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, 20);
   }
 
   /** Payments received today and this week, and how many invoices are unpaid. */
@@ -224,6 +250,7 @@ class DashboardService {
       summary: { ...summary, unpaidTotal },
       todayBookings: todayBookings.map((b) => ({
         ...b,
+        at: b.at.toISOString(),
         startTime: b.startTime.toISOString(),
         endTime: b.endTime.toISOString(),
       })),

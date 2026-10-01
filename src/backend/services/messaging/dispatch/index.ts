@@ -4,6 +4,7 @@ import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
 import { shareUrl } from "@/server/share";
 import { NotFoundException } from "@/utils/exceptions";
+import { serviceLabel, todayEventLabel, unitCount } from "@/utils/format";
 import { formatMoney } from "../engine/amount";
 import { publicUrl } from "@/utils/url";
 
@@ -71,11 +72,11 @@ class IntentDispatcher {
       where: { businessId, isActive: true },
       orderBy: { createdAt: "asc" },
       take: 20,
-      select: { slug: true, name: true, price: true, duration: true },
+      select: { slug: true, name: true, price: true, duration: true, bookingMode: true },
     });
     return services.map((s) => ({
       slug: s.slug,
-      label: `${s.name} — ${formatMoney(Number(s.price), currency)} (${s.duration} min)`,
+      label: serviceLabel({ name: s.name, price: Number(s.price), duration: s.duration, currency, bookingMode: s.bookingMode }),
     }));
   }
 
@@ -101,8 +102,11 @@ class IntentDispatcher {
     const bookings = await dashboardService.todayBookings(businessId);
     if (bookings.length === 0) return "📅 No bookings today.";
     const lines = bookings.map((b) => {
-      const time = b.startTime.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-      return `• ${time} — ${b.serviceName} (${b.clientName})`;
+      const time = b.at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+      if (b.kind === "SLOT") return `• ${time} — ${b.serviceName} (${b.clientName})`;
+      const length =
+        b.kind === "CHECK_IN" ? `, ${unitCount("NIGHTLY", b.units)}` : b.kind === "PICKUP" ? `, ${unitCount("DAILY", b.units)}` : "";
+      return `• ${time} — ${todayEventLabel(b.kind)}: ${b.serviceName} (${b.clientName}${length})`;
     });
     return `📅 Today's bookings:\n${lines.join("\n")}`;
   }
