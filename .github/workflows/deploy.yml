@@ -1,0 +1,228 @@
+name: Deploy sara to Oracle Cloud
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  # See parcours' workflow for the ARM-runner rationale and the documented
+  # fallback: artifacts must be aarch64 to boot on this server.
+  RUNNER_LABEL: ubuntu-24.04-arm
+
+  APP: sara
+  APP_PORT: '3003'
+  APP_DIR: /srv/sara
+  DB_SYNC_CMD: npx prisma migrate deploy
+  # Releases kept on the server: the live one plus rollback targets. Shared by
+  # the pre-upload prune and deploy.sh's post-deploy prune.
+  KEEP_RELEASES: '3'
+  # Free space the server must have after pruning before an upload starts.
+  # A release whose dependencies all changed is ~1 GB; unchanged files are
+  # hardlinked to the live release and cost nothing.
+  MIN_FREE_MB: '1500'
+
+jobs:
+  # Lint, types and tests on every PR and before every deploy. x86 is enough
+  # here: nothing it produces reaches the server.
+  check:
+    runs-on: ubuntu-latest
+    env:
+      # next.config.js imports src/env.js; there are no secrets in this job.
+      SKIP_ENV_VALIDATION: '1'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # Report-only until the existing backlog (~600 errors, mostly
+      # no-unsafe-* on `any`) is cleared; then drop continue-on-error so
+      # lint gates deploys like the steps below.
+      - name: Lint
+        run: yarn lint
+        continue-on-error: true
+
+      - name: Typecheck
+        run: yarn typecheck
+
+      - name: Test
+        run: yarn test
+
+  deploy:
+    needs: check
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04-arm
+    concurrency:
+      group: deploy-sara
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      # Fail in seconds, with a message that names the missing secret, rather
+      # than after a full build.
+      - name: Verify deploy secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          missing=
+          [ -n "$SSH_HOST" ] || missing="$missing SSH_HOST"
+          [ -n "$SSH_USER" ] || missing="$missing SSH_USER"
+          [ -n "$SSH_KEY" ]  || missing="$missing SSH_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing or empty repository secrets:$missing"
+            echo "Add them under Settings -> Secrets and variables -> Actions." >&2
+            exit 1
+          fi
+          echo "SSH secrets present."
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      # Mirrors the schema in src/env.js, which is the single source of truth.
+      # Adding a variable there means adding it here and to .env.example.
+      # Written before the build: NEXT_PUBLIC_* values are inlined at build time.
+      - name: Create .env
+        run: |
+          cat > .env <<'EOL'
+          DATABASE_URL="${{ secrets.DATABASE_URL }}"
+          # schema.prisma reads directUrl from DIRECT_URL, and Prisma rejects an
+          # empty one. Unset, migrations use DATABASE_URL, which is right for a
+          # non-pooled connection.
+          DIRECT_URL="${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}"
+          AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
+          AUTH_GOOGLE_ID="${{ secrets.AUTH_GOOGLE_ID }}"
+          AUTH_GOOGLE_SECRET="${{ secrets.AUTH_GOOGLE_SECRET }}"
+          AUTH_FACEBOOK_ID="${{ secrets.AUTH_FACEBOOK_ID }}"
+          AUTH_FACEBOOK_SECRET="${{ secrets.AUTH_FACEBOOK_SECRET }}"
+          CONFIGURATION_ID="${{ secrets.CONFIGURATION_ID }}"
+          AUTH_INSTAGRAM_ID="${{ secrets.AUTH_INSTAGRAM_ID }}"
+          AUTH_INSTAGRAM_SECRET="${{ secrets.AUTH_INSTAGRAM_SECRET }}"
+          NEXT_PUBLIC_APP_URL="${{ secrets.NEXT_PUBLIC_APP_URL }}"
+          CLOUDINARY_CLOUD_NAME="${{ secrets.CLOUDINARY_CLOUD_NAME }}"
+          CLOUDINARY_API_KEY="${{ secrets.CLOUDINARY_API_KEY }}"
+          CLOUDINARY_API_SECRET="${{ secrets.CLOUDINARY_API_SECRET }}"
+          RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
+          EMAIL_FROM="${{ secrets.EMAIL_FROM }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
+          PAYSTACK_SECRET_KEY="${{ secrets.PAYSTACK_SECRET_KEY }}"
+          PAYSTACK_WEBHOOK_SECRET="${{ secrets.PAYSTACK_WEBHOOK_SECRET }}"
+          MONO_CLIENT_ID="${{ secrets.MONO_CLIENT_ID }}"
+          MONO_SECRET_KEY="${{ secrets.MONO_SECRET_KEY }}"
+          NEXT_PUBLIC_MONO_PUBLIC_KEY="${{ secrets.NEXT_PUBLIC_MONO_PUBLIC_KEY }}"
+          WHATSAPP_VERIFY_TOKEN="${{ secrets.WHATSAPP_VERIFY_TOKEN }}"
+          WHATSAPP_PHONE_NUMBER_ID="${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}"
+          WHATSAPP_TOKEN="${{ secrets.WHATSAPP_TOKEN }}"
+          NEXT_PUBLIC_SARA_WHATSAPP_NUMBER="${{ secrets.NEXT_PUBLIC_SARA_WHATSAPP_NUMBER }}"
+          META_APP_SECRET="${{ secrets.META_APP_SECRET }}"
+          INSTAGRAM_VERIFY_TOKEN="${{ secrets.INSTAGRAM_VERIFY_TOKEN }}"
+          INSTAGRAM_IG_ID="${{ secrets.INSTAGRAM_IG_ID }}"
+          INSTAGRAM_PAGE_TOKEN="${{ secrets.INSTAGRAM_PAGE_TOKEN }}"
+          # Atlas is not deployed to this host yet. Unset, the client falls back
+          # to localhost:3001, which here is strive. Port 9 refuses at once, so
+          # geocoding and routing fail fast and the callers carry on without
+          # them. Set the secret once Atlas runs.
+          ATLAS_API_URL="${{ secrets.ATLAS_API_URL || 'http://127.0.0.1:9' }}"
+          # Auth.js behind nginx reverse proxy requires trusting host headers.
+          AUTH_TRUST_HOST=true
+          NODE_ENV=production
+          PORT=${{ env.APP_PORT }}
+          EOL
+
+      # The build runs with SKIP_ENV_VALIDATION, so this is the first check
+      # the secrets get. A malformed one would otherwise pass the build and
+      # only surface when the server boots. Failing here names the variable.
+      - name: Validate environment
+        run: node --env-file=.env --input-type=module -e 'await import("./src/env.js")'
+
+      # Lint is the check job's concern; left on, next build fails on the
+      # same backlog that job reports.
+      - name: Build
+        run: yarn build --no-lint
+        env:
+          SKIP_ENV_VALIDATION: '1'
+
+      - name: Stage release
+        run: |
+          mkdir -p release/src
+          # assets/fonts is read from disk by the PDF service and OG cards.
+          cp -r .next public prisma node_modules deploy assets release/
+          cp package.json yarn.lock next.config.js release/
+          # next.config.js carries runtime config (Cloudinary image patterns)
+          # and imports src/env.js, so the server validates its env at boot
+          # and a bad .env fails the health check instead of serving 500s.
+          cp src/env.js release/src/
+
+          # .next/cache is the BUILD cache (webpack/SWC). `next start` never reads
+          # it, recreates what it needs at runtime, and it can be hundreds of MB.
+          rm -rf release/.next/cache
+
+          # The Prisma client is generated into node_modules on this ARM runner;
+          # without an aarch64 engine the release boots but fails every query.
+          if ! ls release/node_modules/.prisma/client/libquery_engine-linux-arm64-*.so.node >/dev/null 2>&1; then
+            echo "::error::No linux-arm64 Prisma query engine in node_modules/.prisma/client."
+            ls -la release/node_modules/.prisma/client || true
+            exit 1
+          fi
+
+      - name: Install SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      # Before rsync, not after: deploy.sh prunes only on SUCCESS, so a failed
+      # deploy or an upload that died partway was never cleaned up, and each
+      # retry met a fuller disk ("No space left on device"). Piped from this
+      # checkout, so it works before any release on the server contains it.
+      - name: Free space on the server
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            bash -s -- "${{ env.APP_DIR }}" "${{ env.KEEP_RELEASES }}" \
+              "${{ env.APP_DIR }}/releases/${{ github.sha }}" "${{ env.MIN_FREE_MB }}" \
+            < deploy/prune-releases.sh
+
+      # --link-dest hardlinks files identical to the live release — but only
+      # with --no-times --checksum. The staged files are fresh copies with new
+      # mtimes, and rsync -a will not hardlink files whose preserved times
+      # differ, so every release used to be a full ~1 GB copy. --checksum
+      # compares content instead; --no-times stops mtime from blocking the link.
+      - name: Rsync release to server
+        run: |
+          RELEASE_DIR="${{ env.APP_DIR }}/releases/${{ github.sha }}"
+          ssh -i ~/.ssh/id_deploy "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "mkdir -p '$RELEASE_DIR'"
+          rsync -az --no-times --checksum --delete \
+            -e "ssh -i ~/.ssh/id_deploy" \
+            --link-dest="${{ env.APP_DIR }}/current/" \
+            release/ "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:$RELEASE_DIR/"
+
+      - name: Write server .env
+        run: |
+          scp -i ~/.ssh/id_deploy .env \
+            "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:${{ env.APP_DIR }}/shared/.env"
+          ssh -i ~/.ssh/id_deploy "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "chmod 600 ${{ env.APP_DIR }}/shared/.env"
+
+      - name: Deploy
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "APP='${{ env.APP }}' APP_PORT='${{ env.APP_PORT }}' \
+             RELEASE_DIR='${{ env.APP_DIR }}/releases/${{ github.sha }}' \
+             DB_SYNC_CMD='${{ env.DB_SYNC_CMD }}' \
+             KEEP_RELEASES='${{ env.KEEP_RELEASES }}' \
+             bash '${{ env.APP_DIR }}/releases/${{ github.sha }}/deploy/deploy.sh'"
