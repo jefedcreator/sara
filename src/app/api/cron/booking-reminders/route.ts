@@ -2,6 +2,7 @@ import { withMiddleware } from "@/backend/middleware";
 import { emailService } from "@/backend/services/email";
 import { env } from "@/env";
 import { db } from "@/server/db";
+import { publicLink } from "@/server/share";
 import {
   InternalServerErrorException,
   UnauthorizedException,
@@ -59,6 +60,7 @@ export const GET = withMiddleware<unknown>(
               business: booking.business,
               serviceName: booking.service.name,
               startTime: booking.startTime,
+              bookingUrl: publicLink("booking", booking.publicId),
               span: {
                 bookingMode: booking.service.bookingMode,
                 endTime: booking.endTime,

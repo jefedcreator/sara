@@ -53,6 +53,7 @@ const mockedNotifier = ownerNotifier as any;
 
 const BOOKING = {
   id: "bkg_1",
+  publicId: "Pq8sN1xV0kL3mA6t",
   status: "PENDING",
   businessId: "biz_1",
   serviceId: "svc_1",
@@ -131,6 +132,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
         duration: 45,
         amount: 50,
         receiptUrl: expect.stringMatching(/\/receipts\/b7T0qLm2Vn9cZ4wE$/),
+        bookingUrl: expect.stringMatching(/\/bookings\/Pq8sN1xV0kL3mA6t$/),
       }),
     );
   });

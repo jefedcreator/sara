@@ -31,6 +31,7 @@ const CONFIRMATION = {
   amount: 25000,
   currency: "NGN",
   receiptUrl: "https://app.sara.ng/receipts/b7T0qLm2Vn9cZ4wE",
+  bookingUrl: "https://app.sara.ng/bookings/Pq8sN1xV0kL3mA6t",
 };
 
 beforeEach(() => {
@@ -110,6 +111,7 @@ describe("emailService with Resend", () => {
       business: { name: "Acme Salon" },
       serviceName: "Haircut",
       startTime: new Date("2026-06-22T09:00:00.000Z"),
+      bookingUrl: "https://app.sara.ng/bookings/Pq8sN1xV0kL3mA6t",
     });
 
     expect(result.success).toBe(false);

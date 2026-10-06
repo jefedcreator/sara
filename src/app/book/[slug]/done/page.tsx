@@ -6,6 +6,7 @@ import { Button } from "@/primitives";
 import { getBookingReceipt } from "@/server";
 import { bookingWhen } from "@/utils/format";
 import { pageMetadata } from "@/utils/metadata";
+import { publicPath } from "@/utils/public-links";
 
 export const dynamic = "force-dynamic";
 
@@ -127,9 +128,16 @@ export default async function BookingDonePage({ params, searchParams }: Props) {
       title="You're booked."
       body={`See you ${when}. Your confirmation is in your email, and you'll get a reminder the day before.`}
     >
-      <p className="rounded-bubble border-line bg-canvas shadow-bubble w-fit max-w-full rounded-bl-[6px] border px-3.5 py-2.5 text-[14.5px] leading-normal">
-        ✅ {booking.serviceName} with {booking.businessName}, {when}. Paid.
-      </p>
+      <>
+        <p className="rounded-bubble border-line bg-canvas shadow-bubble w-fit max-w-full rounded-bl-[6px] border px-3.5 py-2.5 text-[14.5px] leading-normal">
+          ✅ {booking.serviceName} with {booking.businessName}, {when}. Paid.
+        </p>
+        <div className="mt-6">
+          <Button asChild variant="secondary">
+            <a href={publicPath("booking", booking.publicId)}>View your booking</a>
+          </Button>
+        </div>
+      </>
     </PublicError>
   );
 }

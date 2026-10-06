@@ -1,4 +1,5 @@
 import {
+  CtaButton,
   Details,
   EmailLayout,
   Heading,
@@ -14,12 +15,15 @@ export interface BookingReminderEmailProps {
   when: string;
   /** The business's address, when it has one on file. */
   where: string | null;
+  /** The customer's booking page. */
+  bookingUrl: string;
   canReply: boolean;
 }
 
 /** To the customer, within a day of a confirmed booking. */
 export default function BookingReminderEmail(props: BookingReminderEmailProps) {
-  const { origin, businessName, serviceName, when, where, canReply } = props;
+  const { origin, businessName, serviceName, when, where, bookingUrl, canReply } =
+    props;
   return (
     <EmailLayout
       origin={origin}
@@ -37,6 +41,7 @@ export default function BookingReminderEmail(props: BookingReminderEmailProps) {
           ...(where ? [{ label: "Where", value: where }] : []),
         ]}
       />
+      <CtaButton href={bookingUrl}>View your booking</CtaButton>
       <Note>
         {canReply
           ? `Running late or can't make it? Reply to this email and it goes to ${businessName}.`
@@ -52,5 +57,6 @@ BookingReminderEmail.PreviewProps = {
   serviceName: "Knotless braids",
   when: "Thu 1 Oct at 13:00",
   where: "12 Admiralty Way, Lekki, Lagos",
+  bookingUrl: "https://sara.app/bookings/Pq8sN1xV0kL3mA6t",
   canReply: true,
 } satisfies BookingReminderEmailProps;

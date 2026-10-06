@@ -115,6 +115,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
     where: { id: bookingId },
     select: {
       id: true,
+      publicId: true,
       status: true,
       businessId: true,
       serviceId: true,
@@ -347,6 +348,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
         amount: amount / 100,
         currency: booking.business.currency,
         receiptUrl,
+        bookingUrl: publicLink("booking", booking.publicId),
         span,
       });
     } catch (err) {

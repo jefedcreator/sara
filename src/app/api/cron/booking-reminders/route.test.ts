@@ -86,6 +86,7 @@ describe("GET /api/cron/booking-reminders", () => {
   it("sends a reminder and marks reminderSentAt for each due booking", async () => {
     const booking = {
       id: "bkg_1",
+      publicId: "Pq8sN1xV0kL3mA6t",
       clientEmail: "jane@example.com",
       startTime: new Date(),
       business: { name: "Acme Salon" },
@@ -100,7 +101,10 @@ describe("GET /api/cron/booking-reminders", () => {
 
     expect(body.data).toEqual({ checked: 1, sent: 1, failed: 0 });
     expect(mockedEmail.sendBookingReminderEmail).toHaveBeenCalledWith(
-      expect.objectContaining({ to: booking.clientEmail }),
+      expect.objectContaining({
+        to: booking.clientEmail,
+        bookingUrl: expect.stringMatching(/\/bookings\/Pq8sN1xV0kL3mA6t$/),
+      }),
     );
     expect(mockedDb.booking.update).toHaveBeenCalledWith(
       expect.objectContaining({

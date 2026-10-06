@@ -18,6 +18,7 @@ export const getBookingReceipt = cache(async (bookingSlug: string) => {
   const booking = await db.booking.findUnique({
     where: { slug: bookingSlug },
     select: {
+      publicId: true,
       status: true,
       startTime: true,
       endTime: true,
@@ -29,6 +30,7 @@ export const getBookingReceipt = cache(async (bookingSlug: string) => {
   });
   if (!booking) return null;
   return {
+    publicId: booking.publicId,
     status: booking.status,
     startTime: booking.startTime.toISOString(),
     endTime: booking.endTime.toISOString(),
