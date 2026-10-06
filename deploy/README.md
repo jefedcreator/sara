@@ -35,9 +35,9 @@ Add these under **Settings -> Secrets and variables -> Actions**:
 | `AUTH_SECRET` | Auth.js secret (`npx auth secret`) |
 | `NEXT_PUBLIC_APP_URL` | `http://sara.84-12-92-46.sslip.io` until a real domain is attached. Inlined at build time |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` | Service photo uploads |
-| `AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET` | Optional: Google sign-in and Calendar sync |
-| `AUTH_FACEBOOK_ID`, `AUTH_FACEBOOK_SECRET`, `CONFIGURATION_ID` | Optional: Facebook sign-in |
-| `AUTH_INSTAGRAM_ID`, `AUTH_INSTAGRAM_SECRET` | Optional: Instagram sign-in |
+| `AUTH_GOOGLE_ID` (or `CLIENT_ID`), `AUTH_GOOGLE_SECRET` (or `CLIENT_SECRET`) | Required for Google sign-in and Calendar sync (sign-in button disabled if unset) |
+| `AUTH_FACEBOOK_ID` (or `FACEBOOK_CLIENT_ID`), `AUTH_FACEBOOK_SECRET` (or `FACEBOOK_CLIENT_SECRET`), `CONFIGURATION_ID` | Required for Facebook sign-in (sign-in button disabled if unset) |
+| `AUTH_INSTAGRAM_ID` (or `INSTAGRAM_CLIENT_ID`), `AUTH_INSTAGRAM_SECRET` (or `INSTAGRAM_CLIENT_SECRET`) | Required for Instagram sign-in (sign-in button disabled if unset) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Optional: transactional email. Unset, emails go to `pm2 logs sara` |
 | `CRON_SECRET` | Optional: guards the booking reminder endpoint (see below) |
 | `PAYSTACK_SECRET_KEY`, `PAYSTACK_WEBHOOK_SECRET` | Optional: payments |

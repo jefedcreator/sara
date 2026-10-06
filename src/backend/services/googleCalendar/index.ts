@@ -63,7 +63,10 @@ class GoogleCalendarService {
    */
   getAuthorizationUrl(state: string): string {
     const url = new URL(AUTH_URL);
-    url.searchParams.set("client_id", env.AUTH_GOOGLE_ID ?? "");
+    url.searchParams.set(
+      "client_id",
+      env.AUTH_GOOGLE_ID ?? env.CLIENT_ID ?? "",
+    );
     url.searchParams.set("redirect_uri", this.getRedirectUri());
     url.searchParams.set("response_type", "code");
     url.searchParams.set("scope", SCOPE);
@@ -80,8 +83,8 @@ class GoogleCalendarService {
       TOKEN_URL,
       new URLSearchParams({
         code,
-        client_id: env.AUTH_GOOGLE_ID ?? "",
-        client_secret: env.AUTH_GOOGLE_SECRET ?? "",
+        client_id: env.AUTH_GOOGLE_ID ?? env.CLIENT_ID ?? "",
+        client_secret: env.AUTH_GOOGLE_SECRET ?? env.CLIENT_SECRET ?? "",
         redirect_uri: this.getRedirectUri(),
         grant_type: "authorization_code",
       }),
@@ -127,8 +130,8 @@ class GoogleCalendarService {
         TOKEN_URL,
         new URLSearchParams({
           refresh_token: business.googleCalendarRefreshToken,
-          client_id: env.AUTH_GOOGLE_ID ?? "",
-          client_secret: env.AUTH_GOOGLE_SECRET ?? "",
+          client_id: env.AUTH_GOOGLE_ID ?? env.CLIENT_ID ?? "",
+          client_secret: env.AUTH_GOOGLE_SECRET ?? env.CLIENT_SECRET ?? "",
           grant_type: "refresh_token",
         }),
       );
