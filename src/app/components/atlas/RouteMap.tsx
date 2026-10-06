@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import AtlasMap, { type MapMarker } from "./AtlasMap";
 import type { AtlasRouteResult } from "types/atlas";
 
@@ -22,65 +23,88 @@ interface RouteMapProps {
   className?: string;
 }
 
+const routeKeys = {
+  route: (
+    origin: { lat: number; lng: number },
+    destination: { lat: number; lng: number },
+  ) =>
+    [
+      "atlas",
+      "route",
+      origin.lat,
+      origin.lng,
+      destination.lat,
+      destination.lng,
+      "car",
+    ] as const,
+};
+
+async function fetchRoute(
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+) {
+  const res = await fetch("/api/atlas/route", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      origin: { lat: origin.lat, lon: origin.lng },
+      destination: { lat: destination.lat, lon: destination.lng },
+      profile: "car",
+    }),
+  });
+
+  const json = (await res.json()) as {
+    data?: AtlasRouteResult;
+    message?: string;
+    status?: number;
+  };
+
+  if (!res.ok || (json.status && json.status >= 400)) {
+    throw new Error(json.message ?? "Routing failed");
+  }
+  if (!json.data) throw new Error("Routing failed");
+
+  return json.data;
+}
+
 export default function RouteMap({
   origin,
   destination,
   businessName = "Business",
   className = "",
 }: RouteMapProps) {
-  const [routeData, setRouteData] = useState<AtlasRouteResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // ── Fetch route ───────────────────────────────────────────────────────
-  const fetchRoute = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/atlas/route", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          origin: { lat: origin.lat, lon: origin.lng },
-          destination: { lat: destination.lat, lon: destination.lng },
-          profile: "car",
-        }),
-      });
-
-      const json = await res.json();
-
-      if (!res.ok || json.status >= 400) {
-        throw new Error(json.message ?? "Routing failed");
-      }
-
-      setRouteData(json.data);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [origin.lat, origin.lng, destination.lat, destination.lng]);
-
-  useEffect(() => {
-    fetchRoute();
-  }, [fetchRoute]);
+  const route = useQuery({
+    queryKey: routeKeys.route(origin, destination),
+    queryFn: () => fetchRoute(origin, destination),
+    staleTime: 5 * 60 * 1000,
+  });
+  const routeData = route.data ?? null;
+  const error =
+    route.error instanceof Error
+      ? route.error.message
+      : route.isError
+        ? "Routing failed"
+        : null;
+  const isLoading = route.isPending;
 
   // ── Markers ───────────────────────────────────────────────────────────
-  const markers: MapMarker[] = [
-    {
-      lng: origin.lng,
-      lat: origin.lat,
-      color: "#0f1a14", // ink for the customer
-      popup: "Your location",
-    },
-    {
-      lng: destination.lng,
-      lat: destination.lat,
-      color: "#25d366", // accent for the business
-      popup: businessName,
-    },
-  ];
+  const markers: MapMarker[] = useMemo(
+    () => [
+      {
+        lng: origin.lng,
+        lat: origin.lat,
+        color: "#0f1a14", // ink for the customer
+        popup: "Your location",
+      },
+      {
+        lng: destination.lng,
+        lat: destination.lat,
+        color: "#25d366", // accent for the business
+        popup: businessName,
+      },
+    ],
+    [businessName, destination.lat, destination.lng, origin.lat, origin.lng],
+  );
 
   // ── Helpers ───────────────────────────────────────────────────────────
   const distanceKm = routeData

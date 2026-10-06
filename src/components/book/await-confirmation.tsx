@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { Spinner } from "@/primitives";
 
@@ -14,17 +14,38 @@ const MAX_TRIES = 20;
  */
 export function AwaitConfirmation() {
   const router = useRouter();
-  const [tries, setTries] = useState(0);
-  const gaveUp = tries >= MAX_TRIES;
+  const routerRef = useRef(router);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const triesRef = useRef(0);
+  const [gaveUp, setGaveUp] = useState(false);
+  routerRef.current = router;
 
-  useEffect(() => {
-    if (gaveUp) return;
-    const timer = setTimeout(() => {
-      router.refresh();
-      setTries((n) => n + 1);
-    }, INTERVAL_MS);
-    return () => clearTimeout(timer);
-  }, [tries, gaveUp, router]);
+  const stopPolling = useCallback(() => {
+    if (!timerRef.current) return;
+    clearInterval(timerRef.current);
+    timerRef.current = null;
+  }, []);
+
+  const pollerRef = useCallback(
+    (node: HTMLParagraphElement | null) => {
+      if (!node) {
+        stopPolling();
+        return;
+      }
+      if (timerRef.current) return;
+
+      timerRef.current = setInterval(() => {
+        triesRef.current += 1;
+        routerRef.current.refresh();
+
+        if (triesRef.current >= MAX_TRIES) {
+          stopPolling();
+          setGaveUp(true);
+        }
+      }, INTERVAL_MS);
+    },
+    [stopPolling],
+  );
 
   if (gaveUp) {
     return (
@@ -36,7 +57,11 @@ export function AwaitConfirmation() {
   }
 
   return (
-    <p className="text-accent-ink flex items-center gap-2.5 text-[15px] font-semibold" role="status">
+    <p
+      ref={pollerRef}
+      className="text-accent-ink flex items-center gap-2.5 text-[15px] font-semibold"
+      role="status"
+    >
       <Spinner />
       Checking with Paystack
     </p>

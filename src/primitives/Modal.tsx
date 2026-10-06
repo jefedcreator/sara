@@ -57,7 +57,7 @@ function ModalPortal({
     <Dialog.Portal container={container}>
       <Dialog.Overlay
         className={cn(
-          "bg-ink/40 fixed inset-0 z-50 grid items-end overflow-y-auto backdrop-blur-[2px] sm:place-items-center sm:p-6",
+          "bg-ink/40 fixed inset-0 z-50 grid items-end overflow-y-auto overscroll-contain backdrop-blur-[2px] sm:place-items-center sm:p-6",
           "data-[state=closed]:animate-fade-out data-[state=open]:animate-fade-in",
           className,
         )}
@@ -120,7 +120,7 @@ function ModalDismiss({ label = "Close" }: { label?: string }) {
   return (
     <Dialog.Close
       aria-label={label}
-      className="bg-surface text-ink-2 ease-out-expo hover:text-ink absolute top-4 right-4 grid size-9 cursor-pointer place-items-center rounded-full transition-[color,scale] duration-200 active:scale-96 sm:top-5 sm:right-5"
+      className="bg-surface text-ink-2 ease-out-expo hover:text-ink absolute top-4 right-4 grid size-9 cursor-pointer place-items-center rounded-full transition-[color,scale] duration-150 motion-safe:active:scale-[0.96] sm:top-5 sm:right-5"
     >
       <X className="size-4" weight="bold" />
     </Dialog.Close>

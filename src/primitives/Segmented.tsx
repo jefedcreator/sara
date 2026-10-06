@@ -40,7 +40,7 @@ export function Segmented<T extends string>({
             aria-checked={selected}
             onClick={() => onChange(option.value)}
             className={cn(
-              "shrink-0 cursor-pointer rounded-full px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap transition-[background-color,color] duration-200",
+              "shrink-0 cursor-pointer select-none rounded-full px-3.5 py-1.5 text-sm font-semibold whitespace-nowrap transition-[background-color,color,scale] duration-150 motion-safe:active:scale-[0.97]",
               selected
                 ? "bg-canvas text-ink shadow-bubble"
                 : "text-muted hover:text-ink",

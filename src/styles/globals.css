@@ -89,11 +89,11 @@
   /* Overlays (Radix Dialog). Radix waits for the exit animation before unmounting. */
   --animate-fade-in: fade-in 0.24s var(--ease-out-expo) both;
   /* Matches sheet-out so the backdrop never unmounts before the sheet has left. */
-  --animate-fade-out: fade-out 0.2s ease-in both;
+  --animate-fade-out: fade-out 0.15s ease-out both;
   --animate-sheet-in: sheet-in 0.42s var(--ease-out-expo) both;
-  --animate-sheet-out: sheet-out 0.2s ease-in both;
+  --animate-sheet-out: sheet-out 0.2s ease-out both;
   --animate-pop-in: pop-in 0.32s var(--ease-out-expo) both;
-  --animate-pop-out: pop-out 0.16s ease-in both;
+  --animate-pop-out: pop-out 0.16s ease-out both;
 
   @keyframes fade-in {
     from {
@@ -135,6 +135,12 @@
   html {
     -webkit-text-size-adjust: 100%;
     scrollbar-color: var(--color-accent-tint) var(--color-canvas);
+  }
+
+  button,
+  [role="button"],
+  a {
+    -webkit-tap-highlight-color: transparent;
   }
 
   body {

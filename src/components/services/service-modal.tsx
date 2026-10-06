@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ImageSquare } from "@phosphor-icons/react/dist/ssr";
-import { useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import type { ServiceDto } from "types";
 
@@ -71,6 +71,7 @@ export function ServiceModal({
   const [image, setImage] = useState<File | undefined>();
   const [imageError, setImageError] = useState<string | null>(null);
   const [preview, setPreview] = useState<string | null>(service?.image ?? null);
+  const objectUrlRef = useRef<string | null>(null);
 
   const {
     control,
@@ -83,13 +84,18 @@ export function ServiceModal({
     defaultValues: toFormValues(service),
   });
 
-  // Object URLs for a picked photo are freed when replaced or unmounted.
-  useEffect(() => {
-    if (!image) return;
-    const url = URL.createObjectURL(image);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [image]);
+  const releaseObjectUrl = useCallback(() => {
+    if (!objectUrlRef.current) return;
+    URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = null;
+  }, []);
+
+  const cleanupRef = useCallback(
+    (node: HTMLSpanElement | null) => {
+      if (!node) releaseObjectUrl();
+    },
+    [releaseObjectUrl],
+  );
 
   const mode = watch("bookingMode");
   const copy = COPY[mode];
@@ -100,7 +106,9 @@ export function ServiceModal({
       : "In minutes, like 240 for 4 hours.";
 
   return (
-    <Modal open={open} onOpenChange={onOpenChange}>
+    <>
+      <span ref={cleanupRef} hidden aria-hidden="true" />
+      <Modal open={open} onOpenChange={onOpenChange}>
       <Modal.Portal>
         <Modal.Content className="sm:max-w-[560px]">
           <Modal.Handle />
@@ -238,6 +246,10 @@ export function ServiceModal({
                       return;
                     }
                     setImageError(null);
+                    releaseObjectUrl();
+                    const url = URL.createObjectURL(file);
+                    objectUrlRef.current = url;
+                    setPreview(url);
                     setImage(file);
                   }}
                 />
@@ -257,6 +269,7 @@ export function ServiceModal({
           </form>
         </Modal.Content>
       </Modal.Portal>
-    </Modal>
+      </Modal>
+    </>
   );
 }

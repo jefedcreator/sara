@@ -85,7 +85,7 @@ const SelectRoot = forwardRef<HTMLButtonElement, SelectProps>(
             sideOffset={8}
             collisionPadding={16}
             className={cn(
-              "bg-canvas border-line rounded-card shadow-lift relative z-60 overflow-hidden border",
+              "bg-canvas border-line rounded-card shadow-lift relative z-60 overflow-hidden border origin-(--radix-select-content-transform-origin)",
               "max-h-[min(var(--radix-select-content-available-height),18rem)] min-w-(--radix-select-trigger-width)",
               "data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in",
             )}
@@ -93,7 +93,7 @@ const SelectRoot = forwardRef<HTMLButtonElement, SelectProps>(
             <RadixSelect.ScrollUpButton className={scrollButtonClasses}>
               <CaretUp weight="bold" className="size-3.5" />
             </RadixSelect.ScrollUpButton>
-            <RadixSelect.Viewport className="p-1.5">
+            <RadixSelect.Viewport className="p-1.5 overscroll-contain">
               {children}
             </RadixSelect.Viewport>
             <RadixSelect.ScrollDownButton className={scrollButtonClasses}>
