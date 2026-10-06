@@ -13,12 +13,12 @@ export const Switch = forwardRef<
   <RadixSwitch.Root
     ref={ref}
     className={cn(
-      "bg-line data-[state=checked]:bg-accent relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors duration-200 disabled:cursor-not-allowed disabled:opacity-60",
+      "bg-line data-[state=checked]:bg-accent relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full p-0.5 transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-60",
       className,
     )}
     {...props}
   >
-    <RadixSwitch.Thumb className="bg-canvas shadow-bubble ease-out-expo block size-6 rounded-full transition-transform duration-200 data-[state=checked]:translate-x-5" />
+    <RadixSwitch.Thumb className="bg-canvas shadow-bubble ease-out-expo block size-6 rounded-full transition-transform duration-150 data-[state=checked]:translate-x-5" />
   </RadixSwitch.Root>
 ));
 Switch.displayName = "Switch";

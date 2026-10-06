@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 export type MonoSuccessData = {
   code: string;
@@ -56,44 +56,49 @@ export function useMonoConnect({
   onClose,
   onEvent,
 }: UseMonoConnectOptions): UseMonoConnectReturn {
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   // Keep a stable ref to the Connect instance so it isn't recreated on re-renders
   const connectRef = useRef<import("@mono.co/connect.js").default | null>(null);
+  const connectKeyRef = useRef<string | null>(null);
+  const isLoadingRef = useRef(false);
+  const requestIdRef = useRef(0);
 
-  // Keep stable callback refs so the effect doesn't re-run when arrow functions are re-created
+  // Keep stable callback refs so the widget always calls the latest handlers.
   const onSuccessRef = useRef(onSuccess);
   const onCloseRef = useRef(onClose);
   const onEventRef = useRef(onEvent);
+  onSuccessRef.current = onSuccess;
+  onCloseRef.current = onClose;
+  onEventRef.current = onEvent;
 
-  useEffect(() => {
-    onSuccessRef.current = onSuccess;
-  }, [onSuccess]);
-
-  useEffect(() => {
-    onCloseRef.current = onClose;
-  }, [onClose]);
-
-  useEffect(() => {
-    onEventRef.current = onEvent;
-  }, [onEvent]);
-
-  useEffect(() => {
+  const open = useCallback(() => {
     if (!publicKey) {
-      setIsLoading(false);
+      setError(new Error("Mono public key is missing"));
       return;
     }
 
-    let mounted = true;
+    if (isLoadingRef.current) return;
 
-    const init = async () => {
+    if (connectRef.current && connectKeyRef.current === publicKey) {
+      connectRef.current.open();
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    isLoadingRef.current = true;
+    setIsLoading(true);
+    setError(null);
+
+    const initAndOpen = async () => {
       try {
-        // Dynamic import prevents SSR errors — the SDK manipulates window/document directly
+        // Dynamic import prevents SSR errors — the SDK manipulates window/document directly.
         const { default: Connect } = await import("@mono.co/connect.js");
+        if (requestIdRef.current !== requestId) return;
 
-        if (!mounted) return;
-
+        connectRef.current?.close();
         const instance = new Connect({
           key: publicKey,
           onSuccess: (data: MonoSuccessData) => {
@@ -109,33 +114,24 @@ export function useMonoConnect({
 
         instance.setup();
         connectRef.current = instance;
-        setIsLoading(false);
+        connectKeyRef.current = publicKey;
+        instance.open();
       } catch (err) {
-        if (mounted) {
-          setError(
-            err instanceof Error
-              ? err
-              : new Error("Failed to initialise Mono Connect"),
-          );
+        setError(
+          err instanceof Error
+            ? err
+            : new Error("Failed to initialise Mono Connect"),
+        );
+      } finally {
+        if (requestIdRef.current === requestId) {
+          isLoadingRef.current = false;
           setIsLoading(false);
         }
       }
     };
 
-    void init();
-
-    return () => {
-      mounted = false;
-    };
-  }, [publicKey]); // re-init only if the key changes
-
-  const open = useCallback(() => {
-    if (connectRef.current) {
-      connectRef.current.open();
-    } else {
-      console.warn("useMonoConnect: widget is not ready yet");
-    }
-  }, []);
+    void initAndOpen();
+  }, [publicKey]);
 
   return { open, isLoading, error };
 }

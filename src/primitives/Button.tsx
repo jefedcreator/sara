@@ -13,7 +13,7 @@ import { Spinner } from "./Spinner";
  * because Tailwind v4 emits it as its own property.
  */
 const buttonVariants = cva(
-  "group/btn inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap no-underline transition-[background-color,border-color,color,scale] duration-200 ease-out-expo active:scale-98 disabled:cursor-not-allowed disabled:border-transparent disabled:bg-surface disabled:text-faint disabled:shadow-none disabled:active:scale-100 [&_svg]:size-4 [&_svg]:shrink-0",
+  "group/btn inline-flex shrink-0 cursor-pointer select-none items-center justify-center gap-2 rounded-full font-semibold whitespace-nowrap no-underline transition-[background-color,border-color,color,scale] duration-150 ease-out-expo motion-safe:active:scale-[0.97] disabled:cursor-not-allowed disabled:border-transparent disabled:bg-surface disabled:text-faint disabled:shadow-none disabled:active:scale-100 [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {

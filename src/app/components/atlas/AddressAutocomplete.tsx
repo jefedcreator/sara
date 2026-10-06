@@ -2,10 +2,11 @@
 
 import {
   useCallback,
-  useEffect,
   useRef,
   useState,
   type ChangeEvent,
+  type FocusEvent,
+  type KeyboardEvent,
 } from "react";
 import type { AtlasGeocodeResult } from "types/atlas";
 
@@ -45,32 +46,61 @@ export default function AddressAutocomplete({
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
-  const wrapperRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const cleanupPendingWork = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }, []);
+
+  const rootRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node) cleanupPendingWork();
+    },
+    [cleanupPendingWork],
+  );
 
   // ── Fetch suggestions ─────────────────────────────────────────────────
   const fetchSuggestions = useCallback(async (q: string) => {
-    if (q.trim().length < 3) {
+    abortRef.current?.abort();
+
+    const trimmed = q.trim();
+    if (trimmed.length < 3) {
       setResults([]);
       setIsOpen(false);
+      setIsLoading(false);
       return;
     }
 
+    const controller = new AbortController();
+    abortRef.current = controller;
     setIsLoading(true);
+
     try {
       const res = await fetch(
-        `/api/atlas/geocode?q=${encodeURIComponent(q)}&limit=5`,
+        `/api/atlas/geocode?q=${encodeURIComponent(trimmed)}&limit=5`,
+        { signal: controller.signal },
       );
       const json = await res.json();
       const data: AtlasGeocodeResult[] = json.data ?? [];
+      if (controller.signal.aborted) return;
       setResults(data);
       setIsOpen(data.length > 0);
       setSelectedIndex(-1);
-    } catch {
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
       setResults([]);
       setIsOpen(false);
     } finally {
-      setIsLoading(false);
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setIsLoading(false);
+      }
     }
   }, []);
 
@@ -84,7 +114,7 @@ export default function AddressAutocomplete({
   };
 
   // ── Keyboard navigation ───────────────────────────────────────────────
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (!isOpen) return;
 
     if (e.key === "ArrowDown") {
@@ -103,6 +133,7 @@ export default function AddressAutocomplete({
 
   // ── Selection handler ─────────────────────────────────────────────────
   const handleSelect = (result: AtlasGeocodeResult) => {
+    cleanupPendingWork();
     const displayName = formatAddress(result);
     setQuery(displayName);
     setIsOpen(false);
@@ -110,22 +141,15 @@ export default function AddressAutocomplete({
     onSelect(result);
   };
 
-  // ── Close on outside click ────────────────────────────────────────────
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (
-        wrapperRef.current &&
-        !wrapperRef.current.contains(e.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, []);
+  const handleBlur = (e: FocusEvent<HTMLDivElement>) => {
+    const nextTarget = e.relatedTarget;
+    if (!nextTarget || !e.currentTarget.contains(nextTarget as Node)) {
+      setIsOpen(false);
+    }
+  };
 
   return (
-    <div ref={wrapperRef} className={`relative ${className}`}>
+    <div ref={rootRef} onBlurCapture={handleBlur} className={`relative ${className}`}>
       {label && (
         <label
           htmlFor={id}
@@ -185,6 +209,7 @@ export default function AddressAutocomplete({
                     : "text-ink hover:bg-surface"
                 }`}
                 onMouseEnter={() => setSelectedIndex(i)}
+                onMouseDown={(event) => event.preventDefault()}
                 onClick={() => handleSelect(result)}
               >
                 {/* Pin icon */}
