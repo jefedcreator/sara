@@ -5,8 +5,9 @@ import type { BookingMode } from "@prisma/client";
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
 
+import { bookingPill, type BookingView, type PublicBooking } from "@/utils/booking-view";
 import { BRAND_COLOR, MARK_ACCENT, MARK_BODY } from "@/utils/brand";
-import { formatMoney } from "@/utils/format";
+import { dayMonth, formatMoney, formatSlotTime, unitCount } from "@/utils/format";
 import { formatDate } from "@/utils/labels";
 import { CARDS, OG_SIZE, type CardKey } from "@/utils/metadata";
 import { SERVICE_PICK, servicePriceLine } from "@/utils/service-page";
@@ -517,3 +518,158 @@ export async function serviceCard(service: ServiceCardInput) {
   );
 }
 
+/*
+ * A booking link's card, laid out like the service and document cards: the
+ * business, the service and its status on the left with Sara's quiet
+ * signature; on the right a calendar leaf on leaf grey, because the date is
+ * what the customer opens it for. Never the customer's name or the amount:
+ * cards get forwarded into group chats.
+ */
+export async function bookingCard(booking: PublicBooking, view: BookingView) {
+  const pill = bookingPill(view);
+  const mode = booking.service.bookingMode;
+  const titleSize = booking.service.name.length > 28 ? 60 : 76;
+  const start = new Date(booking.startTime);
+  const part = (options: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat("en-GB", { ...options, timeZone: "UTC" }).format(start);
+
+  const leaf =
+    mode === "SLOT" ? (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          width: 420,
+          borderRadius: 32,
+          background: OG.surface,
+        }}
+      >
+        <div style={{ fontFamily: "Hanken", fontWeight: 600, fontSize: 26, color: OG.muted }}>
+          {`${part({ weekday: "long" })} · ${part({ month: "long" })}`}
+        </div>
+        <div
+          style={{
+            fontFamily: "Bricolage",
+            fontSize: 200,
+            lineHeight: 1,
+            letterSpacing: -8,
+            color: OG.ink,
+            marginTop: 8,
+          }}
+        >
+          {String(start.getUTCDate())}
+        </div>
+        <div style={{ fontFamily: "Hanken", fontSize: 30, color: OG.ink, marginTop: 12 }}>
+          {formatSlotTime(booking.startTime)}
+        </div>
+      </div>
+    ) : (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          width: 420,
+          padding: 48,
+          borderRadius: 32,
+          background: OG.surface,
+        }}
+      >
+        <div style={{ fontFamily: "Bricolage", fontSize: 56, lineHeight: 1.05, color: OG.ink }}>
+          {dayMonth(booking.startTime)}
+        </div>
+        <div style={{ fontFamily: "Hanken", fontSize: 26, color: OG.muted, margin: "6px 0" }}>
+          to
+        </div>
+        <div style={{ fontFamily: "Bricolage", fontSize: 56, lineHeight: 1.05, color: OG.ink }}>
+          {dayMonth(booking.endTime)}
+        </div>
+        <div
+          style={{
+            fontFamily: "Hanken",
+            fontWeight: 600,
+            fontSize: 26,
+            color: OG.muted,
+            marginTop: 24,
+          }}
+        >
+          {unitCount(mode, booking.units)}
+        </div>
+      </div>
+    );
+
+  return new ImageResponse(
+    <div
+      style={{
+        display: "flex",
+        width: "100%",
+        height: "100%",
+        background: OG.canvas,
+        padding: 64,
+        gap: 56,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          flex: 1,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ fontFamily: "Hanken", fontWeight: 600, fontSize: 28, color: OG.muted }}>
+            {clip(booking.businessName, 36)}
+          </div>
+          <div
+            style={{
+              fontFamily: "Bricolage",
+              fontSize: titleSize,
+              lineHeight: 1.04,
+              letterSpacing: -0.035 * titleSize,
+              color: OG.ink,
+            }}
+          >
+            {clip(booking.service.name, 48)}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              height: 60,
+              padding: "0 28px",
+              borderRadius: 999,
+              ...PILL[pill.tone],
+              fontFamily: "Hanken",
+              fontWeight: 600,
+              fontSize: 26,
+            }}
+          >
+            {pill.label}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              fontFamily: "Hanken",
+              fontSize: 22,
+              color: OG.faint,
+            }}
+          >
+            Bookings by
+            <OgLockup size={30} color={OG.faint} accent={OG.faint} />
+          </div>
+        </div>
+      </div>
+
+      {leaf}
+    </div>,
+    { ...OG_SIZE, fonts: await ogFonts() },
+  );
+}
