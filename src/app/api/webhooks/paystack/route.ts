@@ -187,6 +187,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
   });
   const paymentData = {
     businessId,
+    bookingId: booking.id,
     amount: amount / 100, // Convert from smallest unit (kobo/cents) to main unit
     method: "PAYSTACK" as const,
     reference,

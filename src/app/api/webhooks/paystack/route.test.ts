@@ -312,4 +312,11 @@ describe("POST /api/webhooks/paystack charge.success", () => {
       expect.stringContaining("Refund it from your Paystack dashboard"),
     );
   });
+
+  it("records which booking the payment was for, so the booking finds its receipt", async () => {
+    await POST(buildRequest(buildEvent()));
+    expect(mockedDb.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ bookingId: BOOKING.id, reference: "ref_123" }),
+    });
+  });
 });
