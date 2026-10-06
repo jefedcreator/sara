@@ -12,9 +12,10 @@ const LABEL: Record<State, string> = {
   failed: "Press and hold to copy",
 };
 
+// Every state draws a 1px border (transparent unless quiet), so "Copied" doesn't shift the row.
 const IDLE = {
   dark: "bg-ink text-canvas hover:bg-accent-ink",
-  quiet: "border border-line bg-canvas text-ink hover:border-ink",
+  quiet: "border-line bg-canvas text-ink hover:border-ink",
 } as const;
 
 export function CopyLinkButton({
@@ -68,7 +69,7 @@ export function CopyLinkButton({
     <button
       ref={buttonRef}
       className={cn(
-        "ease-out-expo h-[38px] flex-none cursor-pointer rounded-full px-[18px] text-sm font-semibold transition-[background-color,border-color,scale] duration-200 active:scale-97",
+        "ease-out-expo h-[38px] flex-none cursor-pointer rounded-full border border-transparent px-[18px] text-sm font-semibold transition-[background-color,border-color,scale] duration-200 active:scale-97",
         state === "idle" ? IDLE[tone] : "bg-accent text-on-accent",
         className,
       )}

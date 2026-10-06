@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { PublicPage } from "@/components/public/public-page";
-import { Button } from "@/primitives";
+import { Button, LogoMark } from "@/primitives";
 import { cn } from "@/utils/cn";
 import { servicePath } from "@/utils/public-links";
 import {
@@ -17,7 +17,9 @@ import {
  * A service's public page: the photo, what it is and costs, its terms, and
  * one action into /book, where the customer picks a time and pays. Below,
  * the business's other live services. Phone first: the action rides a
- * bottom bar on phones and sits under the price from `lg`.
+ * bottom bar on phones and sits under the price from `lg`. Without a photo
+ * there is no second column, so the page takes the documents' narrow width
+ * rather than hugging the left of a wide one.
  */
 export function ServiceProfile({ page }: { page: ServicePage }) {
   const action = BOOK_ACTION[page.bookingMode];
@@ -27,7 +29,7 @@ export function ServiceProfile({ page }: { page: ServicePage }) {
     <PublicPage
       businessName={page.businessName}
       credit="Bookings"
-      width="wide"
+      width={page.image ? "wide" : "narrow"}
       className="pb-32 lg:pb-16"
     >
       <div
@@ -37,7 +39,7 @@ export function ServiceProfile({ page }: { page: ServicePage }) {
         )}
       >
         {page.image ? (
-          <div className="rounded-shot bg-surface outline-ink/5 animate-rise relative aspect-[16/10] overflow-hidden outline outline-1 -outline-offset-1 lg:sticky lg:top-8 lg:order-2 lg:aspect-[4/5]">
+          <div className="rounded-shot bg-surface outline-ink/5 animate-rise relative aspect-[16/10] overflow-hidden outline -outline-offset-1 lg:sticky lg:top-8 lg:order-2 lg:aspect-[4/5]">
             <Image
               src={page.image}
               alt={page.name}
@@ -84,18 +86,27 @@ export function ServiceProfile({ page }: { page: ServicePage }) {
           >
             More from {page.businessName}
           </h2>
-          <ul className="mt-5 grid gap-2.5 min-[700px]:grid-cols-2">
+          {/* grid-cols-1 is minmax(0, 1fr): a long name truncates instead of widening the page. */}
+          <ul
+            className={cn(
+              "mt-5 grid grid-cols-1 gap-2.5",
+              page.image && "min-[700px]:grid-cols-2",
+            )}
+          >
             {page.others.map((other) => (
-              <li key={other.slug}>
+              <li key={other.slug} className="min-w-0">
                 <Link
                   href={servicePath(other.slug)}
-                  className="rounded-card bg-surface hover:bg-accent-soft focus-visible:outline-accent-ink flex items-center gap-4 px-4 py-3.5 transition-colors focus-visible:outline-2 focus-visible:outline-offset-3"
+                  className="rounded-card bg-surface hover:bg-accent-soft flex h-full items-center gap-4 px-4 py-3.5 transition-colors"
                 >
-                  {other.image ? (
-                    <span className="rounded-chip relative size-14 shrink-0 overflow-hidden">
+                  {/* Every row keeps the slot, so names line up; no photo shows the mark, as the share card does. */}
+                  <span className="rounded-chip bg-canvas relative flex size-14 shrink-0 items-center justify-center overflow-hidden">
+                    {other.image ? (
                       <Image src={other.image} alt="" fill sizes="56px" className="object-cover" />
-                    </span>
-                  ) : null}
+                    ) : (
+                      <LogoMark accent={false} className="text-line size-7" />
+                    )}
+                  </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate font-semibold">{other.name}</span>
                     <span className="text-muted block text-sm">

@@ -76,8 +76,8 @@ export function BookingRow({
         {booking.notes ? <p className="text-muted mt-1 text-sm italic">“{booking.notes}”</p> : null}
       </div>
 
+      {/* The next step first, the link with the other secondary actions, Cancel last (as on invoices). */}
       <div className="flex flex-wrap gap-2 sm:justify-end">
-        <CopyLinkButton url={link} label="Copy link" tone="quiet" className="h-10" />
         {isOpen ? (
           <>
             {booking.status === "PENDING" ? (
@@ -92,10 +92,13 @@ export function BookingRow({
             <Button size="sm" variant="secondary" onClick={onReschedule} disabled={busy}>
               Reschedule
             </Button>
-            <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
-              Cancel
-            </Button>
           </>
+        ) : null}
+        <CopyLinkButton url={link} label="Copy link" tone="quiet" className="h-10" />
+        {isOpen ? (
+          <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
+            Cancel
+          </Button>
         ) : null}
       </div>
     </article>

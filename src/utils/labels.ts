@@ -29,6 +29,19 @@ export const PAYMENT_METHOD: Record<string, string> = {
   STRIPE: "Card",
 };
 
+/**
+ * A real instant (a hold's expiry) as a Lagos time: "14:32". Not for slot
+ * times, which are wall-clock written as UTC (formatSlotTime in utils/format).
+ */
+export function formatClock(iso: string) {
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    timeZone: "Africa/Lagos",
+  }).format(new Date(iso));
+}
+
 /** A real instant (createdAt, dueAt) as a Lagos date: "29 Sep 2026". */
 export function formatDate(iso: string) {
   return new Intl.DateTimeFormat("en-GB", {

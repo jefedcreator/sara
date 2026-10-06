@@ -7,7 +7,7 @@ import sharp from "sharp";
 
 import { bookingPill, type BookingView, type PublicBooking } from "@/utils/booking-view";
 import { BRAND_COLOR, MARK_ACCENT, MARK_BODY } from "@/utils/brand";
-import { dayMonth, formatMoney, formatSlotTime, unitCount } from "@/utils/format";
+import { formatMoney, formatSlotTime, shortDay, unitCount } from "@/utils/format";
 import { formatDate } from "@/utils/labels";
 import { CARDS, OG_SIZE, type CardKey } from "@/utils/metadata";
 import { SERVICE_PICK, servicePriceLine } from "@/utils/service-page";
@@ -526,6 +526,32 @@ export async function serviceCard(service: ServiceCardInput) {
  * what the customer opens it for. Never the customer's name or the amount:
  * cards get forwarded into group chats.
  */
+/** One end of a stay or rental on the card's leaf: "Check-in", "Fri 2 Oct", "From 14:00". */
+function BookingLeg({ label, day, time }: { label: string; day: string; time: string }) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column" }}>
+      <div style={{ fontFamily: "Hanken", fontWeight: 600, fontSize: 22, color: OG.muted }}>
+        {label}
+      </div>
+      <div
+        style={{
+          fontFamily: "Bricolage",
+          fontSize: 56,
+          lineHeight: 1.05,
+          letterSpacing: -1.5,
+          color: OG.ink,
+          marginTop: 6,
+        }}
+      >
+        {day}
+      </div>
+      <div style={{ fontFamily: "Hanken", fontSize: 24, color: OG.muted, marginTop: 6 }}>
+        {time}
+      </div>
+    </div>
+  );
+}
+
 export async function bookingCard(booking: PublicBooking, view: BookingView) {
   const pill = bookingPill(view);
   const mode = booking.service.bookingMode;
@@ -567,33 +593,36 @@ export async function bookingCard(booking: PublicBooking, view: BookingView) {
         </div>
       </div>
     ) : (
+      // A stay or rental: its two ends, labelled as on the booking page, then its length.
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
           width: 420,
-          padding: 48,
+          padding: "0 48px",
           borderRadius: 32,
           background: OG.surface,
         }}
       >
-        <div style={{ fontFamily: "Bricolage", fontSize: 56, lineHeight: 1.05, color: OG.ink }}>
-          {dayMonth(booking.startTime)}
-        </div>
-        <div style={{ fontFamily: "Hanken", fontSize: 26, color: OG.muted, margin: "6px 0" }}>
-          to
-        </div>
-        <div style={{ fontFamily: "Bricolage", fontSize: 56, lineHeight: 1.05, color: OG.ink }}>
-          {dayMonth(booking.endTime)}
-        </div>
+        <BookingLeg
+          label={mode === "NIGHTLY" ? "Check-in" : "Pickup"}
+          day={shortDay(booking.startTime)}
+          time={`${mode === "NIGHTLY" ? "From " : ""}${formatSlotTime(booking.startTime)}`}
+        />
+        <div style={{ display: "flex", height: 2, background: OG.line, margin: "28px 0" }} />
+        <BookingLeg
+          label={mode === "NIGHTLY" ? "Check-out" : "Return"}
+          day={shortDay(booking.endTime)}
+          time={`${mode === "NIGHTLY" ? "By " : ""}${formatSlotTime(booking.endTime)}`}
+        />
         <div
           style={{
             fontFamily: "Hanken",
             fontWeight: 600,
             fontSize: 26,
-            color: OG.muted,
-            marginTop: 24,
+            color: OG.accentInk,
+            marginTop: 32,
           }}
         >
           {unitCount(mode, booking.units)}
