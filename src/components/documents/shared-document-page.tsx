@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 
 import { PublicPage } from "@/components/public/public-page";
 import { Button, StatusPill } from "@/primitives";
@@ -67,7 +67,15 @@ export function SharedDocumentPage({ doc }: { doc: SharedDocument }) {
         </h1>
         <p className="text-muted mt-3 text-pretty">
           {doc.customerName ? `For ${doc.customerName}. ` : null}
-          {when.filter(Boolean).join(" · ")}
+          {/* Each date stays whole: the line breaks between them, never inside "12 Oct 2026". */}
+          {when
+            .filter((part): part is string => Boolean(part))
+            .map((part, i) => (
+              <Fragment key={part}>
+                {i > 0 ? " · " : null}
+                <span className="whitespace-nowrap">{part}</span>
+              </Fragment>
+            ))}
         </p>
       </section>
 

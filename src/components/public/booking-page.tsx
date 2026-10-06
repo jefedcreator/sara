@@ -9,6 +9,7 @@ import {
   type PublicBooking,
 } from "@/utils/booking-view";
 import { formatMoney, formatSlotTime, shortDay, unitCount } from "@/utils/format";
+import { formatClock } from "@/utils/labels";
 import { publicPath } from "@/utils/public-links";
 
 const LINE: Partial<Record<BookingView, string>> = {
@@ -147,10 +148,12 @@ export function PublicBookingPage({ booking, view }: { booking: PublicBooking; v
         ) : null}
       </section>
 
-      {view === "held" ? (
+      {view === "held" && booking.holdExpiresAt ? (
         <div className="animate-rise-3 mt-8 grid gap-3">
+          {/* The real expiry: the link may be opened well into the hold, or before paying. */}
           <p className="text-muted max-w-[52ch] text-pretty">
-            We&apos;re confirming your payment. Your time is held for 30 minutes.
+            Your time is held until {formatClock(booking.holdExpiresAt)} while Paystack
+            confirms the payment.
           </p>
           <AwaitConfirmation />
         </div>
