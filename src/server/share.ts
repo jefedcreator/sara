@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { env } from "@/env";
 import { appBaseUrl } from "@/utils/url";
+import { publicPath, servicePath, type PublicKind } from "@/utils/public-links";
 
 /*
  * The customer's link to an invoice or receipt: /i/<slug>/<key> and
@@ -41,4 +42,16 @@ export function isShareKey(kind: SharedKind, slug: string, key: string) {
   const expected = Buffer.from(sign(kind, slug));
   const given = Buffer.from(key);
   return given.length === expected.length && timingSafeEqual(given, expected);
+}
+
+export { publicPath, servicePath, type PublicKind };
+
+/** The absolute link to a customer's invoice, receipt or booking page. */
+export function publicLink(kind: PublicKind, publicId: string) {
+  return `${appBaseUrl()}${publicPath(kind, publicId)}`;
+}
+
+/** The absolute link to a service's page. */
+export function serviceLink(slug: string) {
+  return `${appBaseUrl()}${servicePath(slug)}`;
 }
