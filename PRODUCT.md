@@ -27,7 +27,7 @@ A guided, deterministic numbered chat menu (not an AI chatbot) on top of serious
 ## Operating Context
 
 - Owner chat menu, verbatim: "Sara 👋 Reply with a number: 1️⃣ New invoice · 2️⃣ New receipt · 3️⃣ Share a service (booking link) · 4️⃣ Unpaid invoices · 5️⃣ Today's bookings · 6️⃣ Business summary". "menu" or "0" goes back.
-- Booking links: `app.sara.ng/book/<service-slug>`, e.g. `app.sara.ng/book/tobi-knotless-braids`. Service labels: "Knotless braids — NGN 25,000 (4 hr)".
+- Customer links: the chat shares a service's page, `app.sara.ng/services/<service-slug>` (e.g. `app.sara.ng/services/tobi-knotless-braids`), whose "Book a time" opens the booking page at `app.sara.ng/book/<service-slug>`. Invoices, receipts and bookings each have a customer page at `/invoices/<id>`, `/receipts/<id>` and `/bookings/<id>` (random ids). Service labels: "Knotless braids — NGN 25,000 (4 hr)".
 - Onboarding: message Sara's single WhatsApp number, get a one-time link, sign in with Google, Facebook or Instagram, chat is connected.
 
 ## Capabilities and Constraints
