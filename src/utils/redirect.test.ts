@@ -27,4 +27,10 @@ describe("safeNextPath", () => {
     expect(safeNextPath("")).toBe("/dashboard");
     expect(safeNextPath(undefined, "/onboarding")).toBe("/onboarding");
   });
+
+  it("strips legacy OAuth fragments like #_=_ and #_", () => {
+    expect(safeNextPath("/dashboard#_=_")).toBe("/dashboard");
+    expect(safeNextPath("/dashboard#_")).toBe("/dashboard");
+    expect(safeNextPath("/link?t=abc#_=_")).toBe("/link?t=abc");
+  });
 });

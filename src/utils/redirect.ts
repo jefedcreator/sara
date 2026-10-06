@@ -7,7 +7,8 @@ export function safeNextPath(
   value: string | string[] | null | undefined,
   fallback = "/dashboard",
 ) {
-  const next = Array.isArray(value) ? value[0] : value;
+  const raw = Array.isArray(value) ? value[0] : value;
+  const next = raw?.replace(/#(?:_=_|_)$/, "");
   if (
     !next?.startsWith("/") ||
     next.startsWith("//") ||

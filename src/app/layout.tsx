@@ -4,6 +4,7 @@ import { type Metadata } from "next";
 import { Bricolage_Grotesque, Hanken_Grotesk } from "next/font/google";
 
 import { Provider } from "@/provider";
+import { CLEAN_AUTH_FRAGMENT_SCRIPT } from "@/utils/auth-fragment";
 import { appBaseUrl } from "@/utils/url";
 
 export const metadata: Metadata = {
@@ -42,6 +43,13 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${bricolage.variable} ${hanken.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: CLEAN_AUTH_FRAGMENT_SCRIPT,
+          }}
+        />
+      </head>
       <body>
         <Provider>{children}</Provider>
       </body>
