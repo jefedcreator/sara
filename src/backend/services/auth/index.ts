@@ -12,7 +12,7 @@ import {
   sessionCookieOptions,
 } from "@/server/auth/shared";
 import { safeNextPath } from "@/utils/redirect";
-import { appBaseUrl } from "@/utils/url";
+import { publicOrigin } from "@/utils/url";
 
 import {
   OAUTH_STATE_COOKIE,
@@ -67,19 +67,7 @@ export class AuthService {
 
   /** The public origin: providers match the redirect URI exactly. */
   private appOrigin(request: NextRequest) {
-    const proto =
-      request.headers.get("x-forwarded-proto") ??
-      request.nextUrl.protocol.replace(/:$/, "");
-    let origin = appBaseUrl(request.nextUrl.origin);
-    if (
-      proto === "https" &&
-      origin.startsWith("http://") &&
-      !origin.includes("localhost") &&
-      !origin.includes("127.0.0.1")
-    ) {
-      origin = origin.replace(/^http:\/\//, "https://");
-    }
-    return origin;
+    return publicOrigin(request);
   }
 
   private client(provider: Provider, origin: string): OAuthClient | null {
