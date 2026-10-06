@@ -9,25 +9,25 @@ import { formatDuration, formatMoney, unitNoun } from "@/utils/format";
 interface ServiceCardProps {
   service: ServiceDto;
   currency: string;
-  bookingUrl: string;
+  link: string;
   isToggling: boolean;
   onEdit: () => void;
   onRemove: () => void;
   onToggle: (isActive: boolean) => void;
 }
 
-/** One service: its label, its booking link, and what can be done to it. */
+/** One service: its label, its public link, and what can be done to it. */
 export function ServiceCard({
   service,
   currency,
-  bookingUrl,
+  link,
   isToggling,
   onEdit,
   onRemove,
   onToggle,
 }: ServiceCardProps) {
   const switchId = `live-${service.id}`;
-  const displayUrl = bookingUrl.replace(/^https?:\/\//, "");
+  const displayUrl = link.replace(/^https?:\/\//, "");
 
   return (
     <article className="rounded-panel bg-surface flex flex-col px-[18px] pt-[22px] pb-5">
@@ -52,10 +52,10 @@ export function ServiceCard({
           !service.isActive && "opacity-60",
         )}
       >
-        <code className="text-ink min-w-0 flex-1 truncate font-mono text-[13px]" title={bookingUrl}>
+        <code className="text-ink min-w-0 flex-1 truncate font-mono text-[13px]" title={link}>
           {displayUrl}
         </code>
-        <CopyLinkButton url={bookingUrl} />
+        <CopyLinkButton url={link} />
       </div>
       {!service.isActive ? (
         <p className="text-muted mt-2 text-[13px]">Paused: this link shows customers that it isn&apos;t open.</p>

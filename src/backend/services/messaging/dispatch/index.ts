@@ -2,11 +2,10 @@ import { dashboardService } from "@/backend/services/dashboard";
 import { invoiceService } from "@/backend/services/invoice";
 import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
-import { publicLink } from "@/server/share";
+import { publicLink, serviceLink } from "@/server/share";
 import { NotFoundException } from "@/utils/exceptions";
 import { serviceLabel, todayEventLabel, unitCount } from "@/utils/format";
 import { formatMoney } from "../engine/amount";
-import { publicUrl } from "@/utils/url";
 
 export type WriteDraft = {
   customerName: string;
@@ -81,7 +80,8 @@ class IntentDispatcher {
   }
 
   bookingLinkText(option: ServiceOption): string {
-    const link = publicUrl("book", option.slug);
+    // The service's page; its "Book a time" opens /book/<slug>.
+    const link = serviceLink(option.slug);
     return (
       `Share this booking link with your customer:\n${link}\n` +
       `— — —\nHi! You can book here: ${link}\n— — —`

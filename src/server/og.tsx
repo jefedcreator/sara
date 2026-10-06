@@ -1,12 +1,15 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import type { BookingMode } from "@prisma/client";
 import { ImageResponse } from "next/og";
+import sharp from "sharp";
 
 import { BRAND_COLOR, MARK_ACCENT, MARK_BODY } from "@/utils/brand";
 import { formatMoney } from "@/utils/format";
 import { formatDate } from "@/utils/labels";
 import { CARDS, OG_SIZE, type CardKey } from "@/utils/metadata";
+import { SERVICE_PICK, servicePriceLine } from "@/utils/service-page";
 import { documentLines, type SharedDocument } from "@/utils/shared-document";
 
 /*
@@ -381,3 +384,136 @@ export async function documentCard(doc: SharedDocument) {
     { ...OG_SIZE, fonts: await ogFonts() },
   );
 }
+
+export type ServiceCardInput = {
+  name: string;
+  businessName: string;
+  price: string | number;
+  currency: string;
+  duration: number;
+  bookingMode: BookingMode;
+  image: string | null;
+};
+
+const PANEL = { width: 420, height: 502 };
+
+/** A photo as a JPEG data URL cropped to the card's right panel, or null. */
+async function panelPhoto(url: string | null) {
+  if (!url) return null;
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(4000) });
+    if (!response.ok) return null;
+    const jpeg = await sharp(Buffer.from(await response.arrayBuffer()))
+      .resize(PANEL.width * 2, PANEL.height * 2, { fit: "cover" })
+      .jpeg({ quality: 82 })
+      .toBuffer();
+    return `data:image/jpeg;base64,${jpeg.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+/*
+ * A service's card, for its booking link (/book) and its page (/services)
+ * alike. Owners drop these links in Instagram bios and DMs, so the card is
+ * the service's own: the business, the service, its price, a pill saying
+ * what comes next, and the service photo (the mark on leaf grey when there
+ * is none). Sara signs it quietly at the foot, single ink.
+ */
+export async function serviceCard(service: ServiceCardInput) {
+  const image = await panelPhoto(service.image);
+  const titleSize = service.name.length > 28 ? 60 : 76;
+
+  return new ImageResponse(
+    <div
+      style={{
+        display: "flex",
+        width: "100%",
+        height: "100%",
+        background: OG.canvas,
+        padding: 64,
+        gap: 56,
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "space-between",
+          flex: 1,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+          <div style={{ fontFamily: "Hanken", fontWeight: 600, fontSize: 28, color: OG.muted }}>
+            {clip(service.businessName, 36)}
+          </div>
+          <div
+            style={{
+              fontFamily: "Bricolage",
+              fontSize: titleSize,
+              lineHeight: 1.04,
+              letterSpacing: -0.035 * titleSize,
+              color: OG.ink,
+            }}
+          >
+            {service.name}
+          </div>
+          <div style={{ fontFamily: "Hanken", fontSize: 30, color: OG.ink, marginTop: 6 }}>
+            {servicePriceLine(service)}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              height: 68,
+              padding: "0 34px",
+              borderRadius: 999,
+              background: OG.accent,
+              color: OG.onAccent,
+              fontFamily: "Hanken",
+              fontWeight: 600,
+              fontSize: 28,
+            }}
+          >
+            {SERVICE_PICK[service.bookingMode]}
+          </div>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              fontFamily: "Hanken",
+              fontSize: 22,
+              color: OG.faint,
+            }}
+          >
+            Bookings by
+            <OgLockup size={30} color={OG.faint} accent={OG.faint} />
+          </div>
+        </div>
+      </div>
+
+      {image ? (
+        <img src={image} alt="" {...PANEL} style={{ borderRadius: 32, objectFit: "cover" }} />
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            ...PANEL,
+            borderRadius: 32,
+            background: OG.surface,
+          }}
+        >
+          <OgMark size={200} />
+        </div>
+      )}
+    </div>,
+    { ...OG_SIZE, fonts: await ogFonts() },
+  );
+}
+

@@ -66,7 +66,9 @@ describe("service options + booking link", () => {
     ]);
     const options = await intentDispatcher.listServiceOptions("biz_1");
     expect(options).toEqual([{ slug: "acme-haircut", label: "Haircut — NGN 5,000 (1 hr)" }]);
-    expect(intentDispatcher.bookingLinkText(options[0]!)).toContain("https://app.sara.ng/book/acme-haircut");
+    expect(intentDispatcher.bookingLinkText(options[0]!)).toContain(
+      "https://app.sara.ng/services/acme-haircut",
+    );
   });
 });
 
