@@ -63,10 +63,12 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    "/bookings/:path*",
-    "/invoices/:path*",
-    "/receipts/:path*",
-    "/services/:path*",
+    // The owner's lists only. Below them (/invoices/<id>, /services/<slug>,
+    // ...) are the customers' public pages, which never need a session.
+    "/bookings",
+    "/invoices",
+    "/receipts",
+    "/services",
     "/settings/:path*",
     "/onboarding",
   ],
