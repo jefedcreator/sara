@@ -22,7 +22,8 @@ export type SharedDocument = {
   businessName: string;
   customerName: string | null;
   currency: string;
-  lines: { description: string; quantity: number; total: number }[];
+  /** unitPrice is what one costs; total is quantity × unitPrice as issued. */
+  lines: { description: string; quantity: number; unitPrice: number; total: number }[];
   subtotal: number;
   taxAmount: number;
   discount: number;
@@ -43,6 +44,19 @@ export function documentTitle(doc: Pick<SharedDocument, "kind" | "number">) {
   return `${doc.kind === "invoice" ? "Invoice" : "Receipt"} ${doc.number}`;
 }
 
+/**
+ * The page's headline figure: what the customer opened the link to learn.
+ * What's still owed on an invoice, what was paid on a receipt, and the total
+ * once an invoice is settled or voided.
+ */
+export function documentLead(
+  doc: Pick<SharedDocument, "kind" | "voided" | "total" | "amountPaid" | "balance">,
+): { label: string; amount: number } {
+  if (doc.kind === "receipt") return { label: "Amount paid", amount: doc.amountPaid };
+  if (!doc.voided && doc.balance > 0) return { label: "Balance due", amount: doc.balance };
+  return { label: "Total", amount: doc.total };
+}
+
 /** The lines to show. A chat invoice has none; its note, or "Amount", stands in. */
 export function documentLines(doc: SharedDocument) {
   if (doc.lines.length > 0) return doc.lines;
@@ -52,6 +66,7 @@ export function documentLines(doc: SharedDocument) {
       // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       description: doc.notes?.trim() || "Amount",
       quantity: 1,
+      unitPrice: doc.subtotal,
       total: doc.subtotal,
     },
   ];

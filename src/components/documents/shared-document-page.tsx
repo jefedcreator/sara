@@ -6,6 +6,7 @@ import { cn } from "@/utils/cn";
 import { formatMoney } from "@/utils/format";
 import { formatDate } from "@/utils/labels";
 import {
+  documentLead,
   documentLines,
   documentTitle,
   type SharedDocument,
@@ -35,13 +36,15 @@ function Row({
 
 /**
  * The page behind a customer's invoice or receipt link: the business, the
- * document's state and its lines, and the PDF. Laid out like the booking
- * page, whose customers these are too.
+ * document's state, then the document itself as a sheet, led by what the
+ * customer came for (what's owed, or what was paid), and the PDF. Laid out
+ * like the booking page, whose customers these are too.
  */
 export function SharedDocumentPage({ doc }: { doc: SharedDocument }) {
   const noun = doc.kind === "invoice" ? "Invoice" : "Receipt";
   const money = (amount: number) => formatMoney(amount, doc.currency);
   const lines = documentLines(doc);
+  const lead = documentLead(doc);
   const adjusted = doc.taxAmount > 0 || doc.discount > 0;
 
   const when =
@@ -79,24 +82,25 @@ export function SharedDocumentPage({ doc }: { doc: SharedDocument }) {
         </p>
       </section>
 
+      {/* The document itself: a white sheet with a hairline and the Card shadow DESIGN.md keeps for invoices. */}
       <section
         aria-label={`${noun} details`}
-        className="rounded-panel bg-surface animate-rise-2 mt-8 px-5 py-6 sm:px-6"
+        className="rounded-card border-line bg-canvas shadow-card animate-rise-2 mt-8 border px-5 py-6 sm:px-8 sm:py-8"
       >
-        <p className="text-muted text-sm font-semibold">
-          {doc.kind === "receipt" ? "Amount paid" : "Total"}
-        </p>
+        <p className="text-muted text-sm font-semibold">{lead.label}</p>
         <p className="font-display mt-1.5 text-[clamp(2.2rem,1.8rem+1.6vw,3rem)] leading-none font-[330] tracking-[-0.035em]">
-          {money(doc.kind === "receipt" ? doc.amountPaid : doc.total)}
+          {money(lead.amount)}
         </p>
 
-        <ul className="border-line mt-6 space-y-2.5 border-t pt-5 text-[15px]">
+        <ul className="border-line mt-6 space-y-3 border-t pt-5 text-[15px]">
           {lines.map((line, i) => (
             <li key={i} className="flex items-baseline justify-between gap-4">
-              <span className="min-w-0 whitespace-pre-line">
-                {line.description}
+              <span className="min-w-0">
+                <span className="block whitespace-pre-line">{line.description}</span>
                 {line.quantity > 1 ? (
-                  <span className="text-muted"> × {line.quantity}</span>
+                  <span className="text-muted mt-0.5 block text-sm">
+                    {line.quantity} × {money(line.unitPrice)}
+                  </span>
                 ) : null}
               </span>
               <span className="text-ink-2 shrink-0">{money(line.total)}</span>
@@ -126,13 +130,14 @@ export function SharedDocumentPage({ doc }: { doc: SharedDocument }) {
             </Row>
           ) : null}
         </dl>
-      </section>
 
-      {doc.notes && doc.lines.length > 0 ? (
-        <p className="text-muted mt-6 max-w-[52ch] text-pretty whitespace-pre-line">
-          {doc.notes}
-        </p>
-      ) : null}
+        {/* The business's note is part of the document; without lines it already stands in for them. */}
+        {doc.notes && doc.lines.length > 0 ? (
+          <p className="border-line text-muted mt-5 border-t pt-5 text-[15px] text-pretty whitespace-pre-line">
+            {doc.notes}
+          </p>
+        ) : null}
+      </section>
 
       {doc.pdfUrl ? (
         <Button

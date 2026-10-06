@@ -28,7 +28,8 @@ const INVOICE_ROW = {
   url: "https://cdn.test/INV-1012.pdf",
   business: { name: "Acme Salon" },
   services: [
-    { description: "", quantity: 1, total: 62000, service: { name: "Knotless braids" } },
+    { description: "", quantity: 1, unitPrice: 53000, total: 53000, service: { name: "Knotless braids" } },
+    { description: "Hair extensions, colour 1B", quantity: 3, unitPrice: 3000, total: 9000, service: { name: "Extensions" } },
   ],
 };
 
@@ -65,7 +66,10 @@ describe("getSharedInvoice", () => {
       number: "INV-1012",
       businessName: "Acme Salon",
       balance: 42000,
-      lines: [{ description: "Knotless braids", quantity: 1, total: 62000 }],
+      lines: [
+        { description: "Knotless braids", quantity: 1, unitPrice: 53000, total: 53000 },
+        { description: "Hair extensions, colour 1B", quantity: 3, unitPrice: 3000, total: 9000 },
+      ],
     });
   });
 

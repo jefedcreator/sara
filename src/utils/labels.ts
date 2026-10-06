@@ -49,5 +49,7 @@ export function formatDate(iso: string) {
     month: "short",
     year: "numeric",
     timeZone: "Africa/Lagos",
-  }).format(new Date(iso));
+  })
+    .format(new Date(iso))
+    .replace("Sept", "Sep"); // as utils/format.ts does: some ICU versions write "Sept"
 }

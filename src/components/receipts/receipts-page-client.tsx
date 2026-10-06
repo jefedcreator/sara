@@ -4,15 +4,14 @@ import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { useQueryStates } from "nuqs";
 import type { Page, ReceiptDto, ServiceDto } from "types";
 
-import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
 import { DocumentModal } from "@/components/documents/document-modal";
 import { useReceiptsQuery } from "@/hooks/queries/use-receipts";
 import { useDocumentComposer } from "@/hooks/use-document-composer";
-import { Button, Notice, Pager, Skeleton, StatusPill } from "@/primitives";
-import { formatMoney } from "@/utils/format";
-import { formatDate, PAYMENT_METHOD } from "@/utils/labels";
+import { Button, Notice, Pager, Skeleton } from "@/primitives";
 import { publicPath } from "@/utils/public-links";
 import { receiptsParams } from "@/utils/url-state";
+
+import { ReceiptRow } from "./receipt-row";
 
 interface ReceiptsPageClientProps {
   currency: string;
@@ -62,44 +61,14 @@ export function ReceiptsPageClient({ currency, services, publicBaseUrl, initial 
         </p>
       ) : (
         <ul className={query.isPlaceholderData ? "grid gap-2.5 opacity-60" : "grid gap-2.5"}>
-          {rows.map((receipt) => {
-            const invoice = receipt.payment?.invoice;
-            return (
-              <li
-                key={receipt.id}
-                className="rounded-card bg-surface flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-4 sm:px-5"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-[15px] font-semibold">{receipt.name ?? "Customer"}</h3>
-                    {receipt.paymentMethod ? (
-                      <StatusPill tone="muted">{PAYMENT_METHOD[receipt.paymentMethod]}</StatusPill>
-                    ) : null}
-                  </div>
-                  <p className="text-muted mt-0.5 text-sm">
-                    {receipt.receiptNumber} · {formatDate(receipt.createdAt)}
-                    {invoice ? ` · for ${invoice.invoiceNumber}` : ""}
-                  </p>
-                </div>
-                <span className="text-[17px] font-semibold whitespace-nowrap">
-                  {formatMoney(receipt.amountPaid, receipt.currency)}
-                </span>
-                <CopyLinkButton
-                  url={`${publicBaseUrl}${publicPath("receipt", receipt.publicId)}`}
-                  label="Copy link"
-                  tone="quiet"
-                  className="h-10"
-                />
-                {receipt.url ? (
-                  <Button asChild size="sm" variant="secondary">
-                    <a href={receipt.url} target="_blank" rel="noopener">
-                      PDF
-                    </a>
-                  </Button>
-                ) : null}
-              </li>
-            );
-          })}
+          {rows.map((receipt) => (
+            <li key={receipt.id}>
+              <ReceiptRow
+                receipt={receipt}
+                link={`${publicBaseUrl}${publicPath("receipt", receipt.publicId)}`}
+              />
+            </li>
+          ))}
         </ul>
       )}
 

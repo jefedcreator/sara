@@ -7,6 +7,7 @@ import type { SharedDocument } from "@/utils/shared-document";
 const lineSelect = {
   description: true,
   quantity: true,
+  unitPrice: true,
   total: true,
   service: { select: { name: true } },
 } as const;
@@ -15,6 +16,7 @@ function toLines(
   rows: {
     description: string | null;
     quantity: number;
+    unitPrice: unknown;
     total: unknown;
     service: { name: string };
   }[],
@@ -24,6 +26,7 @@ function toLines(
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     description: row.description || row.service.name,
     quantity: row.quantity,
+    unitPrice: Number(row.unitPrice),
     total: Number(row.total),
   }));
 }
