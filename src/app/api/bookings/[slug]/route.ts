@@ -12,6 +12,7 @@ import {
   type UpdateBookingValidatorSchema,
 } from "@/backend/validators/booking.validator";
 import { db } from "@/server/db";
+import { publicLink } from "@/server/share";
 import {
   BadRequestException,
   ConflictException,
@@ -248,6 +249,7 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
               serviceName: booking.service.name,
               previousStartTime,
               newStartTime: updatedBooking.startTime,
+              bookingUrl: publicLink("booking", updatedBooking.publicId),
               span: {
                 bookingMode: booking.service.bookingMode,
                 endTime: updatedBooking.endTime,

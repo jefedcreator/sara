@@ -58,6 +58,7 @@ const NEW_END = new Date(NEW_START.getTime() + 60 * 60 * 1000);
 
 const EXISTING_BOOKING = {
   id: "bkg_1",
+  publicId: "Pq8sN1xV0kL3mA6t",
   slug: "haircut-jane-123",
   businessId: BUSINESS.id,
   serviceId: "cservice0000000000000001",
@@ -183,6 +184,7 @@ describe("PUT /api/bookings/[slug]", () => {
         to: EXISTING_BOOKING.clientEmail,
         business: expect.objectContaining({ name: BUSINESS.name }),
         serviceName: EXISTING_BOOKING.service.name,
+        bookingUrl: expect.stringMatching(/\/bookings\/Pq8sN1xV0kL3mA6t$/),
       }),
     );
     expect(mockedEmail.sendBookingCancellationEmail).not.toHaveBeenCalled();

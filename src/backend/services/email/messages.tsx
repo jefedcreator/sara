@@ -118,6 +118,7 @@ export function bookingConfirmedEmail(input: {
   amount: Money | null;
   currency: string;
   receiptUrl: string | null;
+  bookingUrl: string;
   span?: BookingSpanInput;
 }): EmailMessage {
   const { replyTo, canReply } = fromBusiness(input.business);
@@ -142,6 +143,7 @@ export function bookingConfirmedEmail(input: {
             : formatMoney(input.amount, input.currency)
         }
         receiptUrl={input.receiptUrl}
+        bookingUrl={input.bookingUrl}
         canReply={canReply}
       />
     ),
@@ -159,6 +161,7 @@ export function bookingReminderEmail(input: {
   serviceName: string;
   startTime: Date;
   span?: BookingSpanInput;
+  bookingUrl: string;
 }): EmailMessage {
   const { replyTo, canReply } = fromBusiness(input.business);
   const where = [
@@ -181,6 +184,7 @@ export function bookingReminderEmail(input: {
         serviceName={input.serviceName}
         when={whenOf(input.startTime, input.span)}
         where={where || null}
+        bookingUrl={input.bookingUrl}
         canReply={canReply}
       />
     ),
@@ -196,6 +200,7 @@ export function bookingRescheduledEmail(input: {
   newStartTime: Date;
   span?: BookingSpanInput;
   previousSpan?: BookingSpanInput;
+  bookingUrl: string;
 }): EmailMessage {
   const { replyTo, canReply } = fromBusiness(input.business);
   const at = subjectWhen(input.newStartTime, input.span);
@@ -210,6 +215,7 @@ export function bookingRescheduledEmail(input: {
         serviceName={input.serviceName}
         previousWhen={whenOf(input.previousStartTime, input.previousSpan)}
         when={whenOf(input.newStartTime, input.span)}
+        bookingUrl={input.bookingUrl}
         canReply={canReply}
       />
     ),

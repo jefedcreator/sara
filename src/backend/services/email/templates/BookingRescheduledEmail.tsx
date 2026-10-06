@@ -1,4 +1,5 @@
 import {
+  CtaButton,
   Details,
   EmailLayout,
   Heading,
@@ -14,6 +15,8 @@ export interface BookingRescheduledEmailProps {
   /** Both "Thu 1 Oct at 13:00". */
   previousWhen: string;
   when: string;
+  /** The customer's booking page. */
+  bookingUrl: string;
   canReply: boolean;
 }
 
@@ -21,8 +24,15 @@ export interface BookingRescheduledEmailProps {
 export default function BookingRescheduledEmail(
   props: BookingRescheduledEmailProps,
 ) {
-  const { origin, businessName, serviceName, previousWhen, when, canReply } =
-    props;
+  const {
+    origin,
+    businessName,
+    serviceName,
+    previousWhen,
+    when,
+    bookingUrl,
+    canReply,
+  } = props;
   return (
     <EmailLayout
       origin={origin}
@@ -42,6 +52,7 @@ export default function BookingRescheduledEmail(
           { label: "Service", value: serviceName },
         ]}
       />
+      <CtaButton href={bookingUrl}>View your booking</CtaButton>
       <Note>
         {canReply
           ? `If the new time doesn't work, reply to this email and it goes to ${businessName}.`
@@ -57,5 +68,6 @@ BookingRescheduledEmail.PreviewProps = {
   serviceName: "Knotless braids",
   previousWhen: "Thu 1 Oct at 13:00",
   when: "Sat 3 Oct at 10:00",
+  bookingUrl: "https://sara.app/bookings/Pq8sN1xV0kL3mA6t",
   canReply: true,
 } satisfies BookingRescheduledEmailProps;

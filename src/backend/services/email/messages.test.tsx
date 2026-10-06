@@ -76,6 +76,7 @@ describe("customer emails", () => {
       },
       serviceName: "Braids",
       startTime: at,
+      bookingUrl: "https://app.sara.ng/bookings/Pq8sN1xV0kL3mA6t",
     });
     expect(withAddress.replyTo).toBe("hello@acme.test");
     const { text } = await rendered(withAddress);
@@ -88,6 +89,7 @@ describe("customer emails", () => {
       business: { name: "Acme Salon", email: null },
       serviceName: "Braids",
       startTime: at,
+      bookingUrl: "https://app.sara.ng/bookings/Pq8sN1xV0kL3mA6t",
     });
     expect(without.replyTo).toBeUndefined();
     expect((await rendered(without)).text).not.toContain("Reply to this email");
@@ -101,6 +103,7 @@ describe("customer emails", () => {
       serviceName: "Braids",
       previousStartTime: at,
       newStartTime: new Date("2026-10-03T10:00:00.000Z"),
+      bookingUrl: "https://app.sara.ng/bookings/Pq8sN1xV0kL3mA6t",
     });
     const { text } = await rendered(message);
     expect(message.subject).toContain("Sat 3 Oct at 10:00");
@@ -169,6 +172,7 @@ describe("customer emails", () => {
       amount: 255000,
       currency: "NGN",
       receiptUrl: null,
+      bookingUrl: "https://app.sara.ng/bookings/Pq8sN1xV0kL3mA6t",
       span: { bookingMode: "NIGHTLY", endTime: new Date("2026-10-05T12:00:00.000Z"), units: 3 },
     });
     const { text } = await rendered(message);
@@ -183,8 +187,48 @@ describe("customer emails", () => {
       business: { name: "Lekki Stays" },
       serviceName: "Lekki 2-bed 4B",
       startTime: new Date("2026-10-02T14:00:00.000Z"),
+      bookingUrl: "https://app.sara.ng/bookings/Pq8sN1xV0kL3mA6t",
       span: { bookingMode: "NIGHTLY", endTime: new Date("2026-10-05T12:00:00.000Z"), units: 3 },
     });
     expect(message.subject).toBe("Reminder: Lekki 2-bed 4B with Lekki Stays, 2–5 Oct · 3 nights");
+  });
+
+  it("links the customer's booking page from the confirmation, reminder and move", async () => {
+    const bookingUrl = "https://app.sara.ng/bookings/Pq8sN1xV0kL3mA6t";
+    const confirmed = await rendered(
+      bookingConfirmedEmail({
+        origin,
+        to: "ada@example.com",
+        business,
+        serviceName: "Braids",
+        startTime: at,
+        duration: 240,
+        amount: 25000,
+        currency: "NGN",
+        receiptUrl: "https://app.sara.ng/receipts/b7T0qLm2Vn9cZ4wE",
+        bookingUrl,
+      }),
+    );
+    expect(confirmed.html).toContain(`href="${bookingUrl}"`);
+    expect(confirmed.text).toContain("View your booking");
+    expect(confirmed.html).toContain('href="https://app.sara.ng/receipts/b7T0qLm2Vn9cZ4wE"');
+
+    const reminder = await rendered(
+      bookingReminderEmail({ origin, to: "ada@example.com", business, serviceName: "Braids", startTime: at, bookingUrl }),
+    );
+    expect(reminder.html).toContain(`href="${bookingUrl}"`);
+
+    const moved = await rendered(
+      bookingRescheduledEmail({
+        origin,
+        to: "ada@example.com",
+        business,
+        serviceName: "Braids",
+        previousStartTime: at,
+        newStartTime: new Date("2026-10-03T10:00:00.000Z"),
+        bookingUrl,
+      }),
+    );
+    expect(moved.html).toContain(`href="${bookingUrl}"`);
   });
 });
