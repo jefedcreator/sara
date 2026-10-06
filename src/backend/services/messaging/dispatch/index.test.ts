@@ -33,7 +33,7 @@ beforeEach(() => {
 describe("createInvoice", () => {
   it("creates a SENT invoice in business currency and returns number + link", async () => {
     (invoiceService.create as any).mockResolvedValue({
-      invoiceNumber: "INV-1012", slug: "acme-inv-1012", url: "https://cdn.test/INV-1012.pdf",
+      invoiceNumber: "INV-1012", slug: "acme-inv-1012", publicId: "Xk39fjQ2aB7mN0pR", url: "https://cdn.test/INV-1012.pdf",
     });
     const result = await intentDispatcher.createInvoice("biz_1", {
       customerName: "Ada", amount: 15000, description: "gele",
@@ -43,19 +43,19 @@ describe("createInvoice", () => {
     );
     // The customer's page (with its own preview card), not the bare PDF.
     expect(result.number).toBe("INV-1012");
-    expect(result.link).toMatch(/^https:\/\/app\.sara\.ng\/i\/acme-inv-1012\/[\w-]{16}$/);
+    expect(result.link).toBe("https://app.sara.ng/invoices/Xk39fjQ2aB7mN0pR");
   });
 });
 
 describe("createReceipt", () => {
   it("creates a fully-paid receipt", async () => {
     (receiptService.create as any).mockResolvedValue({
-      receiptNumber: "RCP-1007", slug: "acme-rcp-1007", url: "https://cdn.test/RCP-1007.pdf",
+      receiptNumber: "RCP-1007", slug: "acme-rcp-1007", publicId: "b7T0qLm2Vn9cZ4wE", url: "https://cdn.test/RCP-1007.pdf",
     });
     const result = await intentDispatcher.createReceipt("biz_1", { customerName: "Ada", amount: 15000 });
     expect(receiptService.create).toHaveBeenCalledWith(expect.objectContaining({ total: 15000, amountPaid: 15000 }));
     expect(result.number).toBe("RCP-1007");
-    expect(result.link).toMatch(/^https:\/\/app\.sara\.ng\/r\/acme-rcp-1007\/[\w-]{16}$/);
+    expect(result.link).toBe("https://app.sara.ng/receipts/b7T0qLm2Vn9cZ4wE");
   });
 });
 

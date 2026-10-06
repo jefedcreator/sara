@@ -1,6 +1,6 @@
 import type { Invoice, Receipt } from "@prisma/client";
 
-import { shareUrl } from "@/server/share";
+import { publicLink } from "@/server/share";
 import { PAYMENT_METHOD } from "@/utils/labels";
 
 import { emailService, type SendResult } from "./index";
@@ -8,7 +8,7 @@ import type { BusinessSender } from "./messages";
 
 /*
  * Invoices and receipts go to the customer by email when the owner gave an
- * address, linking the document's share page (server/share.ts), the same link
+ * address, linking the document's page (server/share.ts), the same link
  * the chat and the owner's copy button hand out. Never throws (emailService).
  */
 
@@ -27,7 +27,7 @@ export async function emailInvoice(
     amountPaid: invoice.amountPaid.toString(),
     currency: invoice.currency,
     dueAt: invoice.dueAt,
-    url: shareUrl("invoice", invoice.slug),
+    url: publicLink("invoice", invoice.publicId),
   });
 }
 
@@ -48,6 +48,6 @@ export async function emailReceipt(
     method: receipt.paymentMethod
       ? (PAYMENT_METHOD[receipt.paymentMethod] ?? null)
       : null,
-    url: shareUrl("receipt", receipt.slug),
+    url: publicLink("receipt", receipt.publicId),
   });
 }

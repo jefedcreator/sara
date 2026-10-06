@@ -30,7 +30,7 @@ vi.mock("@/backend/services/googleCalendar", () => ({
 
 vi.mock("@/backend/services/receipt", () => ({
   receiptService: {
-    create: vi.fn().mockResolvedValue({ slug: "acme-rcp-1001", url: "https://cdn.test/r.pdf" }),
+    create: vi.fn().mockResolvedValue({ slug: "acme-rcp-1001", publicId: "b7T0qLm2Vn9cZ4wE", url: "https://cdn.test/r.pdf" }),
   },
 }));
 
@@ -130,7 +130,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
         serviceName: BOOKING.service.name,
         duration: 45,
         amount: 50,
-        receiptUrl: expect.stringMatching(/\/r\/acme-rcp-1001\/[\w-]{16}$/),
+        receiptUrl: expect.stringMatching(/\/receipts\/b7T0qLm2Vn9cZ4wE$/),
       }),
     );
   });
@@ -220,7 +220,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     // The receipt's share page, not the bare PDF.
     expect(mockedNotifier.notify).toHaveBeenCalledWith(
       BOOKING.businessId,
-      expect.stringMatching(/\nReceipt: https?:\/\/\S+\/r\/acme-rcp-1001\/[\w-]{16}$/),
+      expect.stringMatching(/\nReceipt: https?:\/\/\S+\/receipts\/b7T0qLm2Vn9cZ4wE$/),
     );
   });
 

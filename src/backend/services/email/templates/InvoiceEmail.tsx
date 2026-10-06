@@ -82,6 +82,6 @@ InvoiceEmail.PreviewProps = {
   total: "NGN 62,000",
   balance: "NGN 42,000",
   dueDate: "12 Oct 2026",
-  url: "https://sara.app/i/tolus-hair-studio-inv-1012/preview",
+  url: "https://sara.app/invoices/Xk39fjQ2aB7mN0pR",
   canReply: true,
 } satisfies InvoiceEmailProps;

@@ -70,5 +70,5 @@ ReceiptEmail.PreviewProps = {
   paid: "NGN 15,000",
   date: "29 Sept 2026",
   method: "Bank transfer",
-  url: "https://sara.app/r/tolus-hair-studio-rcp-1007/preview",
+  url: "https://sara.app/receipts/b7T0qLm2Vn9cZ4wE",
 } satisfies ReceiptEmailProps;

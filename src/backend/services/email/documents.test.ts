@@ -21,6 +21,7 @@ const business = { name: "Acme Salon", email: "hello@acme.test" };
 
 const invoice = {
   slug: "acme-inv-1012",
+  publicId: "Xk39fjQ2aB7mN0pR",
   invoiceNumber: "INV-1012",
   status: "SENT",
   clientName: "Ada",
@@ -33,6 +34,7 @@ const invoice = {
 
 const receipt = {
   slug: "acme-rcp-1007",
+  publicId: "b7T0qLm2Vn9cZ4wE",
   receiptNumber: "RCP-1007",
   name: "Ada",
   email: "ada@example.com",
@@ -53,7 +55,7 @@ describe("emailInvoice", () => {
         number: "INV-1012",
         total: "15000",
         url: expect.stringMatching(
-          /^https:\/\/app\.sara\.ng\/i\/acme-inv-1012\/[\w-]{16}$/,
+          /^https:\/\/app\.sara\.ng\/invoices\/Xk39fjQ2aB7mN0pR$/,
         ),
       }),
     );
@@ -77,7 +79,7 @@ describe("emailReceipt", () => {
       expect.objectContaining({
         to: "ada@example.com",
         method: "Bank transfer",
-        url: expect.stringMatching(/\/r\/acme-rcp-1007\/[\w-]{16}$/),
+        url: expect.stringMatching(/\/receipts\/b7T0qLm2Vn9cZ4wE$/),
       }),
     );
   });

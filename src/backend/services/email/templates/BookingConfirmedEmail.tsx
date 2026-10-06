@@ -76,6 +76,6 @@ BookingConfirmedEmail.PreviewProps = {
   when: "Thu 1 Oct at 13:00",
   duration: "4 hr",
   paid: "NGN 25,000",
-  receiptUrl: "https://sara.app/r/tolus-hair-studio-rcp-1007/preview",
+  receiptUrl: "https://sara.app/receipts/b7T0qLm2Vn9cZ4wE",
   canReply: true,
 } satisfies BookingConfirmedEmailProps;

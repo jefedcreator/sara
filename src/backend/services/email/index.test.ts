@@ -30,7 +30,7 @@ const CONFIRMATION = {
   duration: 240,
   amount: 25000,
   currency: "NGN",
-  receiptUrl: "https://app.sara.ng/r/acme-rcp-1001/key",
+  receiptUrl: "https://app.sara.ng/receipts/b7T0qLm2Vn9cZ4wE",
 };
 
 beforeEach(() => {
@@ -58,7 +58,7 @@ describe("emailService with Resend", () => {
     });
     expect(sent.html).toContain("Mon 22 Jun at 09:00");
     expect(sent.html).toContain(
-      'href="https://app.sara.ng/r/acme-rcp-1001/key"',
+      'href="https://app.sara.ng/receipts/b7T0qLm2Vn9cZ4wE"',
     );
     expect(sent.text).toContain("Knotless braids");
     expect(sent.text).toContain("NGN 25,000");
