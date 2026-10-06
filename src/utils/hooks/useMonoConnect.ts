@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import type MonoConnect from "@mono.co/connect.js";
 
 export type MonoSuccessData = {
   code: string;
@@ -60,7 +61,7 @@ export function useMonoConnect({
   const [error, setError] = useState<Error | null>(null);
 
   // Keep a stable ref to the Connect instance so it isn't recreated on re-renders
-  const connectRef = useRef<import("@mono.co/connect.js").default | null>(null);
+  const connectRef = useRef<MonoConnect | null>(null);
   const connectKeyRef = useRef<string | null>(null);
   const isLoadingRef = useRef(false);
   const requestIdRef = useRef(0);

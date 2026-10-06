@@ -86,7 +86,7 @@ export default function AddressAutocomplete({
         `/api/atlas/geocode?q=${encodeURIComponent(trimmed)}&limit=5`,
         { signal: controller.signal },
       );
-      const json = await res.json();
+      const json = (await res.json()) as { data?: AtlasGeocodeResult[] };
       const data: AtlasGeocodeResult[] = json.data ?? [];
       if (controller.signal.aborted) return;
       setResults(data);
@@ -110,7 +110,9 @@ export default function AddressAutocomplete({
     setQuery(value);
 
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => fetchSuggestions(value), 300);
+    debounceRef.current = setTimeout(() => {
+      void fetchSuggestions(value);
+    }, 300);
   };
 
   // ── Keyboard navigation ───────────────────────────────────────────────
@@ -143,17 +145,21 @@ export default function AddressAutocomplete({
 
   const handleBlur = (e: FocusEvent<HTMLDivElement>) => {
     const nextTarget = e.relatedTarget;
-    if (!nextTarget || !e.currentTarget.contains(nextTarget as Node)) {
+    if (!nextTarget || !e.currentTarget.contains(nextTarget)) {
       setIsOpen(false);
     }
   };
 
   return (
-    <div ref={rootRef} onBlurCapture={handleBlur} className={`relative ${className}`}>
+    <div
+      ref={rootRef}
+      onBlurCapture={handleBlur}
+      className={`relative ${className}`}
+    >
       {label && (
         <label
           htmlFor={id}
-          className="mb-1.5 block text-sm font-semibold text-ink"
+          className="text-ink mb-1.5 block text-sm font-semibold"
         >
           {label}
         </label>
@@ -169,19 +175,19 @@ export default function AddressAutocomplete({
           onKeyDown={handleKeyDown}
           onFocus={() => results.length > 0 && setIsOpen(true)}
           placeholder={placeholder}
-          className="h-11 w-full rounded-chip border border-line bg-canvas pr-10 pl-3.5 text-[15px] text-ink outline-none transition duration-200 ease-out-expo placeholder:text-muted focus:border-accent-ink focus:ring-3 focus:ring-accent-tint"
+          className="rounded-chip border-line bg-canvas text-ink ease-out-expo placeholder:text-muted focus:border-accent-ink focus:ring-accent-tint h-11 w-full border pr-10 pl-3.5 text-[15px] transition duration-200 outline-none focus:ring-3"
         />
 
         {isLoading && (
-          <div className="absolute right-3 top-1/2 -translate-y-1/2">
-            <div className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-accent-ink" />
+          <div className="absolute top-1/2 right-3 -translate-y-1/2">
+            <div className="border-line border-t-accent-ink h-4 w-4 animate-spin rounded-full border-2" />
           </div>
         )}
 
         {/* Search icon when not loading */}
         {!isLoading && (
           <svg
-            className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted"
+            className="text-muted pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -198,7 +204,7 @@ export default function AddressAutocomplete({
 
       {/* ── Dropdown ───────────────────────────────────────────────────── */}
       {isOpen && (
-        <ul className="absolute z-50 mt-1.5 max-h-60 w-full overflow-auto rounded-card border border-line bg-canvas py-1.5 shadow-lift">
+        <ul className="rounded-card border-line bg-canvas shadow-lift absolute z-50 mt-1.5 max-h-60 w-full overflow-auto border py-1.5">
           {results.map((result, i) => (
             <li key={`${result.lat}-${result.lon}-${i}`}>
               <button
@@ -214,7 +220,7 @@ export default function AddressAutocomplete({
               >
                 {/* Pin icon */}
                 <svg
-                  className="mt-0.5 h-4 w-4 flex-shrink-0 text-accent-ink"
+                  className="text-accent-ink mt-0.5 h-4 w-4 flex-shrink-0"
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -235,7 +241,7 @@ export default function AddressAutocomplete({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium">{result.name}</p>
                   {result.address && (
-                    <p className="truncate text-xs text-muted">
+                    <p className="text-muted truncate text-xs">
                       {[
                         result.address.street,
                         result.address.city,

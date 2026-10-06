@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { Wordmark } from "@/primitives";
 import { cn } from "@/utils/cn";
@@ -24,17 +24,19 @@ const BAR =
 export function LandingNav({ whatsappHref }: { whatsappHref: string }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const sentinel = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
   // Hairline under the bar once the page has moved.
-  useEffect(() => {
-    const el = sentinel.current;
+  const sentinelRef = useCallback((el: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
     if (!el) return;
+
     const io = new IntersectionObserver(([entry]) =>
       setScrolled(!entry?.isIntersecting),
     );
     io.observe(el);
-    return () => io.disconnect();
+    observerRef.current = io;
   }, []);
 
   const close = () => setOpen(false);
@@ -42,7 +44,7 @@ export function LandingNav({ whatsappHref }: { whatsappHref: string }) {
   return (
     <>
       <div
-        ref={sentinel}
+        ref={sentinelRef}
         className="absolute top-0 left-0 size-px"
         aria-hidden="true"
       />

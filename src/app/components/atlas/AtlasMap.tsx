@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -134,7 +134,8 @@ const PROTOMAPS_STYLE: maplibregl.StyleSpecification = {
       },
     },
   ],
-  glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
+  glyphs:
+    "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
 };
 
 export default function AtlasMap({
@@ -146,50 +147,56 @@ export default function AtlasMap({
   className = "",
   interactive = true,
 }: AtlasMapProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const routeSyncQueuedRef = useRef(false);
+  const latestPropsRef = useRef({
+    center,
+    zoom,
+    markers,
+    routeGeoJson,
+    onMapClick,
+    interactive,
+  });
+  latestPropsRef.current = {
+    center,
+    zoom,
+    markers,
+    routeGeoJson,
+    onMapClick,
+    interactive,
+  };
 
-  // ── Initialise map ────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!containerRef.current || mapRef.current) return;
+  const markerKey = useMemo(
+    () =>
+      markers
+        .map((marker) =>
+          [marker.lng, marker.lat, marker.color ?? "", marker.popup ?? ""].join(
+            ":",
+          ),
+        )
+        .join("|"),
+    [markers],
+  );
+  const routeKey = useMemo(
+    () =>
+      routeGeoJson ? JSON.stringify(routeGeoJson.coordinates) : "no-route",
+    [routeGeoJson],
+  );
 
-    const map = new maplibregl.Map({
-      container: containerRef.current,
-      style: PROTOMAPS_STYLE,
-      center,
-      zoom,
-      interactive,
-      attributionControl: {},
-    });
-
-    map.addControl(new maplibregl.NavigationControl(), "top-right");
-
-    if (onMapClick) {
-      map.on("click", (e) => {
-        onMapClick({ lng: e.lngLat.lng, lat: e.lngLat.lat });
-      });
-    }
-
-    mapRef.current = map;
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  const removeMarkers = useCallback(() => {
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
   }, []);
 
-  // ── Update markers ────────────────────────────────────────────────────
-  useEffect(() => {
+  const syncMarkers = useCallback(() => {
     const map = mapRef.current;
     if (!map) return;
+    const nextMarkers = latestPropsRef.current.markers;
 
-    // Remove previous markers
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
+    removeMarkers();
 
-    markers.forEach((m) => {
+    nextMarkers.forEach((m) => {
       const marker = new maplibregl.Marker({
         color: m.color ?? "#25d366", // accent
       })
@@ -208,23 +215,32 @@ export default function AtlasMap({
     });
 
     // Fit bounds if multiple markers
-    if (markers.length > 1) {
+    if (nextMarkers.length > 1) {
       const bounds = new maplibregl.LngLatBounds();
-      markers.forEach((m) => bounds.extend([m.lng, m.lat]));
+      nextMarkers.forEach((m) => bounds.extend([m.lng, m.lat]));
       map.fitBounds(bounds, { padding: 60, maxZoom: 15 });
-    } else if (markers.length === 1) {
-      map.flyTo({ center: [markers[0]!.lng, markers[0]!.lat], zoom: 14 });
+    } else if (nextMarkers.length === 1) {
+      map.flyTo({
+        center: [nextMarkers[0]!.lng, nextMarkers[0]!.lat],
+        zoom: 14,
+      });
     }
-  }, [markers]);
+  }, [removeMarkers]);
 
   // ── Render route ──────────────────────────────────────────────────────
-  const updateRoute = useCallback(() => {
+  const syncRoute = useCallback(function syncRoute() {
     const map = mapRef.current;
     if (!map) return;
 
     // Wait for style to load
     if (!map.isStyleLoaded()) {
-      map.once("styledata", updateRoute);
+      if (!routeSyncQueuedRef.current) {
+        routeSyncQueuedRef.current = true;
+        void map.once("styledata", () => {
+          routeSyncQueuedRef.current = false;
+          syncRoute();
+        });
+      }
       return;
     }
 
@@ -232,14 +248,15 @@ export default function AtlasMap({
     if (map.getLayer("atlas-route-line")) map.removeLayer("atlas-route-line");
     if (map.getSource("atlas-route")) map.removeSource("atlas-route");
 
-    if (!routeGeoJson) return;
+    const nextRoute = latestPropsRef.current.routeGeoJson;
+    if (!nextRoute) return;
 
     map.addSource("atlas-route", {
       type: "geojson",
       data: {
         type: "Feature",
         properties: {},
-        geometry: routeGeoJson,
+        geometry: nextRoute,
       },
     });
 
@@ -254,17 +271,67 @@ export default function AtlasMap({
         "line-opacity": 0.9,
       },
     });
-  }, [routeGeoJson]);
+  }, []);
 
-  useEffect(() => {
-    updateRoute();
-  }, [updateRoute]);
+  const mapNodeRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node) {
+        removeMarkers();
+        mapRef.current?.remove();
+        mapRef.current = null;
+        routeSyncQueuedRef.current = false;
+        return;
+      }
+      if (mapRef.current) return;
+
+      const props = latestPropsRef.current;
+      const map = new maplibregl.Map({
+        container: node,
+        style: PROTOMAPS_STYLE,
+        center: props.center,
+        zoom: props.zoom,
+        interactive: props.interactive,
+        attributionControl: {},
+      });
+
+      map.addControl(new maplibregl.NavigationControl(), "top-right");
+      map.on("click", (e) => {
+        latestPropsRef.current.onMapClick?.({
+          lng: e.lngLat.lng,
+          lat: e.lngLat.lat,
+        });
+      });
+
+      mapRef.current = map;
+      syncMarkers();
+      syncRoute();
+    },
+    [removeMarkers, syncMarkers, syncRoute],
+  );
+
+  const markerSyncRef = useCallback(
+    (node: HTMLSpanElement | null) => {
+      if (node) syncMarkers();
+    },
+    [syncMarkers],
+  );
+
+  const routeSyncRef = useCallback(
+    (node: HTMLSpanElement | null) => {
+      if (node) syncRoute();
+    },
+    [syncRoute],
+  );
 
   return (
-    <div
-      ref={containerRef}
-      className={`w-full overflow-hidden rounded-card ${className}`}
-      style={{ minHeight: 320 }}
-    />
+    <>
+      <div
+        ref={mapNodeRef}
+        className={`rounded-card w-full overflow-hidden ${className}`}
+        style={{ minHeight: 320 }}
+      />
+      <span key={`markers:${markerKey}`} ref={markerSyncRef} hidden />
+      <span key={`route:${routeKey}`} ref={routeSyncRef} hidden />
+    </>
   );
 }
