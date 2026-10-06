@@ -140,7 +140,7 @@ export function unitCount(mode: BookingMode, n: number) {
 }
 
 /** ISO → "Fri 2 Oct" (wall-clock UTC). */
-function shortDay(iso: string) {
+export function shortDay(iso: string) {
   const formatted = new Intl.DateTimeFormat("en-GB", {
     weekday: "short",
     day: "numeric",
@@ -152,7 +152,7 @@ function shortDay(iso: string) {
 }
 
 /** ISO → "2 Oct" (wall-clock UTC). */
-function dayMonth(iso: string) {
+export function dayMonth(iso: string) {
   const formatted = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(iso));
   // Normalize "Sept" to "Sep" for consistency across environments
   return formatted.replace("Sept", "Sep");
