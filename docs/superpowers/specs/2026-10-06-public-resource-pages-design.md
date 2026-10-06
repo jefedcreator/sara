@@ -21,8 +21,8 @@ owner uses for it in the dashboard, each with its own link preview card:
 | `/bookings/<publicId>/calendar.ics` | Calendar file for a confirmed booking | none |
 
 Invoices, receipts and bookings get a random, unguessable `publicId`; services stay public by
-slug. Old `/i` and `/r` links redirect. The new links reach people through chat replies,
-customer emails, the post-checkout page and the owner's dashboard rows.
+slug. The old `/i` and `/r` routes are removed outright. The new links reach people through
+chat replies, customer emails, the post-checkout page and the owner's dashboard rows.
 
 ## Decisions (settled during brainstorming)
 
@@ -34,6 +34,7 @@ customer emails, the post-checkout page and the owner's dashboard rows.
 | Booking page actions | View, "Add to calendar" (`.ics`), "View receipt" once paid, "Book again" when over or cancelled. No customer cancel or reschedule. |
 | Service page content | The service, its booking terms, and up to six other live services from the same business. No gallery. |
 | Entry points | All four: chat replies, customer booking emails, post-checkout page, owner list rows. Chat "Share a service" sends `/services/<slug>`. |
+| Old `/i/<slug>/<key>` and `/r/<slug>/<key>` links | Removed, no redirects (owner decision after the spec review). Links already sent stop working; the HMAC key signer goes with them. |
 | Route organisation | New `src/app/(public)/` route group beside `(app)`; middleware gates only the exact list paths. Next rewrites were rejected (two URL systems). |
 | Visual language | Sara v1 Impeccable (`DESIGN.md`), extended, not replaced. Light only. |
 
@@ -45,7 +46,6 @@ customer emails, the post-checkout page and the owner's dashboard rows.
 - Every one of those links unfurls in a chat as a card about that record, not the site card.
 - A booking has a page: when, where, paid or not, add it to my calendar, find my receipt.
 - No invoice, receipt or booking URL can be guessed from another.
-- Every invoice and receipt link already sent keeps working.
 
 ## Non-goals
 
@@ -56,6 +56,9 @@ customer emails, the post-checkout page and the owner's dashboard rows.
 - Owner controls on public pages (a signed-in owner sees the same page a customer sees).
 - Dark mode (DESIGN.md: white canvas, no dark sections).
 - Backfilling receipt links for bookings paid before this ships.
+- Keeping old `/i` and `/r` links alive. Invoice and receipt links sent before this ships
+  (chat messages, emails) answer 404 afterwards; the owner can resend from the dashboard,
+  where each row now carries the new link.
 
 ## Data model
 
@@ -120,8 +123,8 @@ export function serviceLink(slug: string): string;
   `api/invoices` (POST response `shareUrl`), `api/receipts` (same), the Paystack webhook,
   `messaging/dispatch`, `email/documents`. Each selects `publicId` alongside what it already
   reads. The API response field stays named `shareUrl`.
-- The HMAC signer stays, renamed in comments as legacy-only: `isShareKey` verifies old links.
-  `sharePath`/`shareUrl` are deleted once no caller remains.
+- The HMAC signer is deleted: `sign`, `isShareKey`, `sharePath`, `shareUrl`, `SharedKind`,
+  `KEY_LENGTH`, and `share.ts`'s use of `AUTH_SECRET` (which stays required for Auth.js).
 
 ## Routing
 
@@ -139,7 +142,7 @@ src/app/(public)/
 `(app)/invoices/page.tsx` (owner list at `/invoices`) and `(public)/invoices/[publicId]/page.tsx`
 resolve to different paths, so Next allows both. The plan's first task proves this with a
 build before anything else depends on it. The `(public)` group has no layout of its own; the
-root layout applies, as it does for `/book`, `/i` and `/r` today.
+root layout applies, as it does for `/book` today.
 
 All four pages are `force-dynamic` (statuses and payments change after a link is sent).
 
@@ -151,20 +154,12 @@ services) to the exact list paths `"/invoices"`, `"/bookings"`, `"/receipts"`, `
 therefore never runs for `/invoices/<id>`: no sign-in redirect and no generic bot card.
 `destinationCard()` is unchanged; it is only reached for matched paths.
 
-### Legacy links
+### Removed routes
 
-`/i/[slug]/[key]` and `/r/[slug]/[key]` keep their routes but only redirect:
-
-```ts
-// src/server/legacy-links.ts
-export async function legacyDocumentTarget(
-  kind: "invoice" | "receipt", slug: string, key: string,
-): Promise<string | null>; // "/invoices/<publicId>" or null
-```
-
-It checks `isShareKey(kind, slug, key)`, looks up `publicId` by slug, and returns the new path.
-The page calls `permanentRedirect()` (308) on a hit and `notFound()` otherwise, keeping today's
-not-found copy. Their `opengraph-image.tsx` files are deleted; unfurlers follow the redirect.
+`src/app/i/` and `src/app/r/` are deleted (both `page.tsx` and `opengraph-image.tsx`). No
+redirect and no tombstone page: a request for an old link falls through to Next's 404, the
+same as any unknown path today (the app has no root `not-found.tsx`, and adding one is out of
+scope).
 
 ## Server loaders
 
@@ -178,8 +173,8 @@ metadata and its card share one query per request:
 | `getServicePage(slug)` | `ServicePage` | unknown slug or paused service |
 | `getPublicBooking(publicId)` | `PublicBooking` | unknown id |
 
-- The invoice and receipt loaders change from `(slug, key)` to `(publicId)`; their key check
-  moves to `legacyDocumentTarget`.
+- The invoice and receipt loaders change from `(slug, key)` to `(publicId)` and drop the key
+  check; they look up by `publicId` alone.
 - `getServicePage` is a new catalog read with no availability work (unlike
   `getPublicService`, which computes slots for `/book`). `ServicePage`: the service's public
   fields (`slug, name, description, image, price, duration, currency, bookingMode,
@@ -326,7 +321,7 @@ is today's ("This link is wrong or no longer works…").
 - Each route's `loading.tsx` is a skeleton in the page's own shape (as `/book/loading.tsx`).
 - A loader that throws renders `PublicError` ("This booking didn't load." / "Something went
   wrong on our side. Refresh the page to try again.") and logs `console.error("[bookings] …")`,
-  matching `/i` and `/book`.
+  matching `/book`.
 
 ## Share cards — `src/server/og.tsx`
 
@@ -383,6 +378,9 @@ All through `pageMetadata()`; the card is the segment's `opengraph-image`.
     passes `bookingBaseUrl` today.
   - `ServiceCard` shows and copies `/services/<slug>` instead of `/book/<slug>`.
   - The document modal's post-create link is the API's `shareUrl`, so it updates on its own.
+- **Email previews**: the sample URLs in the `react-email` preview props
+  (`BookingConfirmedEmail`, `InvoiceEmail`, `ReceiptEmail`) move from `/r/...` and `/i/...` to
+  the new shapes.
 - **Docs**: `PRODUCT.md` "Booking links" line gains the service page; `DESIGN.md` Logo
   section's "Share cards" list gains the service and booking cards.
 
@@ -395,17 +393,15 @@ All through `pageMetadata()`; the card is the segment's `opengraph-image`.
 | `opengraph-image` loader throws or record missing | `pageCard("site")`. |
 | Service photo fetch fails or times out (4s) | Card falls back to the mark on leaf grey (today's behaviour). |
 | `calendar.ics` for a non-upcoming or unknown booking | 404. |
-| Legacy `/i` or `/r` with a bad key or unknown slug | Not-found page, as today. |
+| Old `/i/...` or `/r/...` link | Next's default 404 (routes removed). |
 | Receipt creation fails in the webhook | Booking still confirmed; page shows no "View receipt" (today's best-effort rule). |
 
 ## Testing
 
 Vitest, database mocked (`@/server/db`), env mocked (`@/env`), as the suite does today.
 
-- `server/share.test.ts`: `publicPath` / `publicLink` / `servicePath` shapes; legacy
-  `isShareKey` cases kept.
-- `server/legacy-links.test.ts`: valid key resolves to the new path; bad key, unknown slug and
-  wrong kind return null.
+- `server/share.test.ts`: rewritten for `publicPath` / `publicLink` / `servicePath` /
+  `serviceLink` shapes; the HMAC key cases are deleted with the signer.
 - `middleware.test.ts`: `unstable_doesMiddlewareMatch` says `/invoices` matches and
   `/invoices/abc123`, `/bookings/abc123`, `/services/x` do not; a WhatsApp user agent on
   `/invoices` still gets the bot card.
@@ -426,7 +422,7 @@ Vitest, database mocked (`@/server/db`), env mocked (`@/env`), as the suite does
    `next build --no-lint` passes. Middleware matcher narrowed with its tests.
 2. Migration and schema; `share.ts` link builders; callers switched.
 3. Loaders, `bookingView`, `bookingIcs` (pure, test-first).
-4. `PublicPage` shell; invoice and receipt routes; legacy redirects; old OG files removed.
+4. `PublicPage` shell; invoice and receipt routes; `src/app/i/` and `src/app/r/` deleted.
 5. `serviceCard` extraction; service page, loading, not-found, metadata.
 6. `bookingCard`; booking page, `calendar.ics`, loading, not-found, metadata.
 7. Entry points: webhook `bookingId`, emails, done page, chat, owner rows, service card.
