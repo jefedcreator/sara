@@ -498,6 +498,7 @@ export async function serviceCard(service: ServiceCardInput) {
       </div>
 
       {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
         <img src={image} alt="" {...PANEL} style={{ borderRadius: 32, objectFit: "cover" }} />
       ) : (
         <div

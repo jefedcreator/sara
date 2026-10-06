@@ -46,10 +46,10 @@ export function documentTitle(doc: Pick<SharedDocument, "kind" | "number">) {
 /** The lines to show. A chat invoice has none; its note, or "Amount", stands in. */
 export function documentLines(doc: SharedDocument) {
   if (doc.lines.length > 0) return doc.lines;
-  // `||`: a blank note counts as none.
-  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   return [
     {
+      // `||`: a blank note counts as none.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       description: doc.notes?.trim() || "Amount",
       quantity: 1,
       total: doc.subtotal,
