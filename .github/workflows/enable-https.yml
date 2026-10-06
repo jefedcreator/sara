@@ -1,0 +1,53 @@
+name: Enable HTTPS (Let's Encrypt SSL)
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: 'Domain to secure with SSL'
+        required: true
+        default: 'sara.84-12-92-46.sslip.io'
+      email:
+        description: 'Contact email for Let'\''s Encrypt (or "none")'
+        required: true
+        default: 'none'
+
+jobs:
+  ssl:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify deploy secrets
+        env:
+          SSH_HOST: ${{ secrets.SSH_HOST }}
+          SSH_USER: ${{ secrets.SSH_USER }}
+          SSH_KEY: ${{ secrets.SSH_KEY }}
+        run: |
+          missing=
+          [ -n "$SSH_HOST" ] || missing="$missing SSH_HOST"
+          [ -n "$SSH_USER" ] || missing="$missing SSH_USER"
+          [ -n "$SSH_KEY" ]  || missing="$missing SSH_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing SSH secrets:$missing"
+            exit 1
+          fi
+
+      - name: Install SSH key
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "${{ secrets.SSH_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Run attach-domain on server
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" \
+            "LETSENCRYPT_EMAIL='${{ inputs.email }}' bash /srv/sara/current/deploy/attach-domain.sh sara ${{ inputs.domain }}"
+
+      - name: Update NEXT_PUBLIC_APP_URL in shared .env to HTTPS
+        run: |
+          ssh -i ~/.ssh/id_deploy "${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}" "
+            if [ -f /srv/sara/shared/.env ]; then
+              sed -i 's|http://${{ inputs.domain }}|https://${{ inputs.domain }}|g' /srv/sara/shared/.env
+              pm2 restart sara --update-env || true
+            fi
+          "

@@ -62,11 +62,20 @@ bash deploy/app-setup.sh sara 3003 sara.84-12-92-46.sslip.io
 sara pins Node `24.15` (`.nvmrc`, `engines`). The bootstrap does not install
 Node, so check the host's version first: `node --version`.
 
-## Attaching a real domain
+## Attaching a domain & Enabling HTTPS (SSL)
 
-Point an A record at `84.12.92.46`, wait for it to resolve, then:
+To enable HTTPS with Let's Encrypt for the current host or a custom domain:
 
+**Option 1: Using GitHub Actions**
+Go to **Actions** → **Enable HTTPS (Let's Encrypt SSL)** → click **Run workflow** (defaults to `sara.84-12-92-46.sslip.io`).
+
+**Option 2: Directly on the server via SSH**
 ```bash
+# For the current sslip.io deployment:
+LETSENCRYPT_EMAIL=none \
+  bash deploy/attach-domain.sh sara sara.84-12-92-46.sslip.io
+
+# Or for a custom domain (point an A record at 84.12.92.46 first):
 LETSENCRYPT_EMAIL=you@example.com \
   bash deploy/attach-domain.sh sara sara.example.com www.sara.example.com
 ```
