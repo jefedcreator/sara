@@ -7,7 +7,7 @@ vi.mock("@/env", () => ({
   },
 }));
 
-import { isShareKey, sharePath, shareUrl } from "./share";
+import { isShareKey, publicLink, serviceLink, sharePath, shareUrl } from "./share";
 
 const keyOf = (path: string) => path.split("/").at(-1)!;
 
@@ -34,5 +34,17 @@ describe("share links", () => {
       false,
     );
     expect(isShareKey("invoice", "acme-inv-1012", "")).toBe(false);
+  });
+});
+
+describe("public links", () => {
+  it("makes absolute links from the app's origin", () => {
+    expect(publicLink("invoice", "Xk39fjQ2aB7mN0pR")).toBe(
+      "https://app.sara.ng/invoices/Xk39fjQ2aB7mN0pR",
+    );
+    expect(publicLink("booking", "Pq8sN1xV0kL3mA6t")).toBe(
+      "https://app.sara.ng/bookings/Pq8sN1xV0kL3mA6t",
+    );
+    expect(serviceLink("acme-braids")).toBe("https://app.sara.ng/services/acme-braids");
   });
 });

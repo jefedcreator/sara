@@ -177,6 +177,7 @@ model Service {
 model Booking {
   id         String        @id @default(cuid())
   slug       String        @unique
+  publicId   String        @unique @default(nanoid(16)) // the customer's link: /bookings/<publicId>
   businessId String
   serviceId  String
   startTime  DateTime
@@ -210,6 +211,7 @@ model Booking {
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   service  Service  @relation(fields: [serviceId], references: [id])
   invoice  Invoice?
+  payments Payment[]
 
   @@index([businessId])
   @@index([serviceId])
@@ -220,6 +222,7 @@ model Booking {
 model Invoice {
   id            String        @id @default(cuid())
   slug          String        @unique
+  publicId      String        @unique @default(nanoid(16)) // the customer's link: /invoices/<publicId>
   businessId    String
   bookingId     String?       @unique
   invoiceNumber String // e.g., INV-1001
@@ -260,6 +263,7 @@ model Invoice {
 model Receipt {
   id            String  @id @default(cuid())
   slug          String  @unique
+  publicId      String  @unique @default(nanoid(16)) // the customer's link: /receipts/<publicId>
   businessId    String
   paymentId     String? @unique
   receiptNumber String // e.g., RCP-1001
@@ -330,6 +334,7 @@ model Payment {
   id         String        @id @default(cuid())
   businessId String
   invoiceId  String?
+  bookingId  String? // set by the Paystack webhook, so a booking can find its receipt
   amount     Decimal       @db.Decimal(10, 2)
   method     PaymentMethod
   reference  String?       @unique // External transaction ID
@@ -344,10 +349,12 @@ updatedAt DateTime @updatedAt
 
   business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
   invoice  Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  booking  Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
   receipt  Receipt?
 
   @@index([businessId])
   @@index([invoiceId])
+  @@index([bookingId])
 }
 
 
