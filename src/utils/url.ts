@@ -7,13 +7,22 @@ import { env } from "@/env";
  * redirect URIs, booking links, redirects after a callback) starts here.
  */
 export function appBaseUrl(requestOrigin?: string): string {
-  const base =
+  let base =
     env.NEXT_PUBLIC_APP_URL ??
     env.AUTH_URL ??
     env.NEXTAUTH_URL ??
     requestOrigin ??
     "http://localhost:3000";
-  return base.replace(/\/$/, "");
+  base = base.replace(/\/$/, "");
+  if (
+    env.NODE_ENV === "production" &&
+    base.startsWith("http://") &&
+    !base.includes("localhost") &&
+    !base.includes("127.0.0.1")
+  ) {
+    base = base.replace(/^http:\/\//, "https://");
+  }
+  return base;
 }
 
 export function publicUrl(path: string, slug: string): string {

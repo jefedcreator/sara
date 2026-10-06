@@ -29,4 +29,16 @@ describe("url helpers", () => {
     expect(appBaseUrl("https://req.test")).toBe("https://req.test");
     expect(appBaseUrl()).toBe("http://localhost:3000");
   });
+
+  it("upgrades non-localhost http to https in production", () => {
+    env.NODE_ENV = "production";
+    env.NEXT_PUBLIC_APP_URL = "http://sara.84-12-92-46.sslip.io";
+    expect(appBaseUrl()).toBe("https://sara.84-12-92-46.sslip.io");
+  });
+
+  it("preserves http for localhost in production", () => {
+    env.NODE_ENV = "production";
+    env.NEXT_PUBLIC_APP_URL = "http://localhost:3000";
+    expect(appBaseUrl()).toBe("http://localhost:3000");
+  });
 });
