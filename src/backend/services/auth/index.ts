@@ -42,20 +42,20 @@ export class AuthService {
     switch (provider) {
       case "google":
         return {
-          clientId: env.AUTH_GOOGLE_ID ?? env.CLIENT_ID,
-          clientSecret: env.AUTH_GOOGLE_SECRET ?? env.CLIENT_SECRET,
+          clientId: env.CLIENT_ID ?? env.AUTH_GOOGLE_ID,
+          clientSecret: env.CLIENT_SECRET ?? env.AUTH_GOOGLE_SECRET,
         };
       case "facebook":
         return {
-          clientId: env.AUTH_FACEBOOK_ID ?? env.FACEBOOK_CLIENT_ID,
-          clientSecret: env.AUTH_FACEBOOK_SECRET ?? env.FACEBOOK_CLIENT_SECRET,
+          clientId: env.FACEBOOK_CLIENT_ID ?? env.AUTH_FACEBOOK_ID,
+          clientSecret: env.FACEBOOK_CLIENT_SECRET ?? env.AUTH_FACEBOOK_SECRET,
           configurationId: env.CONFIGURATION_ID,
         };
       case "instagram":
         return {
-          clientId: env.AUTH_INSTAGRAM_ID ?? env.INSTAGRAM_CLIENT_ID,
+          clientId: env.INSTAGRAM_CLIENT_ID ?? env.AUTH_INSTAGRAM_ID,
           clientSecret:
-            env.AUTH_INSTAGRAM_SECRET ?? env.INSTAGRAM_CLIENT_SECRET,
+            env.INSTAGRAM_CLIENT_SECRET ?? env.AUTH_INSTAGRAM_SECRET,
         };
     }
   }
