@@ -26,7 +26,7 @@ const authed = auth((request) => {
   if (request.auth?.user?.sessionId) return NextResponse.next();
 
   const { pathname, search } = request.nextUrl;
-  const signIn = new URL("/signin", request.url);
+  const signIn = new URL("/signin", request.nextUrl);
   signIn.searchParams.set("next", `${pathname}${search}`);
   return NextResponse.redirect(signIn);
 });
