@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 
-import { publicUrl } from "@/utils/url";
+import { appBaseUrl } from "@/utils/url";
 import { AppError } from "@/components/app-error";
 import { ServicesPageClient } from "@/components/services/services-page-client";
 import { getServices, requireBusiness, toBusinessProfile } from "@/server";
@@ -27,7 +27,7 @@ export default async function ServicesPage() {
     <ServicesPageClient
       initialServices={services}
       currency={profile.currency}
-      bookingBaseUrl={publicUrl("book", "").replace(/\/$/, "")}
+      publicBaseUrl={appBaseUrl()}
       isPaymentReady={profile.isPaymentReady}
     />
   );

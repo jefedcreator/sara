@@ -13,6 +13,7 @@ import {
 import { useServicesQuery } from "@/hooks/queries/use-services";
 import { Button, ConfirmModal, Notice } from "@/primitives";
 import { errorMessage } from "@/utils/axios";
+import { servicePath } from "@/utils/public-links";
 
 import { ServiceCard } from "./service-card";
 import { ServiceModal } from "./service-modal";
@@ -20,8 +21,7 @@ import { ServiceModal } from "./service-modal";
 interface ServicesPageClientProps {
   initialServices: ServiceDto[];
   currency: string;
-  /** `https://app.sara.ng/book` — a service's link is this plus its slug. */
-  bookingBaseUrl: string;
+  publicBaseUrl: string;
   isPaymentReady: boolean;
 }
 
@@ -30,7 +30,7 @@ type Editing = { key: number; service?: ServiceDto };
 export function ServicesPageClient({
   initialServices,
   currency,
-  bookingBaseUrl,
+  publicBaseUrl,
   isPaymentReady,
 }: ServicesPageClientProps) {
   const { data: services = initialServices } = useServicesQuery(initialServices);
@@ -152,7 +152,7 @@ export function ServicesPageClient({
             <p className="rounded-bubble border-line bg-canvas shadow-bubble w-fit max-w-full rounded-bl-[6px] border px-3.5 py-2.5 text-[14.5px] leading-normal">
               Here&apos;s your booking link for Knotless braids — NGN 25,000 (4 hr).
               <span className="rounded-chip bg-accent-soft text-accent-ink mt-2 block px-2.5 py-[7px] text-[13px] font-semibold">
-                app.sara.ng/book/knotless-braids
+                app.sara.ng/services/knotless-braids
               </span>
             </p>
           </div>
@@ -164,7 +164,7 @@ export function ServicesPageClient({
               <ServiceCard
                 service={service}
                 currency={currency}
-                bookingUrl={`${bookingBaseUrl}/${service.slug}`}
+                link={`${publicBaseUrl}${servicePath(service.slug)}`}
                 isToggling={toggling === service.id}
                 onEdit={() => openEditor(service)}
                 onRemove={() => {
