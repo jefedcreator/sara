@@ -19,7 +19,9 @@ vi.mock("@/env", () => ({
   env: { NEXT_PUBLIC_APP_URL: "https://app.sara.ng" },
 }));
 
-import { middleware } from "./middleware";
+import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
+
+import { config, middleware } from "./middleware";
 
 const WHATSAPP = "WhatsApp/2.23.20.0 A";
 const CHROME =
@@ -61,5 +63,29 @@ describe("middleware", () => {
     session.current = { user: { sessionId: "s_1" } };
     const response = await visit("/dashboard", CHROME);
     expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+});
+
+describe("middleware matcher", () => {
+  it.each([
+    "/invoices",
+    "/bookings",
+    "/receipts",
+    "/services",
+    "/dashboard",
+    "/settings",
+    "/onboarding",
+  ])("gates the owner page %s", (url) => {
+    expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true);
+  });
+
+  it.each([
+    "/invoices/Xk39fjQ2aB7mN0pR",
+    "/receipts/b7T0qLm2Vn9cZ4wE",
+    "/bookings/Pq8sN1xV0kL3mA6t",
+    "/bookings/Pq8sN1xV0kL3mA6t/calendar.ics",
+    "/services/acme-braids",
+  ])("leaves the customer page %s alone", (url) => {
+    expect(unstable_doesMiddlewareMatch({ config, url })).toBe(false);
   });
 });
