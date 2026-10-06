@@ -15,7 +15,7 @@ import { invoiceListInclude } from "@/backend/selects";
 import { UNPAID_STATUSES } from "@/backend/services/dashboard";
 import { emailInvoice } from "@/backend/services/email/documents";
 import { db } from "@/server/db";
-import { shareUrl } from "@/server/share";
+import { publicLink } from "@/server/share";
 import {
   ForbiddenException,
   InternalServerErrorException,
@@ -75,7 +75,7 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
       const response: ApiResponse<Invoice & { shareUrl: string }> = {
         status: 201,
         message: "Invoice created successfully",
-        data: { ...invoicedata, shareUrl: shareUrl("invoice", invoicedata.slug) },
+        data: { ...invoicedata, shareUrl: publicLink("invoice", invoicedata.publicId) },
       };
 
       return NextResponse.json(response, { status: 201 });

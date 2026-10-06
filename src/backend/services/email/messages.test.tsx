@@ -132,12 +132,12 @@ describe("customer emails", () => {
       amountPaid: "20000",
       currency: "NGN",
       dueAt: new Date("2026-10-12T00:00:00.000Z"),
-      url: "https://app.sara.ng/i/acme-inv-1012/key",
+      url: "https://app.sara.ng/invoices/Xk39fjQ2aB7mN0pR",
     });
     expect(message.subject).toBe("Invoice INV-1012 from Acme Salon");
     const { html, text } = await rendered(message);
     expect(text).toContain("NGN 42,000 is left to pay, due 12 Oct 2026");
-    expect(html).toContain('href="https://app.sara.ng/i/acme-inv-1012/key"');
+    expect(html).toContain('href="https://app.sara.ng/invoices/Xk39fjQ2aB7mN0pR"');
   });
 
   it("confirms what was paid on a receipt", async () => {
@@ -151,7 +151,7 @@ describe("customer emails", () => {
       currency: "NGN",
       issuedAt: new Date("2026-09-29T10:00:00.000Z"),
       method: "Bank transfer",
-      url: "https://app.sara.ng/r/acme-rcp-1007/key",
+      url: "https://app.sara.ng/receipts/b7T0qLm2Vn9cZ4wE",
     });
     const { text } = await rendered(message);
     expect(text).toContain("Hi,");

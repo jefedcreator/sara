@@ -14,7 +14,7 @@ import {
 } from "@/backend/validators/receipt.validator";
 import { receiptListInclude } from "@/backend/selects";
 import { db } from "@/server/db";
-import { shareUrl } from "@/server/share";
+import { publicLink } from "@/server/share";
 import {
   ForbiddenException,
   InternalServerErrorException,
@@ -73,7 +73,7 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
         message: "Receipt created successfully",
         data: {
           ...receiptResult,
-          shareUrl: shareUrl("receipt", receiptResult.slug),
+          shareUrl: publicLink("receipt", receiptResult.publicId),
         },
       };
 

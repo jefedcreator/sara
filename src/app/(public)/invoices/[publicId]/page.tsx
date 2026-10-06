@@ -4,32 +4,29 @@ import { notFound } from "next/navigation";
 import { SharedDocumentPage } from "@/components/documents/shared-document-page";
 import { PublicError } from "@/components/public-error";
 import { getSharedInvoice } from "@/server";
-import { sharePath } from "@/server/share";
+import { publicPath } from "@/utils/public-links";
 import { documentMetadata } from "@/utils/shared-document";
 
-type Params = { params: Promise<{ slug: string; key: string }> };
+type Params = { params: Promise<{ publicId: string }> };
 
 // Payments land on the invoice after it's sent; always show it as it is now.
 export const dynamic = "force-dynamic";
 
 /** The invoice link Sara sends the customer (server/share.ts). Card: ./opengraph-image.tsx. */
 export async function generateMetadata({ params }: Params): Promise<Metadata> {
-  const { slug, key } = await params;
-  const doc = await getSharedInvoice(slug, key).catch(() => null);
-  return documentMetadata(
-    doc,
-    doc ? sharePath("invoice", slug) : `/i/${encodeURIComponent(slug)}`,
-  );
+  const { publicId } = await params;
+  const doc = await getSharedInvoice(publicId).catch(() => null);
+  return documentMetadata(doc, publicPath("invoice", publicId));
 }
 
 export default async function SharedInvoicePage({ params }: Params) {
-  const { slug, key } = await params;
+  const { publicId } = await params;
 
   let doc;
   try {
-    doc = await getSharedInvoice(slug, key);
+    doc = await getSharedInvoice(publicId);
   } catch (error) {
-    console.error("[i] failed to load invoice:", error);
+    console.error("[invoices] failed to load invoice:", error);
     return (
       <PublicError
         title="This invoice didn't load."

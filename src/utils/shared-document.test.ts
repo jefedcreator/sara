@@ -32,7 +32,7 @@ const INVOICE: SharedDocument = {
   pdfUrl: "https://cdn.test/INV-1012.pdf",
 };
 
-const PATH = "/i/acme-inv-1012/key";
+const PATH = "/invoices/Xk39fjQ2aB7mN0pR";
 
 describe("documentMetadata", () => {
   it("previews an unpaid invoice by what's owed and when", () => {
@@ -43,7 +43,7 @@ describe("documentMetadata", () => {
     );
     expect(metadata.openGraph).toMatchObject({
       title: "Invoice INV-1012 from Acme Hair",
-      url: "https://app.sara.ng/i/acme-inv-1012/key",
+      url: "https://app.sara.ng/invoices/Xk39fjQ2aB7mN0pR",
     });
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });
@@ -74,7 +74,7 @@ describe("documentMetadata", () => {
       balance: 0,
       dueAt: null,
     };
-    const metadata = documentMetadata(receipt, "/r/acme-rcp-1007/key");
+    const metadata = documentMetadata(receipt, "/receipts/b7T0qLm2Vn9cZ4wE");
     expect(metadata.title).toBe("Receipt RCP-1007 from Acme Hair");
     expect(metadata.description).toMatch(
       /^NGN 15,000 paid to Acme Hair on 29 Sept? 2026\./,
@@ -82,7 +82,7 @@ describe("documentMetadata", () => {
   });
 
   it("gives a missing document a not-found preview that isn't indexed", () => {
-    const metadata = documentMetadata(null, "/i/nope");
+    const metadata = documentMetadata(null, "/invoices/nope");
     expect(metadata.title).toBe("Link not found · Sara");
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });

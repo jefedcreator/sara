@@ -1,7 +1,6 @@
 import { cache } from "react";
 
 import { db } from "@/server/db";
-import { isShareKey } from "@/server/share";
 import { INVOICE_STATUS, PAYMENT_METHOD } from "@/utils/labels";
 import type { SharedDocument } from "@/utils/shared-document";
 
@@ -29,15 +28,11 @@ function toLines(
   }));
 }
 
-/**
- * The invoice behind a customer's link, or null for an unknown slug or a key
- * that doesn't sign it; the two look the same from outside.
- */
+/** The invoice behind a customer's link, or null for an unknown id. */
 export const getSharedInvoice = cache(
-  async (slug: string, key: string): Promise<SharedDocument | null> => {
-    if (!isShareKey("invoice", slug, key)) return null;
+  async (publicId: string): Promise<SharedDocument | null> => {
     const invoice = await db.invoice.findUnique({
-      where: { slug },
+      where: { publicId },
       select: {
         invoiceNumber: true,
         status: true,
@@ -93,12 +88,11 @@ export const getSharedInvoice = cache(
   },
 );
 
-/** The receipt behind a customer's link; null as for invoices. */
+/** The receipt behind a customer's link, or null for an unknown id. */
 export const getSharedReceipt = cache(
-  async (slug: string, key: string): Promise<SharedDocument | null> => {
-    if (!isShareKey("receipt", slug, key)) return null;
+  async (publicId: string): Promise<SharedDocument | null> => {
     const receipt = await db.receipt.findUnique({
-      where: { slug },
+      where: { publicId },
       select: {
         receiptNumber: true,
         name: true,

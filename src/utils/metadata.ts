@@ -73,3 +73,15 @@ export function cardMetadata(
     image: { url: `/api/og/${card}`, alt: headline },
   });
 }
+
+/** The preview of a customer link that leads nowhere: mistyped, removed or out of date. */
+export function linkNotFoundMetadata(path: string): Metadata {
+  return pageMetadata({
+    title: "Link not found · Sara",
+    description:
+      "This link is wrong or no longer works. Ask the business to send it again.",
+    path,
+    index: false,
+  });
+}
+

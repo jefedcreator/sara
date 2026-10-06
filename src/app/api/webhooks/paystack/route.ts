@@ -12,7 +12,7 @@ import {
 } from "@/backend/services/paystack";
 import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
-import { shareUrl } from "@/server/share";
+import { publicLink } from "@/server/share";
 import { bookingWhen } from "@/utils/format";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
@@ -314,7 +314,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
         },
       ],
     });
-    receiptUrl = shareUrl("receipt", receipt.slug);
+    receiptUrl = publicLink("receipt", receipt.publicId);
   } catch (err) {
     console.warn("[Paystack Webhook] Receipt creation failed:", err);
   }

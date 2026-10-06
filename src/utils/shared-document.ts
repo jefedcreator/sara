@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import { formatMoney } from "@/utils/format";
 import { formatDate } from "@/utils/labels";
-import { pageMetadata } from "@/utils/metadata";
+import { linkNotFoundMetadata, pageMetadata } from "@/utils/metadata";
 
 /*
  * A customer's invoice or receipt as their share link shows it (read by
@@ -65,15 +65,7 @@ export function documentMetadata(
   doc: SharedDocument | null,
   path: string,
 ): Metadata {
-  if (!doc) {
-    return pageMetadata({
-      title: "Link not found · Sara",
-      description:
-        "This link is wrong or no longer works. Ask the business to send it again.",
-      path,
-      index: false,
-    });
-  }
+  if (!doc) return linkNotFoundMetadata(path);
   const money = (amount: number) => formatMoney(amount, doc.currency);
   let description: string;
   if (doc.kind === "receipt") {
