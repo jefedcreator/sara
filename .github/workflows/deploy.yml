@@ -72,9 +72,9 @@ jobs:
           SSH_HOST: ${{ secrets.SSH_HOST }}
           SSH_USER: ${{ secrets.SSH_USER }}
           SSH_KEY: ${{ secrets.SSH_KEY }}
-          GOOGLE_ID: ${{ secrets.AUTH_GOOGLE_ID || secrets.CLIENT_ID }}
-          FACEBOOK_ID: ${{ secrets.AUTH_FACEBOOK_ID || secrets.FACEBOOK_CLIENT_ID }}
-          INSTAGRAM_ID: ${{ secrets.AUTH_INSTAGRAM_ID || secrets.INSTAGRAM_CLIENT_ID }}
+          CLIENT_ID: ${{ secrets.CLIENT_ID || secrets.AUTH_GOOGLE_ID }}
+          FACEBOOK_CLIENT_ID: ${{ secrets.FACEBOOK_CLIENT_ID || secrets.AUTH_FACEBOOK_ID }}
+          INSTAGRAM_CLIENT_ID: ${{ secrets.INSTAGRAM_CLIENT_ID || secrets.AUTH_INSTAGRAM_ID }}
         run: |
           missing=
           [ -n "$SSH_HOST" ] || missing="$missing SSH_HOST"
@@ -86,9 +86,9 @@ jobs:
             exit 1
           fi
           echo "SSH secrets present."
-          [ -n "$GOOGLE_ID" ] || echo "::warning::Google OAuth secrets missing (AUTH_GOOGLE_ID or CLIENT_ID). Google sign-in buttons will be disabled."
-          [ -n "$FACEBOOK_ID" ] || echo "::warning::Facebook OAuth secrets missing (AUTH_FACEBOOK_ID or FACEBOOK_CLIENT_ID). Facebook sign-in buttons will be disabled."
-          [ -n "$INSTAGRAM_ID" ] || echo "::warning::Instagram OAuth secrets missing (AUTH_INSTAGRAM_ID or INSTAGRAM_CLIENT_ID). Instagram sign-in buttons will be disabled."
+          [ -n "$CLIENT_ID" ] || echo "::warning::CLIENT_ID secret missing. Google sign-in buttons will be disabled."
+          [ -n "$FACEBOOK_CLIENT_ID" ] || echo "::warning::FACEBOOK_CLIENT_ID secret missing. Facebook sign-in buttons will be disabled."
+          [ -n "$INSTAGRAM_CLIENT_ID" ] || echo "::warning::INSTAGRAM_CLIENT_ID secret missing. Instagram sign-in buttons will be disabled."
 
       - uses: actions/setup-node@v4
         with:
@@ -98,43 +98,44 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
-      # Mirrors the schema in src/env.js, which is the single source of truth.
-      # Adding a variable there means adding it here and to .env.example.
+      # Matches the local .env file.
       # Written before the build: NEXT_PUBLIC_* values are inlined at build time.
       - name: Create .env
         run: |
           cat > .env <<'EOL'
+          AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
           DATABASE_URL="${{ secrets.DATABASE_URL }}"
           # schema.prisma reads directUrl from DIRECT_URL, and Prisma rejects an
           # empty one. Unset, migrations use DATABASE_URL, which is right for a
           # non-pooled connection.
           DIRECT_URL="${{ secrets.DIRECT_URL || secrets.DATABASE_URL }}"
-          AUTH_SECRET="${{ secrets.AUTH_SECRET }}"
-          AUTH_GOOGLE_ID="${{ secrets.AUTH_GOOGLE_ID || secrets.CLIENT_ID }}"
-          AUTH_GOOGLE_SECRET="${{ secrets.AUTH_GOOGLE_SECRET || secrets.CLIENT_SECRET }}"
-          AUTH_FACEBOOK_ID="${{ secrets.AUTH_FACEBOOK_ID || secrets.FACEBOOK_CLIENT_ID }}"
-          AUTH_FACEBOOK_SECRET="${{ secrets.AUTH_FACEBOOK_SECRET || secrets.FACEBOOK_CLIENT_SECRET }}"
-          CONFIGURATION_ID="${{ secrets.CONFIGURATION_ID }}"
-          AUTH_INSTAGRAM_ID="${{ secrets.AUTH_INSTAGRAM_ID || secrets.INSTAGRAM_CLIENT_ID }}"
-          AUTH_INSTAGRAM_SECRET="${{ secrets.AUTH_INSTAGRAM_SECRET || secrets.INSTAGRAM_CLIENT_SECRET }}"
           CLIENT_ID="${{ secrets.CLIENT_ID || secrets.AUTH_GOOGLE_ID }}"
           CLIENT_SECRET="${{ secrets.CLIENT_SECRET || secrets.AUTH_GOOGLE_SECRET }}"
           FACEBOOK_CLIENT_ID="${{ secrets.FACEBOOK_CLIENT_ID || secrets.AUTH_FACEBOOK_ID }}"
           FACEBOOK_CLIENT_SECRET="${{ secrets.FACEBOOK_CLIENT_SECRET || secrets.AUTH_FACEBOOK_SECRET }}"
           INSTAGRAM_CLIENT_ID="${{ secrets.INSTAGRAM_CLIENT_ID || secrets.AUTH_INSTAGRAM_ID }}"
           INSTAGRAM_CLIENT_SECRET="${{ secrets.INSTAGRAM_CLIENT_SECRET || secrets.AUTH_INSTAGRAM_SECRET }}"
+          CONFIGURATION_ID="${{ secrets.CONFIGURATION_ID }}"
           NEXT_PUBLIC_APP_URL="${{ secrets.NEXT_PUBLIC_APP_URL }}"
           CLOUDINARY_CLOUD_NAME="${{ secrets.CLOUDINARY_CLOUD_NAME }}"
           CLOUDINARY_API_KEY="${{ secrets.CLOUDINARY_API_KEY }}"
           CLOUDINARY_API_SECRET="${{ secrets.CLOUDINARY_API_SECRET }}"
-          RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
-          EMAIL_FROM="${{ secrets.EMAIL_FROM }}"
-          CRON_SECRET="${{ secrets.CRON_SECRET }}"
           PAYSTACK_SECRET_KEY="${{ secrets.PAYSTACK_SECRET_KEY }}"
+          PAYSTACK_PUBLIC_KEY="${{ secrets.PAYSTACK_PUBLIC_KEY }}"
           PAYSTACK_WEBHOOK_SECRET="${{ secrets.PAYSTACK_WEBHOOK_SECRET }}"
           MONO_CLIENT_ID="${{ secrets.MONO_CLIENT_ID }}"
           MONO_SECRET_KEY="${{ secrets.MONO_SECRET_KEY }}"
           NEXT_PUBLIC_MONO_PUBLIC_KEY="${{ secrets.NEXT_PUBLIC_MONO_PUBLIC_KEY }}"
+          # Aliases for backwards compatibility with any references expecting AUTH_* names
+          AUTH_GOOGLE_ID="${{ secrets.CLIENT_ID || secrets.AUTH_GOOGLE_ID }}"
+          AUTH_GOOGLE_SECRET="${{ secrets.CLIENT_SECRET || secrets.AUTH_GOOGLE_SECRET }}"
+          AUTH_FACEBOOK_ID="${{ secrets.FACEBOOK_CLIENT_ID || secrets.AUTH_FACEBOOK_ID }}"
+          AUTH_FACEBOOK_SECRET="${{ secrets.FACEBOOK_CLIENT_SECRET || secrets.AUTH_FACEBOOK_SECRET }}"
+          AUTH_INSTAGRAM_ID="${{ secrets.INSTAGRAM_CLIENT_ID || secrets.AUTH_INSTAGRAM_ID }}"
+          AUTH_INSTAGRAM_SECRET="${{ secrets.INSTAGRAM_CLIENT_SECRET || secrets.AUTH_INSTAGRAM_SECRET }}"
+          RESEND_API_KEY="${{ secrets.RESEND_API_KEY }}"
+          EMAIL_FROM="${{ secrets.EMAIL_FROM }}"
+          CRON_SECRET="${{ secrets.CRON_SECRET }}"
           WHATSAPP_VERIFY_TOKEN="${{ secrets.WHATSAPP_VERIFY_TOKEN }}"
           WHATSAPP_PHONE_NUMBER_ID="${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}"
           WHATSAPP_TOKEN="${{ secrets.WHATSAPP_TOKEN }}"
