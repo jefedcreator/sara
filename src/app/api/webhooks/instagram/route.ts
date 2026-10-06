@@ -18,10 +18,12 @@ export async function POST(request: Request) {
   try {
     const payload = JSON.parse(rawBody) as unknown;
     const messages = instagramAdapter.normalizeInbound(payload);
-    for (const message of messages) {
-      const reply = await conversationEngine.handle(message);
-      if (reply) await instagramAdapter.send(message.externalId, reply);
-    }
+    await Promise.all(
+      messages.map(async (message) => {
+        const reply = await conversationEngine.handle(message);
+        if (reply) await instagramAdapter.send(message.externalId, reply);
+      }),
+    );
   } catch (error: any) {
     console.error("[Instagram Webhook] Error:", error?.message ?? error);
   }
