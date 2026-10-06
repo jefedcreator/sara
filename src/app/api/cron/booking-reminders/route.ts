@@ -50,34 +50,35 @@ export const GET = withMiddleware<unknown>(
         },
       });
 
-      let sent = 0;
-      let failed = 0;
-
-      for (const booking of dueBookings) {
-        if (booking.clientEmail) {
-          const result = await emailService.sendBookingReminderEmail({
-            to: booking.clientEmail,
-            business: booking.business,
-            serviceName: booking.service.name,
-            startTime: booking.startTime,
-            span: {
-              bookingMode: booking.service.bookingMode,
-              endTime: booking.endTime,
-              units: booking.units,
-            },
-          });
-          if (result.success) {
-            sent++;
-          } else {
-            failed++;
+      const results = await Promise.all(
+        dueBookings.map(async (booking) => {
+          let emailStatus: "sent" | "failed" | "skipped" = "skipped";
+          if (booking.clientEmail) {
+            const result = await emailService.sendBookingReminderEmail({
+              to: booking.clientEmail,
+              business: booking.business,
+              serviceName: booking.service.name,
+              startTime: booking.startTime,
+              span: {
+                bookingMode: booking.service.bookingMode,
+                endTime: booking.endTime,
+                units: booking.units,
+              },
+            });
+            emailStatus = result.success ? "sent" : "failed";
           }
-        }
 
-        await db.booking.update({
-          where: { id: booking.id },
-          data: { reminderSentAt: now },
-        });
-      }
+          await db.booking.update({
+            where: { id: booking.id },
+            data: { reminderSentAt: now },
+          });
+
+          return emailStatus;
+        }),
+      );
+
+      const sent = results.filter((r) => r === "sent").length;
+      const failed = results.filter((r) => r === "failed").length;
 
       const response: ApiResponse<{
         checked: number;
