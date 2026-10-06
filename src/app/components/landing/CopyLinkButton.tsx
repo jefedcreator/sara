@@ -12,25 +12,7 @@ const LABEL: Record<State, string> = {
   failed: "Press and hold to copy",
 };
 
-// Every state draws a 1px border (transparent unless quiet), so "Copied" doesn't shift the row.
-const IDLE = {
-  dark: "bg-ink text-canvas hover:bg-accent-ink",
-  quiet: "border-line bg-canvas text-ink hover:border-ink",
-} as const;
-
-export function CopyLinkButton({
-  url,
-  label = "Copy",
-  tone = "dark",
-  className,
-}: {
-  url: string;
-  /** The resting label; "Copied" and the fallback hint replace it briefly. */
-  label?: string;
-  /** "quiet" for rows where it sits beside other actions. */
-  tone?: keyof typeof IDLE;
-  className?: string;
-}) {
+export function CopyLinkButton({ url }: { url: string }) {
   const [state, setState] = useState<State>("idle");
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -69,15 +51,16 @@ export function CopyLinkButton({
     <button
       ref={buttonRef}
       className={cn(
-        "ease-out-expo h-[38px] flex-none cursor-pointer rounded-full border border-transparent px-[18px] text-sm font-semibold transition-[background-color,border-color,scale] duration-200 active:scale-97",
-        state === "idle" ? IDLE[tone] : "bg-accent text-on-accent",
-        className,
+        "ease-out-expo h-[38px] flex-none cursor-pointer rounded-full px-[18px] text-sm font-semibold transition-[background-color,scale] duration-200 active:scale-97",
+        state === "idle"
+          ? "bg-ink text-canvas hover:bg-accent-ink"
+          : "bg-accent text-on-accent",
       )}
       type="button"
       aria-live="polite"
       onClick={() => void copy()}
     >
-      {state === "idle" ? label : LABEL[state]}
+      {LABEL[state]}
     </button>
   );
 }

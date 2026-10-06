@@ -5,6 +5,7 @@ vi.mock("@/env", () => ({
 }));
 
 import {
+  documentLead,
   documentLines,
   documentMetadata,
   type SharedDocument,
@@ -91,12 +92,38 @@ describe("documentMetadata", () => {
 describe("documentLines", () => {
   it("stands the note in for the lines of a chat invoice", () => {
     expect(documentLines(INVOICE)).toEqual([
-      { description: "gele", quantity: 1, total: 15000 },
+      { description: "gele", quantity: 1, unitPrice: 15000, total: 15000 },
     ]);
   });
 
   it("keeps real lines as they are", () => {
-    const lines = [{ description: "Braids", quantity: 2, total: 30000 }];
+    const lines = [{ description: "Braids", quantity: 2, unitPrice: 15000, total: 30000 }];
     expect(documentLines({ ...INVOICE, lines })).toBe(lines);
+  });
+});
+
+describe("documentLead", () => {
+  it("leads an invoice with what's still owed", () => {
+    expect(documentLead({ ...INVOICE, total: 32000, amountPaid: 10000, balance: 22000 })).toEqual({
+      label: "Balance due",
+      amount: 22000,
+    });
+  });
+
+  it("leads a settled or voided invoice with its total", () => {
+    expect(documentLead({ ...INVOICE, amountPaid: 15000, balance: 0 })).toEqual({
+      label: "Total",
+      amount: 15000,
+    });
+    expect(documentLead({ ...INVOICE, voided: true, balance: 0 })).toEqual({
+      label: "Total",
+      amount: 15000,
+    });
+  });
+
+  it("leads a receipt with what was paid", () => {
+    expect(
+      documentLead({ ...INVOICE, kind: "receipt", amountPaid: 15000, balance: 0 }),
+    ).toEqual({ label: "Amount paid", amount: 15000 });
   });
 });

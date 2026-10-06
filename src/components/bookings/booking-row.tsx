@@ -1,6 +1,6 @@
 import type { BookingDto } from "types";
 
-import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
+import { CopyLinkIconButton } from "@/components/copy-link-icon-button";
 import { Button, StatusPill } from "@/primitives";
 import { formatMoney, formatSlotTime, bookingSpan } from "@/utils/format";
 import { BOOKING_STATUS } from "@/utils/labels";
@@ -54,7 +54,12 @@ export function BookingRow({
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-[15px] font-semibold">{booking.clientName}</h3>
-          {status ? <StatusPill tone={status.tone}>{status.label}</StatusPill> : null}
+          {status ? (
+            // Muted pills are leaf grey, the row's own ground: white keeps them visible.
+            <StatusPill tone={status.tone} className={status.tone === "muted" ? "bg-canvas" : undefined}>
+              {status.label}
+            </StatusPill>
+          ) : null}
         </div>
         <p className="text-muted mt-0.5 text-sm">
           {booking.service.name} · {formatMoney(booking.service.price, currency)}
@@ -94,7 +99,7 @@ export function BookingRow({
             </Button>
           </>
         ) : null}
-        <CopyLinkButton url={link} label="Copy link" tone="quiet" className="h-10" />
+        <CopyLinkIconButton url={link} label={`Copy link to ${booking.clientName}'s booking`} />
         {isOpen ? (
           <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
             Cancel
