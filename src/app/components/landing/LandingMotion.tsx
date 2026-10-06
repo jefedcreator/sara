@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useCallback, useRef, type ReactNode } from "react";
 
 /**
  * Page root for the landing page. Content stays visible without JS; once this
@@ -11,10 +11,11 @@ import { useEffect, useRef, type ReactNode } from "react";
  * Sara's reply after.
  */
 export function LandingMotion({ children }: { children: ReactNode }) {
-  const root = useRef<HTMLDivElement>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  useEffect(() => {
-    const el = root.current;
+  const rootRef = useCallback((el: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    observerRef.current = null;
     if (!el) return;
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
@@ -37,12 +38,11 @@ export function LandingMotion({ children }: { children: ReactNode }) {
     );
     groups.forEach((g) => io.observe(g));
     el.setAttribute("data-motion", "");
-
-    return () => io.disconnect();
+    observerRef.current = io;
   }, []);
 
   return (
-    <div ref={root} className="bg-canvas text-ink relative">
+    <div ref={rootRef} className="bg-canvas text-ink relative">
       {children}
     </div>
   );

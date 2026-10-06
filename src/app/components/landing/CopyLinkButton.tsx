@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import { cn } from "@/utils/cn";
 
@@ -14,12 +14,28 @@ const LABEL: Record<State, string> = {
 
 export function CopyLinkButton({ url }: { url: string }) {
   const [state, setState] = useState<State>("idle");
+  const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (state === "idle") return;
-    const t = setTimeout(() => setState("idle"), 2200);
-    return () => clearTimeout(t);
-  }, [state]);
+  const clearResetTimer = useCallback(() => {
+    if (!resetTimerRef.current) return;
+    clearTimeout(resetTimerRef.current);
+    resetTimerRef.current = null;
+  }, []);
+
+  const queueReset = useCallback(() => {
+    clearResetTimer();
+    resetTimerRef.current = setTimeout(() => {
+      resetTimerRef.current = null;
+      setState("idle");
+    }, 2200);
+  }, [clearResetTimer]);
+
+  const buttonRef = useCallback(
+    (node: HTMLButtonElement | null) => {
+      if (!node) clearResetTimer();
+    },
+    [clearResetTimer],
+  );
 
   const copy = async () => {
     try {
@@ -28,10 +44,12 @@ export function CopyLinkButton({ url }: { url: string }) {
     } catch {
       setState("failed");
     }
+    queueReset();
   };
 
   return (
     <button
+      ref={buttonRef}
       className={cn(
         "ease-out-expo h-[38px] flex-none cursor-pointer rounded-full px-[18px] text-sm font-semibold transition-[background-color,scale] duration-200 active:scale-97",
         state === "idle"
