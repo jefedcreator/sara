@@ -12,6 +12,7 @@ import { useBookingsQuery } from "@/hooks/queries/use-bookings";
 import { ConfirmModal, Notice, Pager, Segmented, Skeleton } from "@/primitives";
 import type { BookingListParams, BookingStatus } from "@/utils/api";
 import { errorMessage } from "@/utils/axios";
+import { publicPath } from "@/utils/public-links";
 import { bookingListParams, bookingsParams, type BookingView } from "@/utils/url-state";
 
 import { BookingRow } from "./booking-row";
@@ -35,10 +36,11 @@ const EMPTY: Record<BookingView, string> = {
 
 interface BookingsPageClientProps {
   currency: string;
+  publicBaseUrl: string;
   initial: { params: BookingListParams; data: Page<BookingDto> };
 }
 
-export function BookingsPageClient({ currency, initial }: BookingsPageClientProps) {
+export function BookingsPageClient({ currency, publicBaseUrl, initial }: BookingsPageClientProps) {
   const [{ view, page }, setUrl] = useQueryStates(bookingsParams, { history: "push" });
   const params = bookingListParams(view, page);
   const query = useBookingsQuery(params, initial);
@@ -106,6 +108,7 @@ export function BookingsPageClient({ currency, initial }: BookingsPageClientProp
               <BookingRow
                 booking={booking}
                 currency={currency}
+                link={`${publicBaseUrl}${publicPath("booking", booking.publicId)}`}
                 busy={busySlug === booking.slug}
                 onConfirm={() => changeStatus(booking, "CONFIRMED")}
                 onComplete={() => changeStatus(booking, "COMPLETED")}

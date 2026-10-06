@@ -1,5 +1,6 @@
 import type { InvoiceDto } from "types";
 
+import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
 import { Button, StatusPill } from "@/primitives";
 import { formatMoney } from "@/utils/format";
 import { formatDate, INVOICE_STATUS } from "@/utils/labels";
@@ -8,6 +9,8 @@ import { outstandingOf } from "./payment-modal";
 
 interface InvoiceRowProps {
   invoice: InvoiceDto;
+  /** The customer's invoice page. */
+  link: string;
   busy: boolean;
   onRecordPayment: () => void;
   onSend: () => void;
@@ -16,7 +19,15 @@ interface InvoiceRowProps {
 }
 
 /** One invoice and what can happen to it next, by status. */
-export function InvoiceRow({ invoice, busy, onRecordPayment, onSend, onVoid, onDelete }: InvoiceRowProps) {
+export function InvoiceRow({
+  invoice,
+  link,
+  busy,
+  onRecordPayment,
+  onSend,
+  onVoid,
+  onDelete,
+}: InvoiceRowProps) {
   const status = INVOICE_STATUS[invoice.status];
   const outstanding = outstandingOf(invoice);
   const takesPayment = ["SENT", "OVERDUE", "PARTIALLY_PAID"].includes(invoice.status);
@@ -59,6 +70,7 @@ export function InvoiceRow({ invoice, busy, onRecordPayment, onSend, onVoid, onD
             Mark as sent
           </Button>
         ) : null}
+        <CopyLinkButton url={link} label="Copy link" tone="quiet" className="h-10" />
         {invoice.url ? (
           <Button asChild size="sm" variant="secondary">
             <a href={invoice.url} target="_blank" rel="noopener">

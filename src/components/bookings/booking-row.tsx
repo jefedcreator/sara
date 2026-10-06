@@ -1,5 +1,6 @@
 import type { BookingDto } from "types";
 
+import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
 import { Button, StatusPill } from "@/primitives";
 import { formatMoney, formatSlotTime, bookingSpan } from "@/utils/format";
 import { BOOKING_STATUS } from "@/utils/labels";
@@ -7,6 +8,8 @@ import { BOOKING_STATUS } from "@/utils/labels";
 interface BookingRowProps {
   booking: BookingDto;
   currency: string;
+  /** The customer's booking page. */
+  link: string;
   busy: boolean;
   onConfirm: () => void;
   onComplete: () => void;
@@ -27,6 +30,7 @@ function dayLabel(iso: string) {
 export function BookingRow({
   booking,
   currency,
+  link,
   busy,
   onConfirm,
   onComplete,
@@ -72,25 +76,28 @@ export function BookingRow({
         {booking.notes ? <p className="text-muted mt-1 text-sm italic">“{booking.notes}”</p> : null}
       </div>
 
-      {isOpen ? (
-        <div className="flex flex-wrap gap-2 sm:justify-end">
-          {booking.status === "PENDING" ? (
-            <Button size="sm" variant="dark" onClick={onConfirm} isLoading={busy}>
-              Confirm
+      <div className="flex flex-wrap gap-2 sm:justify-end">
+        <CopyLinkButton url={link} label="Copy link" tone="quiet" className="h-10" />
+        {isOpen ? (
+          <>
+            {booking.status === "PENDING" ? (
+              <Button size="sm" variant="dark" onClick={onConfirm} isLoading={busy}>
+                Confirm
+              </Button>
+            ) : (
+              <Button size="sm" variant="dark" onClick={onComplete} isLoading={busy}>
+                Mark done
+              </Button>
+            )}
+            <Button size="sm" variant="secondary" onClick={onReschedule} disabled={busy}>
+              Reschedule
             </Button>
-          ) : (
-            <Button size="sm" variant="dark" onClick={onComplete} isLoading={busy}>
-              Mark done
+            <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
+              Cancel
             </Button>
-          )}
-          <Button size="sm" variant="secondary" onClick={onReschedule} disabled={busy}>
-            Reschedule
-          </Button>
-          <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
-            Cancel
-          </Button>
-        </div>
-      ) : null}
+          </>
+        ) : null}
+      </div>
     </article>
   );
 }
