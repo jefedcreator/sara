@@ -4,17 +4,20 @@ import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { useQueryStates } from "nuqs";
 import type { Page, ReceiptDto, ServiceDto } from "types";
 
+import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
 import { DocumentModal } from "@/components/documents/document-modal";
 import { useReceiptsQuery } from "@/hooks/queries/use-receipts";
 import { useDocumentComposer } from "@/hooks/use-document-composer";
 import { Button, Notice, Pager, Skeleton, StatusPill } from "@/primitives";
 import { formatMoney } from "@/utils/format";
 import { formatDate, PAYMENT_METHOD } from "@/utils/labels";
+import { publicPath } from "@/utils/public-links";
 import { receiptsParams } from "@/utils/url-state";
 
 interface ReceiptsPageClientProps {
   currency: string;
   services: ServiceDto[];
+  publicBaseUrl: string;
   initial: { page: number; data: Page<ReceiptDto> };
 }
 
@@ -22,7 +25,7 @@ interface ReceiptsPageClientProps {
  * Proof of payment. Paystack payments get one automatically; cash and
  * transfers are added here (or from an invoice's "Record payment").
  */
-export function ReceiptsPageClient({ currency, services, initial }: ReceiptsPageClientProps) {
+export function ReceiptsPageClient({ currency, services, publicBaseUrl, initial }: ReceiptsPageClientProps) {
   const [{ page }, setUrl] = useQueryStates(receiptsParams, { history: "push" });
   const query = useReceiptsQuery(page, initial);
   const composer = useDocumentComposer("receipt", currency);
@@ -81,6 +84,12 @@ export function ReceiptsPageClient({ currency, services, initial }: ReceiptsPage
                 <span className="text-[17px] font-semibold whitespace-nowrap">
                   {formatMoney(receipt.amountPaid, receipt.currency)}
                 </span>
+                <CopyLinkButton
+                  url={`${publicBaseUrl}${publicPath("receipt", receipt.publicId)}`}
+                  label="Copy link"
+                  tone="quiet"
+                  className="h-10"
+                />
                 {receipt.url ? (
                   <Button asChild size="sm" variant="secondary">
                     <a href={receipt.url} target="_blank" rel="noopener">

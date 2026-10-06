@@ -5,6 +5,7 @@ import { AppError } from "@/components/app-error";
 import { BookingsPageClient } from "@/components/bookings/bookings-page-client";
 import { getBookingsPage, requireBusiness } from "@/server";
 import { cardMetadata } from "@/utils/metadata";
+import { appBaseUrl } from "@/utils/url";
 import { bookingListParams, bookingsParamsCache } from "@/utils/url-state";
 
 export const metadata: Metadata = cardMetadata("bookings", {
@@ -29,5 +30,11 @@ export default async function BookingsPage({
     return <AppError title="Your bookings didn't load." />;
   }
 
-  return <BookingsPageClient currency={business.currency} initial={{ params, data }} />;
+  return (
+    <BookingsPageClient
+      currency={business.currency}
+      publicBaseUrl={appBaseUrl()}
+      initial={{ params, data }}
+    />
+  );
 }

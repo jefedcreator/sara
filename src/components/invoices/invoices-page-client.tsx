@@ -18,6 +18,7 @@ import { Button, ConfirmModal, Notice, Pager, Segmented, Skeleton } from "@/prim
 import { parseMoney } from "@/backend/validators/document-form.validator";
 import type { InvoiceListParams } from "@/utils/api";
 import { errorMessage } from "@/utils/axios";
+import { publicPath } from "@/utils/public-links";
 import { invoiceListParams, invoicesParams, type InvoiceView } from "@/utils/url-state";
 
 import { InvoiceRow } from "./invoice-row";
@@ -44,10 +45,11 @@ type Confirm = { kind: "void" | "delete"; invoice: InvoiceDto };
 interface InvoicesPageClientProps {
   currency: string;
   services: ServiceDto[];
+  publicBaseUrl: string;
   initial: { params: InvoiceListParams; data: Page<InvoiceDto> };
 }
 
-export function InvoicesPageClient({ currency, services, initial }: InvoicesPageClientProps) {
+export function InvoicesPageClient({ currency, services, publicBaseUrl, initial }: InvoicesPageClientProps) {
   const [{ view, page }, setUrl] = useQueryStates(invoicesParams, { history: "push" });
   const params = invoiceListParams(view, page);
   const query = useInvoicesQuery(params, initial);
@@ -184,6 +186,7 @@ export function InvoicesPageClient({ currency, services, initial }: InvoicesPage
             <li key={invoice.id}>
               <InvoiceRow
                 invoice={invoice}
+                link={`${publicBaseUrl}${publicPath("invoice", invoice.publicId)}`}
                 busy={busySlug === invoice.slug}
                 onRecordPayment={() => {
                   recordPayment.reset();

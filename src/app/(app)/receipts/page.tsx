@@ -5,6 +5,7 @@ import { AppError } from "@/components/app-error";
 import { ReceiptsPageClient } from "@/components/receipts/receipts-page-client";
 import { getReceiptsPage, getServices, requireBusiness } from "@/server";
 import { cardMetadata } from "@/utils/metadata";
+import { appBaseUrl } from "@/utils/url";
 import { receiptsParamsCache } from "@/utils/url-state";
 
 export const metadata: Metadata = cardMetadata("receipts", {
@@ -31,5 +32,12 @@ export default async function ReceiptsPage({
     return <AppError title="Your receipts didn't load." />;
   }
 
-  return <ReceiptsPageClient currency={business.currency} services={services} initial={{ page, data }} />;
+  return (
+    <ReceiptsPageClient
+      currency={business.currency}
+      services={services}
+      publicBaseUrl={appBaseUrl()}
+      initial={{ page, data }}
+    />
+  );
 }

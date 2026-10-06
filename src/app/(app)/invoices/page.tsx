@@ -5,6 +5,7 @@ import { AppError } from "@/components/app-error";
 import { InvoicesPageClient } from "@/components/invoices/invoices-page-client";
 import { getInvoicesPage, getServices, requireBusiness } from "@/server";
 import { cardMetadata } from "@/utils/metadata";
+import { appBaseUrl } from "@/utils/url";
 import { invoiceListParams, invoicesParamsCache } from "@/utils/url-state";
 
 export const metadata: Metadata = cardMetadata("invoices", {
@@ -33,6 +34,11 @@ export default async function InvoicesPage({
   }
 
   return (
-    <InvoicesPageClient currency={business.currency} services={services} initial={{ params, data }} />
+    <InvoicesPageClient
+      currency={business.currency}
+      services={services}
+      publicBaseUrl={appBaseUrl()}
+      initial={{ params, data }}
+    />
   );
 }
