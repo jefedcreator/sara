@@ -38,7 +38,7 @@ export type CreateInvoiceInput = {
 
 class InvoiceService {
   async create(input: CreateInvoiceInput): Promise<Invoice> {
-    return db.$transaction(async (tx) => {
+    const invoice = await db.$transaction(async (tx) => {
       const business = await tx.business.findUnique({
         where: { id: input.businessId },
       });
@@ -136,6 +136,11 @@ class InvoiceService {
         );
       }
 
+      return invoice;
+    });
+
+    let pdfUrl: string | null = null;
+    try {
       const pdfBuffer = await generateInvoicePdf({
         invoiceNumber: invoice.invoiceNumber,
         status: invoice.status,
@@ -173,17 +178,25 @@ class InvoiceService {
 
       const uploadResult = await cloudinaryService.uploadImage(pdfBuffer, {
         filename: `${invoice.invoiceNumber}.pdf`,
-        folder: `sara/businesses/${business.id}/invoices`,
+        folder: `sara/businesses/${invoice.business.id}/invoices`,
         mime_type: "application/pdf",
         public_id: invoice.id,
         resource_type: "raw",
       });
 
-      return tx.invoice.update({
+      pdfUrl = uploadResult.secure_url;
+    } catch (error) {
+      console.error(`Failed to generate or upload invoice PDF for ${invoice.id}:`, error);
+    }
+
+    if (pdfUrl) {
+      return db.invoice.update({
         where: { id: invoice.id },
-        data: { url: uploadResult.secure_url },
+        data: { url: pdfUrl },
       });
-    });
+    }
+
+    return invoice;
   }
 }
 

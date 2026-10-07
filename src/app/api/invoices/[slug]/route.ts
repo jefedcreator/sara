@@ -108,22 +108,23 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
         };
       }
 
-      const updatedInvoicedata = await db.$transaction(async (tx) => {
-        const invoiceRecord = await tx.invoice.update({
-          where: { slug },
-          data,
-          include: {
-            business: true,
-            services: { include: { service: true } },
-          },
-        });
+      const invoiceRecord = await db.invoice.update({
+        where: { slug },
+        data,
+        include: {
+          business: true,
+          services: { include: { service: true } },
+        },
+      });
 
-        if (!invoiceRecord.business) {
-          throw new InternalServerErrorException(
-            "Failed to retrieve business details for the invoice",
-          );
-        }
+      if (!invoiceRecord.business) {
+        throw new InternalServerErrorException(
+          "Failed to retrieve business details for the invoice",
+        );
+      }
 
+      let pdfUrl: string | null = null;
+      try {
         const pdfBuffer = await generateInvoicePdf({
           invoiceNumber: invoiceRecord.invoiceNumber,
           status: invoiceRecord.status,
@@ -167,14 +168,20 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
           resource_type: "raw",
         });
 
-        // Update the invoice with the Cloudinary URL (if it changed or to ensure it's set)
-        const finalInvoice = await tx.invoice.update({
-          where: { id: invoiceRecord.id },
-          data: { url: uploadResult.secure_url },
-        });
+        pdfUrl = uploadResult.secure_url;
+      } catch (error) {
+        console.error(`Failed to generate or upload invoice PDF for ${invoiceRecord.id}:`, error);
+      }
 
-        return { invoice: finalInvoice, business: invoiceRecord.business };
-      });
+      // Update the invoice with the Cloudinary URL (if it changed or to ensure it's set)
+      const finalInvoice = pdfUrl
+        ? await db.invoice.update({
+            where: { id: invoiceRecord.id },
+            data: { url: pdfUrl },
+          })
+        : invoiceRecord;
+
+      const updatedInvoicedata = { invoice: finalInvoice, business: invoiceRecord.business };
 
       // Marking a draft as sent sends it: to the customer too, if they have
       // an address. (A new invoice created as SENT is emailed on create.)
