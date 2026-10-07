@@ -85,7 +85,7 @@ export function DocumentCard({
 export function DocumentCardSkeleton() {
   return (
     <div className="rounded-card bg-surface overflow-hidden" aria-hidden="true">
-      <div className="border-line aspect-[16/10] border-b px-[9%] pt-[6%]">
+      <div className="border-line aspect-[16/10] border-b px-[6%] pt-[5%]">
         <Skeleton className="bg-canvas h-full rounded-t-[6px] rounded-b-none" />
       </div>
       <div className="grid gap-2 px-4 py-4 sm:px-5">
