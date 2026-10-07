@@ -143,7 +143,7 @@ export function DocumentModal({
                 noValidate
                 autoComplete="off"
                 onSubmit={submit(false)}
-                className="mt-6 grid gap-5"
+                className="mt-6 grid grid-cols-1 gap-5"
               >
                 <Field id={`${kind}-name`} label="Customer" error={errors.name?.message}>
                   <Input placeholder="Funke Bello" {...register("name")} />
@@ -157,7 +157,7 @@ export function DocumentModal({
                   </Field>
                 </div>
 
-                <div className="grid gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="text-ink-2 text-sm font-semibold">What for</p>
                     {services.length > 0 ? (
@@ -174,19 +174,20 @@ export function DocumentModal({
                   </div>
 
                   {mode === "services" ? (
-                    <div className="grid gap-3">
+                    <div className="grid grid-cols-1 gap-3">
                       {items.fields.map((field, index) => {
                         const rowErrors = errors.items?.[index];
                         return (
+                          // Phones: the service on its own line, then qty, price and remove.
                           <div
                             key={field.id}
-                            className="bg-surface rounded-card grid grid-cols-[1fr_72px] gap-2.5 p-3 sm:grid-cols-[1fr_72px_120px_auto] sm:items-start"
+                            className="bg-surface rounded-card grid grid-cols-[72px_minmax(0,1fr)_auto] gap-2.5 p-3 sm:grid-cols-[minmax(0,1fr)_72px_120px_auto] sm:items-start"
                           >
                             <Field
                               id={`${kind}-item-${index}-service`}
                               label="Service"
                               error={rowErrors?.serviceId?.message}
-                              className="col-span-2 sm:col-span-1"
+                              className="col-span-3 sm:col-span-1"
                             >
                               <Controller
                                 control={control}
