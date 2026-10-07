@@ -80,7 +80,7 @@ export function BookingPageClient({ slug, today, initialService: service }: Book
           <p className="text-muted truncate text-[15px] font-medium">{service.businessName}</p>
         </header>
 
-        <div className="grid gap-8 pt-4 lg:grid-cols-[1fr_460px] lg:gap-16 lg:pt-12">
+        <div className="grid grid-cols-1 gap-8 pt-4 lg:grid-cols-[1fr_460px] lg:gap-16 lg:pt-12">
           {/* The service */}
           <section aria-labelledby="service-h" className="animate-rise">
             <h1

@@ -61,7 +61,7 @@ export function HoursSection({ hours, onSave, isPending, error, saved }: HoursSe
           const name = WEEKDAYS[day.dayOfWeek];
           const wrongWayRound = !day.isClosed && day.startTime >= day.endTime;
           return (
-            <li key={day.dayOfWeek} className="grid gap-3 py-3.5 first:pt-0 last:pb-0 sm:grid-cols-[180px_1fr] sm:items-center">
+            <li key={day.dayOfWeek} className="grid grid-cols-1 gap-3 py-3.5 first:pt-0 last:pb-0 sm:grid-cols-[180px_1fr] sm:items-center">
               <label className="flex cursor-pointer items-center gap-3 text-[15px] font-semibold">
                 <Switch
                   checked={!day.isClosed}
@@ -79,7 +79,7 @@ export function HoursSection({ hours, onSave, isPending, error, saved }: HoursSe
                     value={day.startTime}
                     onChange={(startTime) => change(day.dayOfWeek, { startTime })}
                     invalid={wrongWayRound}
-                    className="w-[124px]"
+                    className="min-w-0 flex-1 sm:w-[124px] sm:flex-none"
                   />
                   <span className="text-muted text-sm">to</span>
                   <TimePicker
@@ -87,7 +87,7 @@ export function HoursSection({ hours, onSave, isPending, error, saved }: HoursSe
                     value={day.endTime}
                     onChange={(endTime) => change(day.dayOfWeek, { endTime })}
                     invalid={wrongWayRound}
-                    className="w-[124px]"
+                    className="min-w-0 flex-1 sm:w-[124px] sm:flex-none"
                   />
                 </div>
               )}

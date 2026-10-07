@@ -31,7 +31,7 @@ export function DashboardPageClient({ initialData, services }: DashboardPageClie
   const active = services.filter((s) => s.isActive);
 
   return (
-    <div className="grid gap-8">
+    <div className="grid grid-cols-1 gap-8">
       <header>
         <h1 className="font-display text-[clamp(1.9rem,1.3rem+2.2vw,3rem)] leading-[1.06] font-normal tracking-[-0.035em]">
           Today
@@ -62,12 +62,12 @@ export function DashboardPageClient({ initialData, services }: DashboardPageClie
         </div>
       </section>
 
-      <div className="grid gap-4 min-[1040px]:grid-cols-2 min-[1040px]:items-start">
+      <div className="grid grid-cols-1 gap-4 min-[1040px]:grid-cols-2 min-[1040px]:items-start">
         <Panel n={5} title="Today's bookings" href="/bookings">
           {data.todayBookings.length === 0 ? (
             <p className="text-muted text-[15px]">No bookings today.</p>
           ) : (
-            <ul className="grid gap-2">
+            <ul className="grid grid-cols-1 gap-2">
               {data.todayBookings.map((booking) => {
                 const status = BOOKING_STATUS[booking.status];
                 return (
@@ -93,7 +93,7 @@ export function DashboardPageClient({ initialData, services }: DashboardPageClie
           {data.unpaidInvoices.length === 0 ? (
             <p className="text-muted text-[15px]">No unpaid invoices. You&apos;re all settled up.</p>
           ) : (
-            <ul className="grid gap-2">
+            <ul className="grid grid-cols-1 gap-2">
               {data.unpaidInvoices.map((inv) => (
                 <li key={inv.slug} className="bg-canvas rounded-card flex items-center gap-3 px-4 py-3">
                   <div className="min-w-0 flex-1">
