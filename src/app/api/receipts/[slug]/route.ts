@@ -65,48 +65,49 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
         );
       }
 
-      const updatedReceiptResult = await db.$transaction(async (tx) => {
-        const data: Prisma.ReceiptUpdateInput = {};
+      const data: Prisma.ReceiptUpdateInput = {};
 
-        if (payload.name !== undefined) data.name = payload.name ?? null;
-        if (payload.email !== undefined) data.email = payload.email ?? null;
-        if (payload.phone !== undefined) data.phone = payload.phone ?? null;
-        if (payload.currency !== undefined) data.currency = payload.currency;
-        if (payload.subtotal !== undefined) data.subtotal = payload.subtotal;
-        if (payload.taxAmount !== undefined) data.taxAmount = payload.taxAmount;
-        if (payload.discount !== undefined) data.discount = payload.discount;
-        if (payload.total !== undefined) data.total = payload.total;
-        if (payload.amountPaid !== undefined)
-          data.amountPaid = payload.amountPaid;
-        if (payload.paymentMethod !== undefined)
-          data.paymentMethod = payload.paymentMethod;
-        if (payload.notes !== undefined) data.notes = payload.notes ?? null;
+      if (payload.name !== undefined) data.name = payload.name ?? null;
+      if (payload.email !== undefined) data.email = payload.email ?? null;
+      if (payload.phone !== undefined) data.phone = payload.phone ?? null;
+      if (payload.currency !== undefined) data.currency = payload.currency;
+      if (payload.subtotal !== undefined) data.subtotal = payload.subtotal;
+      if (payload.taxAmount !== undefined) data.taxAmount = payload.taxAmount;
+      if (payload.discount !== undefined) data.discount = payload.discount;
+      if (payload.total !== undefined) data.total = payload.total;
+      if (payload.amountPaid !== undefined)
+        data.amountPaid = payload.amountPaid;
+      if (payload.paymentMethod !== undefined)
+        data.paymentMethod = payload.paymentMethod;
+      if (payload.notes !== undefined) data.notes = payload.notes ?? null;
 
-        if (payload.paymentId) {
-          data.payment = { connect: { id: payload.paymentId } };
-        } else if (payload.paymentId === null) {
-          data.payment = { disconnect: true };
-        }
+      if (payload.paymentId) {
+        data.payment = { connect: { id: payload.paymentId } };
+      } else if (payload.paymentId === null) {
+        data.payment = { disconnect: true };
+      }
 
-        if (payload.services) {
-          data.services = {
-            deleteMany: {},
-            create: payload.services.map((item) => ({
-              serviceId: item.serviceId,
-              description: item.description,
-              quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              total: item.total,
-            })),
-          };
-        }
+      if (payload.services) {
+        data.services = {
+          deleteMany: {},
+          create: payload.services.map((item) => ({
+            serviceId: item.serviceId,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            total: item.total,
+          })),
+        };
+      }
 
-        const receipt = await tx.receipt.update({
-          where: { id: existingReceipt.id },
-          data,
-          include: { business: true, services: { include: { service: true } } },
-        });
+      const receipt = await db.receipt.update({
+        where: { id: existingReceipt.id },
+        data,
+        include: { business: true, services: { include: { service: true } } },
+      });
 
+      let pdfUrl: string | null = null;
+      try {
         // Regenerate PDF with updated data
         const pdfBuffer = await generateReceiptPdf({
           receiptNumber: receipt.receiptNumber,
@@ -150,14 +151,20 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
           resource_type: "raw",
         });
 
-        // Update receipt with potentially new URL (if public_id handling differs)
-        const finalReceipt = await tx.receipt.update({
-          where: { id: receipt.id },
-          data: { url: uploadResult.secure_url },
-        });
+        pdfUrl = uploadResult.secure_url;
+      } catch (error) {
+        console.error(`Failed to generate or upload receipt PDF for ${receipt.id}:`, error);
+      }
 
-        return finalReceipt;
-      });
+      // Update receipt with potentially new URL (if public_id handling differs)
+      const finalReceipt = pdfUrl
+        ? await db.receipt.update({
+            where: { id: receipt.id },
+            data: { url: pdfUrl },
+          })
+        : receipt;
+
+      const updatedReceiptResult = finalReceipt;
 
       const response: ApiResponse<Receipt> = {
         status: 200,

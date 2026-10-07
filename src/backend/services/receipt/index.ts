@@ -35,7 +35,7 @@ export type CreateReceiptInput = {
 
 class ReceiptService {
   async create(input: CreateReceiptInput): Promise<Receipt> {
-    return db.$transaction(async (tx) => {
+    const receipt = await db.$transaction(async (tx) => {
       const business = await tx.business.findUnique({
         where: { id: input.businessId },
       });
@@ -129,6 +129,11 @@ class ReceiptService {
         );
       }
 
+      return receipt;
+    });
+
+    let pdfUrl: string | null = null;
+    try {
       const pdfBuffer = await generateReceiptPdf({
         receiptNumber: receipt.receiptNumber,
         paymentMethod: receipt.paymentMethod,
@@ -164,17 +169,25 @@ class ReceiptService {
 
       const uploadResult = await cloudinaryService.uploadImage(pdfBuffer, {
         filename: `${receipt.receiptNumber}.pdf`,
-        folder: `sara/businesses/${business.id}/receipts`,
+        folder: `sara/businesses/${receipt.business.id}/receipts`,
         mime_type: "application/pdf",
         public_id: receipt.id,
         resource_type: "raw",
       });
 
-      return tx.receipt.update({
+      pdfUrl = uploadResult.secure_url;
+    } catch (error) {
+      console.error(`Failed to generate or upload receipt PDF for ${receipt.id}:`, error);
+    }
+
+    if (pdfUrl) {
+      return db.receipt.update({
         where: { id: receipt.id },
-        data: { url: uploadResult.secure_url },
+        data: { url: pdfUrl },
       });
-    });
+    }
+
+    return receipt;
   }
 }
 
