@@ -60,7 +60,7 @@ export function SettingsPageClient({
   }
 
   return (
-    <div className="grid gap-8">
+    <div className="grid grid-cols-1 gap-8">
       <header>
         <h1 className="font-display text-[clamp(1.9rem,1.3rem+2.2vw,3rem)] leading-[1.06] font-normal tracking-[-0.035em]">
           Settings
@@ -70,8 +70,8 @@ export function SettingsPageClient({
         </p>
       </header>
 
-      <div className="grid gap-4 min-[1040px]:grid-cols-2 min-[1040px]:items-start">
-        <div className="grid gap-4">
+      <div className="grid grid-cols-1 gap-4 min-[1040px]:grid-cols-2 min-[1040px]:items-start">
+        <div className="grid grid-cols-1 gap-4">
           <ProfileSection
             profile={profile}
             onSave={saveProfile}
@@ -99,7 +99,7 @@ export function SettingsPageClient({
           </Section>
         </div>
 
-        <div className="grid gap-4">
+        <div className="grid grid-cols-1 gap-4">
           <HoursSection
             hours={hours}
             onSave={(days, onSaved) => saveHours.mutate(days, { onSuccess: onSaved })}

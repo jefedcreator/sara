@@ -585,7 +585,7 @@ export function LandingPage() {
           <div
             className={cn(
               WRAP,
-              "grid items-center gap-12 min-[960px]:grid-cols-2 min-[960px]:gap-18",
+              "grid grid-cols-1 items-center gap-12 min-[960px]:grid-cols-2 min-[960px]:gap-18",
             )}
           >
             <div>

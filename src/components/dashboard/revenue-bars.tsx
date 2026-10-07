@@ -17,7 +17,7 @@ export function RevenueBars({
   const max = Math.max(...rows.map((r) => r.totalRevenue), 1);
 
   return (
-    <ul className="grid gap-3.5">
+    <ul className="grid grid-cols-1 gap-3.5">
       {rows.map((row) => {
         const share = Math.max(2, (row.totalRevenue / max) * 100);
         const bookings = `${row.totalBookings} booking${row.totalBookings === 1 ? "" : "s"}`;

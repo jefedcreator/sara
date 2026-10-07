@@ -104,7 +104,7 @@ export function ServicesPageClient({
   }
 
   return (
-    <div className="grid gap-8">
+    <div className="grid grid-cols-1 gap-8">
       <header className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <h1 className="font-display text-[clamp(1.9rem,1.3rem+2.2vw,3rem)] leading-[1.06] font-normal tracking-[-0.035em]">
@@ -158,9 +158,9 @@ export function ServicesPageClient({
           </div>
         </section>
       ) : (
-        <ul className="grid gap-4 min-[700px]:grid-cols-2 min-[1040px]:grid-cols-3">
+        <ul className="grid grid-cols-1 gap-4 min-[700px]:grid-cols-2 min-[1040px]:grid-cols-3">
           {services.map((service) => (
-            <li key={service.id} className="grid">
+            <li key={service.id} className="grid grid-cols-1">
               <ServiceCard
                 service={service}
                 currency={currency}
