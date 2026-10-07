@@ -23,6 +23,8 @@ import { cn } from "@/utils/cn";
  *
  * The overlay wraps the content (Radix's scrollable-overlay pattern), so a
  * tall form scrolls inside the backdrop instead of overflowing the viewport.
+ * Its one column is minmax(0, 1fr): an implicit `auto` column would grow to
+ * fit content that never wraps (a share link) and push the sheet off-screen.
  */
 
 interface ModalProps {
@@ -57,7 +59,7 @@ function ModalPortal({
     <Dialog.Portal container={container}>
       <Dialog.Overlay
         className={cn(
-          "bg-ink/40 fixed inset-0 z-50 grid items-end overflow-y-auto overscroll-contain backdrop-blur-[2px] sm:place-items-center sm:p-6",
+          "bg-ink/40 fixed inset-0 z-50 grid grid-cols-1 items-end overflow-y-auto overscroll-contain backdrop-blur-[2px] sm:place-items-center sm:p-6",
           "data-[state=closed]:animate-fade-out data-[state=open]:animate-fade-in",
           className,
         )}

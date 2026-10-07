@@ -45,7 +45,7 @@ export function Field({
     <FieldContext.Provider
       value={{ id, describedBy: errorId ?? hintId, invalid: Boolean(error) }}
     >
-      <div className={cn("grid gap-1.5", className)}>
+      <div className={cn("grid grid-cols-1 gap-1.5", className)}>
         <label
           htmlFor={id}
           className="text-ink-2 text-sm leading-[1.3] font-semibold"
