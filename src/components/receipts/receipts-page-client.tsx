@@ -4,10 +4,12 @@ import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { useQueryStates } from "nuqs";
 import type { Page, ReceiptDto, ServiceDto } from "types";
 
+import { DOCUMENT_GRID, DocumentCardSkeleton } from "@/components/documents/document-card";
 import { DocumentModal } from "@/components/documents/document-modal";
 import { useReceiptsQuery } from "@/hooks/queries/use-receipts";
 import { useDocumentComposer } from "@/hooks/use-document-composer";
-import { Button, Notice, Pager, Skeleton } from "@/primitives";
+import { Button, Notice, Pager } from "@/primitives";
+import { cn } from "@/utils/cn";
 import { publicPath } from "@/utils/public-links";
 import { receiptsParams } from "@/utils/url-state";
 
@@ -31,7 +33,7 @@ export function ReceiptsPageClient({ currency, services, publicBaseUrl, initial 
   const rows = query.data?.data ?? [];
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <header className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <h1 className="font-display text-[clamp(1.9rem,1.3rem+2.2vw,3rem)] leading-[1.06] font-normal tracking-[-0.035em]">
@@ -48,9 +50,9 @@ export function ReceiptsPageClient({ currency, services, publicBaseUrl, initial 
       </header>
 
       {query.isPending ? (
-        <div className="grid gap-2.5">
-          {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="rounded-card h-[76px]" />
+        <div className={DOCUMENT_GRID}>
+          {Array.from({ length: 3 }, (_, i) => (
+            <DocumentCardSkeleton key={i} />
           ))}
         </div>
       ) : query.isError ? (
@@ -60,9 +62,9 @@ export function ReceiptsPageClient({ currency, services, publicBaseUrl, initial 
           No receipts yet. They appear here when customers pay through your booking links.
         </p>
       ) : (
-        <ul className={query.isPlaceholderData ? "grid gap-2.5 opacity-60" : "grid gap-2.5"}>
+        <ul className={cn(DOCUMENT_GRID, query.isPlaceholderData && "opacity-60")}>
           {rows.map((receipt) => (
-            <li key={receipt.id}>
+            <li key={receipt.id} className="grid grid-cols-1">
               <ReceiptRow
                 receipt={receipt}
                 link={`${publicBaseUrl}${publicPath("receipt", receipt.publicId)}`}

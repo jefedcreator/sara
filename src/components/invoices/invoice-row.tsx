@@ -1,8 +1,9 @@
 import type { InvoiceDto } from "types";
 
 import { CopyLinkIconButton } from "@/components/copy-link-icon-button";
-import { DocumentRow, PdfIconButton } from "@/components/documents/document-row";
+import { DocumentCard, PdfIconButton } from "@/components/documents/document-card";
 import { Button } from "@/primitives";
+import { invoicePreview } from "@/utils/document-preview";
 import { formatMoney } from "@/utils/format";
 import { formatDate, INVOICE_STATUS } from "@/utils/labels";
 
@@ -20,8 +21,9 @@ interface InvoiceRowProps {
 }
 
 /**
- * One invoice and what can happen to it next, by status: the next step in
- * words, the link and the PDF as icons beside it, Void or Delete last.
+ * One invoice as a card: its PDF's first page, then what can happen to it
+ * next, by status: the next step in words, the link and the PDF as icons
+ * beside it, Void or Delete last.
  */
 export function InvoiceRow({
   invoice,
@@ -40,7 +42,9 @@ export function InvoiceRow({
   const when = invoice.dueAt ? `Due ${formatDate(invoice.dueAt)}` : formatDate(invoice.createdAt);
 
   return (
-    <DocumentRow
+    <DocumentCard
+      preview={invoicePreview(invoice)}
+      pdfUrl={invoice.url}
       title={invoice.clientName}
       status={status ?? null}
       meta={`${invoice.invoiceNumber} · ${when}`}

@@ -1,14 +1,15 @@
 import type { ReceiptDto } from "types";
 
 import { CopyLinkIconButton } from "@/components/copy-link-icon-button";
-import { DocumentRow, PdfIconButton } from "@/components/documents/document-row";
+import { DocumentCard, PdfIconButton } from "@/components/documents/document-card";
+import { receiptPreview } from "@/utils/document-preview";
 import { formatMoney } from "@/utils/format";
 import { formatDate, PAYMENT_METHOD } from "@/utils/labels";
 
 /**
- * One receipt: who paid, how, and what for, with the amount where the
- * invoice rows keep theirs. Nothing happens to a receipt next, so its only
- * actions are the link and the PDF.
+ * One receipt as a card: its PDF's first page, then who paid, how, and what
+ * for, with the amount where invoice cards keep theirs. Nothing happens to a
+ * receipt next, so its only actions are the link and the PDF.
  */
 export function ReceiptRow({ receipt, link }: { receipt: ReceiptDto; link: string }) {
   const invoice = receipt.payment?.invoice;
@@ -16,7 +17,9 @@ export function ReceiptRow({ receipt, link }: { receipt: ReceiptDto; link: strin
   const lines = receipt.services.map((line) => line.service.name).join(", ");
 
   return (
-    <DocumentRow
+    <DocumentCard
+      preview={receiptPreview(receipt)}
+      pdfUrl={receipt.url}
       title={receipt.name ?? "Customer"}
       status={method ? { label: method, tone: "muted" } : null}
       meta={`${receipt.receiptNumber} · ${formatDate(receipt.createdAt)}`}

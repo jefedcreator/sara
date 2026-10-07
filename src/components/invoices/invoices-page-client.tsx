@@ -6,6 +6,7 @@ import { useState } from "react";
 import type { InvoiceDto, Page, ServiceDto } from "types";
 
 import type { PaymentFormSchema } from "@/backend/validators/document-form.validator";
+import { DOCUMENT_GRID, DocumentCardSkeleton } from "@/components/documents/document-card";
 import { DocumentModal } from "@/components/documents/document-modal";
 import {
   useRecordPaymentMutation,
@@ -14,10 +15,11 @@ import {
 } from "@/hooks/mutations/use-document-mutations";
 import { useInvoicesQuery } from "@/hooks/queries/use-invoices";
 import { useDocumentComposer } from "@/hooks/use-document-composer";
-import { Button, ConfirmModal, Notice, Pager, Segmented, Skeleton } from "@/primitives";
+import { Button, ConfirmModal, Notice, Pager, Segmented } from "@/primitives";
 import { parseMoney } from "@/backend/validators/document-form.validator";
 import type { InvoiceListParams } from "@/utils/api";
 import { errorMessage } from "@/utils/axios";
+import { cn } from "@/utils/cn";
 import { publicPath } from "@/utils/public-links";
 import { invoiceListParams, invoicesParams, type InvoiceView } from "@/utils/url-state";
 
@@ -136,7 +138,7 @@ export function InvoicesPageClient({ currency, services, publicBaseUrl, initial 
   const rows = query.data?.data ?? [];
 
   return (
-    <div className="grid gap-6">
+    <div className="grid grid-cols-1 gap-6">
       <header className="flex flex-wrap items-end justify-between gap-5">
         <div>
           <h1 className="font-display text-[clamp(1.9rem,1.3rem+2.2vw,3rem)] leading-[1.06] font-normal tracking-[-0.035em]">
@@ -171,9 +173,9 @@ export function InvoicesPageClient({ currency, services, publicBaseUrl, initial 
       ) : null}
 
       {query.isPending ? (
-        <div className="grid gap-2.5">
-          {Array.from({ length: 4 }, (_, i) => (
-            <Skeleton key={i} className="rounded-card h-[84px]" />
+        <div className={DOCUMENT_GRID}>
+          {Array.from({ length: 3 }, (_, i) => (
+            <DocumentCardSkeleton key={i} />
           ))}
         </div>
       ) : query.isError ? (
@@ -181,9 +183,9 @@ export function InvoicesPageClient({ currency, services, publicBaseUrl, initial 
       ) : rows.length === 0 ? (
         <p className="rounded-card bg-surface text-muted px-5 py-6 text-[15px]">{EMPTY[view]}</p>
       ) : (
-        <ul className={query.isPlaceholderData ? "grid gap-2.5 opacity-60" : "grid gap-2.5"}>
+        <ul className={cn(DOCUMENT_GRID, query.isPlaceholderData && "opacity-60")}>
           {rows.map((invoice) => (
-            <li key={invoice.id}>
+            <li key={invoice.id} className="grid grid-cols-1">
               <InvoiceRow
                 invoice={invoice}
                 link={`${publicBaseUrl}${publicPath("invoice", invoice.publicId)}`}
