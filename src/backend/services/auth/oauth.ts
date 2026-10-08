@@ -158,19 +158,19 @@ export function buildAuthorizationUrl(
 ) {
   const config = providers[client.provider];
   const url = new URL(config.authorizationUrl);
-  url.searchParams.set("client_id", client.clientId);
-  url.searchParams.set("redirect_uri", client.redirectUri);
+  url.searchParams.set("client_id", client.clientId.trim());
+  url.searchParams.set("redirect_uri", client.redirectUri.trim());
   url.searchParams.set("response_type", "code");
   url.searchParams.set("state", state);
 
   if (client.provider === "facebook" && client.configurationId) {
-    url.searchParams.set("config_id", client.configurationId);
+    url.searchParams.set("config_id", client.configurationId.trim());
   } else {
     url.searchParams.set("scope", config.scope);
   }
 
   if (usesPkce(client.provider)) {
-    url.searchParams.set("code_challenge", challenge);
+    url.searchParams.set("code_challenge", challenge.trim());
     url.searchParams.set("code_challenge_method", "S256");
     // Lets someone signed into several Google accounts choose one.
     url.searchParams.set("prompt", "select_account");
@@ -252,12 +252,12 @@ async function exchangeGoogle(
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        code,
-        client_id: client.clientId,
-        client_secret: client.clientSecret,
-        redirect_uri: client.redirectUri,
+        code: code.trim(),
+        client_id: client.clientId.trim(),
+        client_secret: client.clientSecret.trim(),
+        redirect_uri: client.redirectUri.trim(),
         grant_type: "authorization_code",
-        code_verifier: verifier,
+        code_verifier: verifier.trim(),
       }),
     }),
     "Google token exchange",
@@ -265,7 +265,7 @@ async function exchangeGoogle(
   if (!payload.id_token) throw new OAuthError("Google returned no ID token.");
 
   return {
-    profile: parseGoogleIdToken(payload.id_token, client.clientId, deps.now),
+    profile: parseGoogleIdToken(payload.id_token, client.clientId.trim(), deps.now),
     tokens: toTokens(payload, deps.now),
   };
 }
@@ -329,10 +329,10 @@ async function exchangeFacebook(
   deps: ExchangeDeps,
 ): Promise<OAuthResult> {
   const tokenUrl = new URL(providers.facebook.tokenUrl);
-  tokenUrl.searchParams.set("client_id", client.clientId);
-  tokenUrl.searchParams.set("client_secret", client.clientSecret);
-  tokenUrl.searchParams.set("redirect_uri", client.redirectUri);
-  tokenUrl.searchParams.set("code", code);
+  tokenUrl.searchParams.set("client_id", client.clientId.trim());
+  tokenUrl.searchParams.set("client_secret", client.clientSecret.trim());
+  tokenUrl.searchParams.set("redirect_uri", client.redirectUri.trim());
+  tokenUrl.searchParams.set("code", code.trim());
   const tokens = toTokens(
     await readJson<TokenPayload>(
       await deps.fetch(tokenUrl),
@@ -347,7 +347,7 @@ async function exchangeFacebook(
   // app secret so a leaked token alone cannot make it.
   profileUrl.searchParams.set(
     "appsecret_proof",
-    createHmac("sha256", client.clientSecret)
+    createHmac("sha256", client.clientSecret.trim())
       .update(tokens.accessToken)
       .digest("hex"),
   );
@@ -389,11 +389,11 @@ async function exchangeInstagram(
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: new URLSearchParams({
-        client_id: client.clientId,
-        client_secret: client.clientSecret,
+        client_id: client.clientId.trim(),
+        client_secret: client.clientSecret.trim(),
         grant_type: "authorization_code",
-        redirect_uri: client.redirectUri,
-        code,
+        redirect_uri: client.redirectUri.trim(),
+        code: code.trim(),
       }),
     }),
     "Instagram token exchange",

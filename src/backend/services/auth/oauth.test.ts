@@ -106,6 +106,20 @@ describe("buildAuthorizationUrl", () => {
     expect(url.origin).toBe("https://www.instagram.com");
     expect(url.searchParams.get("scope")).toBe("instagram_business_basic");
   });
+
+  it("trims whitespace and newlines from client_id and redirect_uri", () => {
+    const dirtyClient: OAuthClient = {
+      provider: "google",
+      clientId: "  google-id\n",
+      clientSecret: "google-secret\n",
+      redirectUri: " https://sara.test/api/auth/google/callback \n",
+    };
+    const url = new URL(buildAuthorizationUrl(dirtyClient, "st", "ch"));
+    expect(url.searchParams.get("client_id")).toBe("google-id");
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      "https://sara.test/api/auth/google/callback",
+    );
+  });
 });
 
 describe("parseGoogleIdToken", () => {
@@ -151,6 +165,32 @@ describe("exchangeCode", () => {
     const body = fetch.mock.calls[0]![1]!.body as URLSearchParams;
     expect(body.get("code_verifier")).toBe("verifier");
     expect(result.profile.id).toBe("g-123");
+  });
+
+  it("trims credentials and parameters when exchanging Google authorization code", async () => {
+    const fetch = vi
+      .fn<typeof globalThis.fetch>()
+      .mockResolvedValue(
+        jsonResponse({ access_token: "at", id_token: idToken(googleClaims) }),
+      );
+    const dirtyClient: OAuthClient = {
+      provider: "google",
+      clientId: "  google-id\n",
+      clientSecret: "google-secret\n",
+      redirectUri: "https://sara.test/api/auth/google/callback\n",
+    };
+    await exchangeCode(dirtyClient, " code \n", " verifier \n", {
+      fetch,
+      now: NOW,
+    });
+    const body = fetch.mock.calls[0]![1]!.body as URLSearchParams;
+    expect(body.get("client_id")).toBe("google-id");
+    expect(body.get("client_secret")).toBe("google-secret");
+    expect(body.get("redirect_uri")).toBe(
+      "https://sara.test/api/auth/google/callback",
+    );
+    expect(body.get("code")).toBe("code");
+    expect(body.get("code_verifier")).toBe("verifier");
   });
 
   it("refuses a Google callback without a verifier", async () => {
