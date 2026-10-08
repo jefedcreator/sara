@@ -148,7 +148,7 @@ export async function GET(request: Request) {
   return NextResponse.redirect(new URL("/", baseUrl));
 }
 
-export type SuccessfulPaymentData = {
+type SuccessfulPaymentData = {
   reference: string;
   amount: number;
   metadata?: Record<string, unknown>;
@@ -169,7 +169,7 @@ export type SuccessfulPaymentData = {
  * 3. Validate the booking exists and is in PENDING status.
  * 4. Atomically: confirm the booking + create a Payment record.
  */
-export async function processSuccessfulPayment(data: SuccessfulPaymentData) {
+async function processSuccessfulPayment(data: SuccessfulPaymentData) {
   const { reference, amount, metadata, channel } = data;
   const customer = data.customer ?? { email: "" };
 
@@ -536,6 +536,6 @@ export async function processSuccessfulPayment(data: SuccessfulPaymentData) {
   return { booking, outcome: "confirmed" as const };
 }
 
-export const handleChargeSuccess = (event: PaystackWebhookEvent) =>
+const handleChargeSuccess = (event: PaystackWebhookEvent) =>
   processSuccessfulPayment(event.data);
 
