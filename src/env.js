@@ -36,6 +36,7 @@ export const env = createEnv({
     CONFIGURATION_ID: z.string().trim().optional(),
     MONO_SECRET_KEY: z.string().trim().optional(),
     PAYSTACK_SECRET_KEY: z.string().trim().optional(),
+    PAYSTACK_PUBLIC_KEY: z.string().trim().optional(),
     PAYSTACK_WEBHOOK_SECRET: z.string().trim().optional(),
     PAYSTACK_API_URL: z.string().trim().url().optional(),
     MONO_CLIENT_ID: z.string().trim().optional(),
@@ -65,6 +66,7 @@ export const env = createEnv({
   client: {
     // NEXT_PUBLIC_CLIENTVAR: z.string(),
     NEXT_PUBLIC_MONO_PUBLIC_KEY: z.string().trim().optional(),
+    NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY: z.string().trim().optional(),
     // The public origin (e.g. https://app.sara.ng): OAuth redirect URIs, booking links, emails.
     NEXT_PUBLIC_APP_URL: z.string().trim().url().optional(),
     // Sara's public WhatsApp number in international format without "+" (e.g. 2348012345678). Powers the landing "Start on WhatsApp" links.
@@ -106,6 +108,10 @@ export const env = createEnv({
     CONFIGURATION_ID: process.env.CONFIGURATION_ID,
     MONO_SECRET_KEY: process.env.MONO_SECRET_KEY,
     PAYSTACK_SECRET_KEY: process.env.PAYSTACK_SECRET_KEY,
+    PAYSTACK_PUBLIC_KEY: process.env.PAYSTACK_PUBLIC_KEY,
+    NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY:
+      process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY ||
+      process.env.PAYSTACK_PUBLIC_KEY,
     PAYSTACK_WEBHOOK_SECRET: process.env.PAYSTACK_WEBHOOK_SECRET,
     PAYSTACK_API_URL: process.env.PAYSTACK_API_URL,
     MONO_CLIENT_ID: process.env.MONO_CLIENT_ID,
