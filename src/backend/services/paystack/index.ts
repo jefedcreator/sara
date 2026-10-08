@@ -279,16 +279,10 @@ class PaystackService {
    * @returns `true` if the signature is valid.
    */
   verifyWebhookSignature(rawBody: string, signature: string): boolean {
-    const webhookSecret = env.PAYSTACK_WEBHOOK_SECRET;
-
-    if (!webhookSecret) {
-      throw new Error(
-        "PAYSTACK_WEBHOOK_SECRET is not configured. Set it in your environment variables.",
-      );
-    }
+    const secretKey = env.PAYSTACK_WEBHOOK_SECRET || this.getSecretKey();
 
     const hash = crypto
-      .createHmac("sha512", webhookSecret)
+      .createHmac("sha512", secretKey)
       .update(rawBody)
       .digest("hex");
 

@@ -1,4 +1,5 @@
 import { type Metadata } from "next";
+import { redirect } from "next/navigation";
 
 import { AwaitConfirmation } from "@/components/book/await-confirmation";
 import { PublicError } from "@/components/public-error";
@@ -70,6 +71,20 @@ export default async function BookingDonePage({ params, searchParams }: Props) {
   const { slug } = await params;
   const query = await searchParams;
   const bookingSlug = typeof query.b === "string" ? query.b : null;
+  const reference =
+    typeof query.reference === "string"
+      ? query.reference
+      : typeof query.trxref === "string"
+      ? query.trxref
+      : null;
+
+  if (reference) {
+    const search = new URLSearchParams({ reference });
+    if (bookingSlug) {
+      search.set("b", bookingSlug);
+    }
+    redirect(`/api/webhooks/paystack?${search.toString()}`);
+  }
 
   const booking = bookingSlug
     ? await getBookingReceipt(bookingSlug).catch((error: unknown) => {
@@ -90,6 +105,10 @@ export default async function BookingDonePage({ params, searchParams }: Props) {
         </Button>
       </PublicError>
     );
+  }
+
+  if (booking.status === "CONFIRMED" || booking.status === "COMPLETED") {
+    redirect(publicPath("booking", booking.publicId));
   }
 
   const when = bookingWhen({

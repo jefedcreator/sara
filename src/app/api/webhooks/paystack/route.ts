@@ -14,6 +14,8 @@ import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
 import { publicLink } from "@/server/share";
 import { bookingWhen } from "@/utils/format";
+import { publicPath } from "@/utils/public-links";
+import { appBaseUrl } from "@/utils/url";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
@@ -77,6 +79,88 @@ export async function POST(request: Request) {
 }
 
 /**
+ * @description Handles Paystack post-payment redirect (Callback URL).
+ *              Paystack redirects the user's browser here after payment.
+ *              We perform a server-side redirect to the frontend to cleanly strip query parameters.
+ *              If the booking is not yet confirmed (e.g. webhook has not arrived or in local dev),
+ *              we verify the transaction directly with Paystack.
+ */
+export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const reference =
+    url.searchParams.get("reference") || url.searchParams.get("trxref");
+  const bookingSlug = url.searchParams.get("b");
+  const baseUrl = appBaseUrl();
+
+  if (reference) {
+    const existingPayment = await db.payment.findUnique({
+      where: { reference },
+      include: {
+        booking: {
+          select: { id: true, publicId: true, slug: true },
+        },
+      },
+    });
+
+    if (existingPayment?.booking) {
+      return NextResponse.redirect(
+        new URL(publicPath("booking", existingPayment.booking.publicId), baseUrl),
+      );
+    }
+
+    try {
+      const verification = await paystackService.verifyTransaction(reference);
+      if (verification && verification.status === "success") {
+        const result = await processSuccessfulPayment({
+          reference: verification.reference,
+          amount: verification.amount,
+          metadata: verification.metadata,
+          customer: verification.customer,
+          channel: verification.channel,
+        });
+
+        if (result?.booking) {
+          return NextResponse.redirect(
+            new URL(publicPath("booking", result.booking.publicId), baseUrl),
+          );
+        }
+      }
+    } catch (error: any) {
+      console.error(
+        "[Paystack Callback] Verification failed:",
+        error?.message || error,
+      );
+    }
+  }
+
+  if (bookingSlug) {
+    const booking = await db.booking.findUnique({
+      where: { slug: bookingSlug },
+      select: { publicId: true },
+    });
+    if (booking) {
+      return NextResponse.redirect(
+        new URL(publicPath("booking", booking.publicId), baseUrl),
+      );
+    }
+  }
+
+  return NextResponse.redirect(new URL("/", baseUrl));
+}
+
+export type SuccessfulPaymentData = {
+  reference: string;
+  amount: number;
+  metadata?: Record<string, unknown>;
+  customer?: {
+    email: string;
+    first_name?: string | null;
+    last_name?: string | null;
+  };
+  channel?: string | null;
+};
+
+/**
  * Handles a successful charge event from Paystack.
  *
  * Flow:
@@ -85,29 +169,87 @@ export async function POST(request: Request) {
  * 3. Validate the booking exists and is in PENDING status.
  * 4. Atomically: confirm the booking + create a Payment record.
  */
-async function handleChargeSuccess(event: PaystackWebhookEvent) {
-  const { reference, amount, metadata, customer, channel } = event.data;
+export async function processSuccessfulPayment(data: SuccessfulPaymentData) {
+  const { reference, amount, metadata, channel } = data;
+  const customer = data.customer ?? { email: "" };
 
-  const bookingId = metadata?.bookingId as string | undefined;
-  const businessId = metadata?.businessId as string | undefined;
+  let bookingId = metadata?.bookingId as string | undefined;
+  let businessId = metadata?.businessId as string | undefined;
+
+  if (!bookingId && typeof metadata?.bookingSlug === "string") {
+    const b = await db.booking.findUnique({
+      where: { slug: metadata.bookingSlug },
+      select: { id: true, businessId: true },
+    });
+    if (b) {
+      bookingId = b.id;
+      businessId = businessId || b.businessId;
+    }
+  }
 
   if (!bookingId || !businessId) {
     console.warn(
       `[Paystack Webhook] charge.success missing bookingId or businessId in metadata. Reference: ${reference}`,
     );
-    return;
+    return null;
   }
 
   // Idempotency: skip if this reference was already processed
   const existingPayment = await db.payment.findUnique({
     where: { reference },
+    include: {
+      booking: {
+        select: {
+          id: true,
+          publicId: true,
+          status: true,
+          businessId: true,
+          serviceId: true,
+          units: true,
+          amount: true,
+          holdExpiresAt: true,
+          startTime: true,
+          endTime: true,
+          notes: true,
+          clientName: true,
+          clientEmail: true,
+          clientPhone: true,
+          service: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              duration: true,
+              price: true,
+              bookingMode: true,
+            },
+          },
+          business: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              currency: true,
+              owner: { select: { email: true } },
+              googleCalendarId: true,
+              googleCalendarAccessToken: true,
+              googleCalendarRefreshToken: true,
+              googleCalendarTokenExpiry: true,
+            },
+          },
+        },
+      },
+    },
   });
 
   if (existingPayment) {
     console.log(
       `[Paystack Webhook] Duplicate event — payment with reference ${reference} already exists. Skipping.`,
     );
-    return;
+    return {
+      booking: existingPayment.booking ?? undefined,
+      outcome: "confirmed" as const,
+    };
   }
 
   // Validate the booking
@@ -279,7 +421,7 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
           console.warn("[Paystack Webhook] Cancellation email failed:", err);
         }
       }
-      return;
+      return { booking, outcome: "cancelled" as const };
   }
 
   console.log(
@@ -390,4 +532,10 @@ async function handleChargeSuccess(event: PaystackWebhookEvent) {
   } catch (err) {
     console.warn("[Paystack Webhook] Calendar sync failed:", err);
   }
+
+  return { booking, outcome: "confirmed" as const };
 }
+
+export const handleChargeSuccess = (event: PaystackWebhookEvent) =>
+  processSuccessfulPayment(event.data);
+
