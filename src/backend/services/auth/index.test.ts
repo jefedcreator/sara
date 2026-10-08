@@ -87,6 +87,11 @@ describe("startSignIn", () => {
     expect(location.pathname).toBe("/signin");
     expect(location.searchParams.get("error")).toBe("unavailable");
   });
+
+  it("reports isConfigured false when provider credentials are empty or missing", () => {
+    expect(service.isConfigured("instagram")).toBe(false);
+    expect(service.isConfigured("google")).toBe(true);
+  });
 });
 
 describe("completeSignIn", () => {

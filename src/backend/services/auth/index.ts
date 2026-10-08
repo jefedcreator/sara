@@ -40,23 +40,42 @@ export class AuthService {
 
   private credentials(provider: Provider) {
     switch (provider) {
-      case "google":
+      case "google": {
+        const clientId = (env.CLIENT_ID ?? env.AUTH_GOOGLE_ID)?.trim();
+        const clientSecret = (
+          env.CLIENT_SECRET ?? env.AUTH_GOOGLE_SECRET
+        )?.trim();
         return {
-          clientId: env.CLIENT_ID ?? env.AUTH_GOOGLE_ID,
-          clientSecret: env.CLIENT_SECRET ?? env.AUTH_GOOGLE_SECRET,
+          clientId: clientId || undefined,
+          clientSecret: clientSecret || undefined,
         };
-      case "facebook":
+      }
+      case "facebook": {
+        const clientId = (
+          env.FACEBOOK_CLIENT_ID ?? env.AUTH_FACEBOOK_ID
+        )?.trim();
+        const clientSecret = (
+          env.FACEBOOK_CLIENT_SECRET ?? env.AUTH_FACEBOOK_SECRET
+        )?.trim();
+        const configurationId = env.CONFIGURATION_ID?.trim();
         return {
-          clientId: env.FACEBOOK_CLIENT_ID ?? env.AUTH_FACEBOOK_ID,
-          clientSecret: env.FACEBOOK_CLIENT_SECRET ?? env.AUTH_FACEBOOK_SECRET,
-          configurationId: env.CONFIGURATION_ID,
+          clientId: clientId || undefined,
+          clientSecret: clientSecret || undefined,
+          configurationId: configurationId || undefined,
         };
-      case "instagram":
+      }
+      case "instagram": {
+        const clientId = (
+          env.INSTAGRAM_CLIENT_ID ?? env.AUTH_INSTAGRAM_ID
+        )?.trim();
+        const clientSecret = (
+          env.INSTAGRAM_CLIENT_SECRET ?? env.AUTH_INSTAGRAM_SECRET
+        )?.trim();
         return {
-          clientId: env.INSTAGRAM_CLIENT_ID ?? env.AUTH_INSTAGRAM_ID,
-          clientSecret:
-            env.INSTAGRAM_CLIENT_SECRET ?? env.AUTH_INSTAGRAM_SECRET,
+          clientId: clientId || undefined,
+          clientSecret: clientSecret || undefined,
         };
+      }
     }
   }
 

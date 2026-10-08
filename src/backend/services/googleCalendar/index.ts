@@ -55,18 +55,23 @@ class GoogleCalendarService {
     return `${appBaseUrl()}/api/business/google-calendar/callback`;
   }
 
+  private getClientId(): string {
+    return (env.AUTH_GOOGLE_ID ?? env.CLIENT_ID)?.trim() ?? "";
+  }
+
+  private getClientSecret(): string {
+    return (env.AUTH_GOOGLE_SECRET ?? env.CLIENT_SECRET)?.trim() ?? "";
+  }
+
   /**
-   * `prompt=consent` is deliberate — Google only reliably returns a
-   * refresh_token on first consent or when re-consent is forced. Without
-   * it, a reconnect after a disconnect could silently fail to obtain a
-   * usable refresh token.
+   * Returns Google consent screen URL. Always asks for offline access and
+   * forces consent prompt so Google returns a refresh_token on first consent
+   * or when re-consent is forced. Without it, a reconnect after a disconnect
+   * could silently fail to obtain a usable refresh token.
    */
   getAuthorizationUrl(state: string): string {
     const url = new URL(AUTH_URL);
-    url.searchParams.set(
-      "client_id",
-      env.AUTH_GOOGLE_ID ?? env.CLIENT_ID ?? "",
-    );
+    url.searchParams.set("client_id", this.getClientId());
     url.searchParams.set("redirect_uri", this.getRedirectUri());
     url.searchParams.set("response_type", "code");
     url.searchParams.set("scope", SCOPE);
@@ -82,9 +87,9 @@ class GoogleCalendarService {
     const response = await axios.post<GoogleTokenResponse>(
       TOKEN_URL,
       new URLSearchParams({
-        code,
-        client_id: env.AUTH_GOOGLE_ID ?? env.CLIENT_ID ?? "",
-        client_secret: env.AUTH_GOOGLE_SECRET ?? env.CLIENT_SECRET ?? "",
+        code: code.trim(),
+        client_id: this.getClientId(),
+        client_secret: this.getClientSecret(),
         redirect_uri: this.getRedirectUri(),
         grant_type: "authorization_code",
       }),
@@ -130,8 +135,8 @@ class GoogleCalendarService {
         TOKEN_URL,
         new URLSearchParams({
           refresh_token: business.googleCalendarRefreshToken,
-          client_id: env.AUTH_GOOGLE_ID ?? env.CLIENT_ID ?? "",
-          client_secret: env.AUTH_GOOGLE_SECRET ?? env.CLIENT_SECRET ?? "",
+          client_id: this.getClientId(),
+          client_secret: this.getClientSecret(),
           grant_type: "refresh_token",
         }),
       );
