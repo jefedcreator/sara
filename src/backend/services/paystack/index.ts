@@ -1,5 +1,7 @@
 import { env } from "@/env";
 import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 
 // --- Constants ---
 
@@ -121,12 +123,36 @@ class PaystackService {
   private readonly baseUrl = "https://api.paystack.co";
 
   private getSecretKey(): string {
-    if (!env.PAYSTACK_SECRET_KEY) {
+    let key = env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY;
+
+    if (!key && process.env.NODE_ENV !== "production") {
+      try {
+        const cwd = process.cwd();
+        for (const file of [".env.local", ".env"]) {
+          const filePath = path.resolve(cwd, file);
+          if (fs.existsSync(filePath)) {
+            const content = fs.readFileSync(filePath, "utf-8");
+            const match = content.match(
+              /^PAYSTACK_SECRET_KEY\s*=\s*["']?([^"'\r\n]+)["']?/m,
+            );
+            if (match?.[1]) {
+              key = match[1].trim();
+              process.env.PAYSTACK_SECRET_KEY = key;
+              break;
+            }
+          }
+        }
+      } catch {
+        // Ignore filesystem read errors in restricted environments
+      }
+    }
+
+    if (!key) {
       throw new Error(
         "PAYSTACK_SECRET_KEY is not configured. Set it in your environment variables.",
       );
     }
-    return env.PAYSTACK_SECRET_KEY;
+    return key;
   }
 
   private async request<T>(
@@ -279,7 +305,16 @@ class PaystackService {
    * @returns `true` if the signature is valid.
    */
   verifyWebhookSignature(rawBody: string, signature: string): boolean {
-    const secretKey = env.PAYSTACK_WEBHOOK_SECRET || this.getSecretKey();
+    let secretKey =
+      env.PAYSTACK_WEBHOOK_SECRET || process.env.PAYSTACK_WEBHOOK_SECRET;
+
+    if (!secretKey) {
+      try {
+        secretKey = this.getSecretKey();
+      } catch {
+        return false;
+      }
+    }
 
     const hash = crypto
       .createHmac("sha512", secretKey)
