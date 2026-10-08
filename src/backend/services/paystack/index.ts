@@ -123,7 +123,7 @@ class PaystackService {
   private readonly baseUrl = "https://api.paystack.co";
 
   private getSecretKey(): string {
-    let key = env.PAYSTACK_SECRET_KEY || process.env.PAYSTACK_SECRET_KEY;
+    let key = process.env.PAYSTACK_SECRET_KEY || env.PAYSTACK_SECRET_KEY;
 
     if (!key && process.env.NODE_ENV !== "production") {
       try {
@@ -306,7 +306,7 @@ class PaystackService {
    */
   verifyWebhookSignature(rawBody: string, signature: string): boolean {
     let secretKey =
-      env.PAYSTACK_WEBHOOK_SECRET || process.env.PAYSTACK_WEBHOOK_SECRET;
+      process.env.PAYSTACK_WEBHOOK_SECRET || env.PAYSTACK_WEBHOOK_SECRET;
 
     if (!secretKey) {
       try {

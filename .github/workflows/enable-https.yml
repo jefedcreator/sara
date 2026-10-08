@@ -8,7 +8,7 @@ on:
         required: true
         default: 'sara.84-12-92-46.sslip.io'
       email:
-        description: 'Contact email for Let'\''s Encrypt (or "none")'
+        description: "Contact email for Let's Encrypt (or \"none\")"
         required: true
         default: 'none'
 
