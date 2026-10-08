@@ -1,6 +1,7 @@
 import { paystackService } from "@/backend/services/paystack";
 import { db } from "@/server/db";
 import { BadRequestException, ConflictException, NotFoundException } from "@/utils/exceptions";
+import { appBaseUrl } from "@/utils/url";
 import { Prisma, type Booking } from "@prisma/client";
 import slugify from "slugify";
 
@@ -125,7 +126,9 @@ class BookingService {
       email: payerEmail,
       amount: Math.round(terms.amount.mul(100).toNumber()),
       subaccountCode: service.business.paystackSubaccountCode,
-      callbackUrl: input.callbackUrl?.(booking),
+      callbackUrl:
+        input.callbackUrl?.(booking) ??
+        `${appBaseUrl()}/api/webhooks/paystack?b=${encodeURIComponent(booking.slug)}`,
       metadata: {
         bookingId: booking.id,
         bookingSlug: booking.slug,

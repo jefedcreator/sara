@@ -11,6 +11,7 @@ vi.mock("@/server/db", () => ({
 vi.mock("@/backend/services/paystack", () => ({
   paystackService: {
     verifyWebhookSignature: vi.fn().mockReturnValue(true),
+    verifyTransaction: vi.fn(),
   },
 }));
 
@@ -41,11 +42,13 @@ vi.mock("@/backend/services/messaging/notify", () => ({
 import { emailService } from "@/backend/services/email";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { ownerNotifier } from "@/backend/services/messaging/notify";
+import { paystackService } from "@/backend/services/paystack";
 import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
-import { POST } from "./route";
+import { GET, POST } from "./route";
 
 const mockedDb = db as any;
+const mockedPaystack = paystackService as any;
 const mockedEmail = emailService as any;
 const mockedCalendar = googleCalendarService as any;
 const mockedReceipt = receiptService as any;
@@ -322,3 +325,70 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     });
   });
 });
+
+describe("GET /api/webhooks/paystack", () => {
+  it("redirects immediately to the booking page when payment already exists", async () => {
+    mockedDb.payment.findUnique.mockReset();
+    mockedDb.payment.findUnique.mockResolvedValue({
+      id: "pay_1",
+      reference: "ref_existing",
+      booking: { publicId: BOOKING.publicId },
+    });
+
+    const req = new Request("http://localhost:3000/api/webhooks/paystack?reference=ref_existing");
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe(`http://localhost:3000/bookings/${BOOKING.publicId}`);
+    expect(mockedPaystack.verifyTransaction).not.toHaveBeenCalled();
+  });
+
+  it("verifies with Paystack and confirms booking when payment does not exist yet", async () => {
+    mockedDb.payment.findUnique.mockReset();
+    mockedDb.payment.findUnique
+      .mockResolvedValueOnce(null) // GET check for existing payment
+      .mockResolvedValueOnce(null) // processSuccessfulPayment idempotency check
+      .mockResolvedValue({ id: "pay_1" }); // receipt creation payment lookup
+    mockedPaystack.verifyTransaction.mockResolvedValue({
+      status: "success",
+      reference: "ref_new",
+      amount: 5000,
+      currency: "NGN",
+      channel: "card",
+      metadata: { bookingId: BOOKING.id, businessId: BOOKING.businessId },
+      customer: { email: "jane@example.com", first_name: "Jane", last_name: "Doe" },
+    });
+
+    const req = new Request("http://localhost:3000/api/webhooks/paystack?reference=ref_new");
+    const res = await GET(req);
+
+    expect(mockedPaystack.verifyTransaction).toHaveBeenCalledWith("ref_new");
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe(`http://localhost:3000/bookings/${BOOKING.publicId}`);
+    expect(mockedDb.booking.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: "CONFIRMED" } }),
+    );
+  });
+
+  it("redirects to booking page when only booking slug 'b' is given", async () => {
+    mockedDb.booking.findUnique.mockResolvedValueOnce({
+      id: "bkg_1",
+      publicId: BOOKING.publicId,
+    });
+
+    const req = new Request("http://localhost:3000/api/webhooks/paystack?b=haircut-ada");
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe(`http://localhost:3000/bookings/${BOOKING.publicId}`);
+  });
+
+  it("falls back to home page when no query params are provided", async () => {
+    const req = new Request("http://localhost:3000/api/webhooks/paystack");
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost:3000/");
+  });
+});
+

@@ -1,5 +1,5 @@
 import { bookingService } from "@/backend/services/booking";
-import { publicUrl } from "@/utils/url";
+import { appBaseUrl, publicUrl } from "@/utils/url";
 import { HttpException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import { z } from "zod";
@@ -45,10 +45,9 @@ export async function POST(request: Request) {
       clientName: data.clientName,
       clientEmail: data.clientEmail,
       clientPhone: data.clientPhone,
-      notes: data.notes,
-      // Back to Sara after checkout, where the page waits for the webhook.
+      // Back to Sara after checkout, handled by Paystack webhook GET redirect.
       callbackUrl: (booking) =>
-        `${publicUrl("book", data.serviceSlug)}/done?b=${encodeURIComponent(booking.slug)}`,
+        `${appBaseUrl()}/api/webhooks/paystack?b=${encodeURIComponent(booking.slug)}`,
     });
 
     return NextResponse.json(
