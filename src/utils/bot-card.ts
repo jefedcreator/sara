@@ -93,9 +93,12 @@ export function renderBotCardHtml(
   <meta property="og:description" content="${d}" />
   <meta property="og:url" content="${url}" />
   <meta property="og:image" content="${image}" />
+  <meta property="og:image:secure_url" content="${image}" />
+  <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="${OG_SIZE.width}" />
   <meta property="og:image:height" content="${OG_SIZE.height}" />
   <meta property="og:image:alt" content="${alt}" />
+  <link rel="image_src" href="${image}" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="${t}" />
   <meta name="twitter:description" content="${d}" />
