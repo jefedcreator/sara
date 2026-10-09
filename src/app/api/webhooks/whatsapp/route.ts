@@ -71,7 +71,16 @@ export async function POST(request: Request) {
     await Promise.all(
       messages.map(async (message) => {
         console.log(`[WhatsApp Webhook] Handling message from ${message.externalId}: "${message.text}"`);
-        const reply = await conversationEngine.handle(message);
+        const reply = await conversationEngine.handle(message, {
+          onProgress: async (progressMsg) => {
+            console.log(`[WhatsApp Webhook] Sending progress message to ${message.externalId}: "${progressMsg.text}"`);
+            await whatsAppAdapter.send(message.externalId, progressMsg);
+            recordLog("outbound_sent", {
+              to: message.externalId,
+              replyText: progressMsg.text,
+            });
+          },
+        });
         if (reply) {
           console.log(`[WhatsApp Webhook] Sending reply to ${message.externalId}`);
           await whatsAppAdapter.send(message.externalId, reply);

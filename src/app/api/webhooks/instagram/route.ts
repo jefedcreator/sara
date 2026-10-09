@@ -20,7 +20,11 @@ export async function POST(request: Request) {
     const messages = instagramAdapter.normalizeInbound(payload);
     await Promise.all(
       messages.map(async (message) => {
-        const reply = await conversationEngine.handle(message);
+        const reply = await conversationEngine.handle(message, {
+          onProgress: async (progressMsg) => {
+            await instagramAdapter.send(message.externalId, progressMsg);
+          },
+        });
         if (reply) await instagramAdapter.send(message.externalId, reply);
       }),
     );
