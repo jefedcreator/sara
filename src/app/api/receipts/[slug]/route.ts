@@ -11,6 +11,7 @@ import { publicBusinessSelect } from "@/backend/selects";
 import { db } from "@/server/db";
 import { type ApiResponse, type ReceiptListItem } from "types";
 import {
+  BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
@@ -19,6 +20,7 @@ import { type Receipt, type Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { cloudinaryService } from "@/backend/services/cloudinary";
 import { generateReceiptPdf } from "@/backend/services/pdf";
+import { emailReceipt } from "@/backend/services/email/documents";
 
 const receiptInclude: Prisma.ReceiptInclude = {
   payment: {
@@ -52,7 +54,7 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
 
       const existingReceipt = await db.receipt.findUnique({
         where: { slug },
-        include: { business: true },
+        include: { business: true, payment: { select: { invoiceId: true } } },
       });
 
       if (!existingReceipt) {
@@ -62,6 +64,12 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
       if (existingReceipt.business.ownerId !== user.id) {
         throw new ForbiddenException(
           "You are not authorized to update this receipt",
+        );
+      }
+
+      if (existingReceipt.payment?.invoiceId) {
+        throw new BadRequestException(
+          "Receipts linked to invoice payments cannot be edited directly",
         );
       }
 
@@ -163,6 +171,10 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
             data: { url: pdfUrl },
           })
         : receipt;
+
+      if (finalReceipt.email) {
+        await emailReceipt(finalReceipt, existingReceipt.business);
+      }
 
       const updatedReceiptResult = finalReceipt;
 
