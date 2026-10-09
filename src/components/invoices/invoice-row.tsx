@@ -18,6 +18,7 @@ interface InvoiceRowProps {
   onSend: () => void;
   onVoid: () => void;
   onDelete: () => void;
+  onEdit?: () => void;
 }
 
 /**
@@ -33,10 +34,14 @@ export function InvoiceRow({
   onSend,
   onVoid,
   onDelete,
+  onEdit,
 }: InvoiceRowProps) {
   const status = INVOICE_STATUS[invoice.status];
   const outstanding = outstandingOf(invoice);
   const takesPayment = ["SENT", "OVERDUE", "PARTIALLY_PAID"].includes(invoice.status);
+  const isEditable =
+    ["DRAFT", "SENT", "OVERDUE"].includes(invoice.status) &&
+    Number(invoice.amountPaid) === 0;
   const lines = invoice.services.map((line) => line.service.name).join(", ");
   // The date that matters next: when it's due, or, with no due date, when it was made.
   const when = invoice.dueAt ? `Due ${formatDate(invoice.dueAt)}` : formatDate(invoice.createdAt);
@@ -65,6 +70,11 @@ export function InvoiceRow({
           {invoice.status === "DRAFT" ? (
             <Button size="sm" variant="dark" onClick={onSend} isLoading={busy}>
               Mark as sent
+            </Button>
+          ) : null}
+          {isEditable && onEdit ? (
+            <Button size="sm" variant="ghost" onClick={onEdit} disabled={busy}>
+              Edit
             </Button>
           ) : null}
           <CopyLinkIconButton url={link} label={`Copy link to ${invoice.invoiceNumber}`} />
