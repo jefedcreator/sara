@@ -8,9 +8,9 @@ import {
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-import { env } from "@/env";
 import { LogoMark, Wordmark } from "@/primitives";
 import { cn } from "@/utils/cn";
+import { whatsappHref } from "@/utils/whatsapp";
 
 import { CopyLinkButton } from "./CopyLinkButton";
 import { LandingMotion } from "./LandingMotion";
@@ -52,13 +52,6 @@ const ARRIVE_ITEM =
   "transition-[opacity,translate,scale] duration-600 ease-out-expo delay-[calc(var(--i,0)*120ms)] [[data-motion]_[data-arrive]:not([data-in])_&]:translate-y-2.5 [[data-motion]_[data-arrive]:not([data-in])_&]:scale-98 [[data-motion]_[data-arrive]:not([data-in])_&]:opacity-0";
 const ARRIVE_SELF =
   "transition-[opacity,translate] duration-700 ease-out-expo [[data-motion]_&:not([data-in])]:translate-y-4 [[data-motion]_&:not([data-in])]:opacity-0";
-
-function whatsappHref() {
-  const number = env.NEXT_PUBLIC_SARA_WHATSAPP_NUMBER;
-  return number
-    ? `https://wa.me/${number}?text=${encodeURIComponent("Hi Sara")}`
-    : "https://wa.me/";
-}
 
 // ---------- Small building blocks ----------
 
