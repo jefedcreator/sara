@@ -190,6 +190,7 @@ export function InvoicesPageClient({ currency, services, publicBaseUrl, initial 
                 invoice={invoice}
                 link={`${publicBaseUrl}${publicPath("invoice", invoice.publicId)}`}
                 busy={busySlug === invoice.slug}
+                onEdit={() => composer.start(invoice)}
                 onRecordPayment={() => {
                   recordPayment.reset();
                   setPaying(invoice);
