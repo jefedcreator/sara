@@ -91,6 +91,8 @@ class WhatsAppAdapter implements ChannelAdapter {
       console.error(
         `[WhatsApp] send failed: ${res.status} ${await res.text()}`,
       );
+    } else {
+      console.log(`[WhatsApp] Sent message to ${externalId}`);
     }
   }
 }
