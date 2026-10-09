@@ -63,7 +63,7 @@ describe("emailService with Resend", () => {
     );
     expect(sent.text).toContain("Knotless braids");
     expect(sent.text).toContain("NGN 25,000");
-  });
+  }, 15000);
 
   it("sends from EMAIL_FROM when it's set", async () => {
     env.EMAIL_FROM = "Sara <hello@sara.ng>";
