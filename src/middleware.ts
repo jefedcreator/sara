@@ -57,6 +57,9 @@ export function middleware(request: NextRequest, event: NextFetchEvent) {
     const origin = appBaseUrl(request.nextUrl.origin);
     return botCardResponse(renderBotCardHtml(origin, pathname, card));
   }
+  if (pathname === "/link" || pathname.startsWith("/link/")) {
+    return NextResponse.next();
+  }
   return runAuthed(request, event);
 }
 
@@ -71,5 +74,6 @@ export const config = {
     "/services",
     "/settings/:path*",
     "/onboarding",
+    "/link",
   ],
 };

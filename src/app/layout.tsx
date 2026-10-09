@@ -43,14 +43,12 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className={`${bricolage.variable} ${hanken.variable}`}>
-      <head>
+      <body>
         <script
           dangerouslySetInnerHTML={{
             __html: CLEAN_AUTH_FRAGMENT_SCRIPT,
           }}
         />
-      </head>
-      <body>
         <Provider>{children}</Provider>
       </body>
     </html>
