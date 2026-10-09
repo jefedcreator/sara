@@ -7,13 +7,30 @@ import { NotFoundException } from "@/utils/exceptions";
 import { serviceLabel, todayEventLabel, unitCount } from "@/utils/format";
 import { formatMoney } from "../engine/amount";
 
+export type WriteServiceDraft = {
+  serviceId: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  description?: string | null;
+};
+
 export type WriteDraft = {
   customerName: string;
   amount: number;
   description?: string;
+  services?: WriteServiceDraft[];
 };
 export type WriteResult = { number: string; link: string };
 export type ServiceOption = { slug: string; label: string };
+export type FullServiceOption = {
+  id: string;
+  slug: string;
+  name: string;
+  price: number;
+  currency: string;
+  label: string;
+};
 
 class IntentDispatcher {
   private async currencyFor(businessId: string): Promise<string> {
@@ -39,6 +56,7 @@ class IntentDispatcher {
       amountPaid: 0,
       sentAt: new Date(),
       notes: draft.description ?? null,
+      services: draft.services,
     });
     return {
       number: invoice.invoiceNumber,
@@ -58,11 +76,30 @@ class IntentDispatcher {
       total: draft.amount,
       amountPaid: draft.amount,
       notes: draft.description ?? null,
+      services: draft.services,
     });
     return {
       number: receipt.receiptNumber,
       link: publicLink("receipt", receipt.publicId),
     };
+  }
+
+  async listFullServiceOptions(businessId: string): Promise<FullServiceOption[]> {
+    const currency = await this.currencyFor(businessId);
+    const services = await db.service.findMany({
+      where: { businessId, isActive: true },
+      orderBy: { createdAt: "asc" },
+      take: 20,
+      select: { id: true, slug: true, name: true, price: true, duration: true, bookingMode: true },
+    });
+    return services.map((s) => ({
+      id: s.id,
+      slug: s.slug,
+      name: s.name,
+      price: Number(s.price),
+      currency,
+      label: serviceLabel({ name: s.name, price: Number(s.price), duration: s.duration, currency, bookingMode: s.bookingMode }),
+    }));
   }
 
   async listServiceOptions(businessId: string): Promise<ServiceOption[]> {
