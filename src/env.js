@@ -73,7 +73,8 @@ export const env = createEnv({
     NEXT_PUBLIC_SARA_WHATSAPP_NUMBER: z
       .string()
       .trim()
-      .regex(/^\d{8,15}$/)
+      .transform((val) => val.replace(/\D/g, ""))
+      .pipe(z.string().regex(/^\d{8,15}$/))
       .optional(),
   },
 
