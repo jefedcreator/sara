@@ -84,7 +84,10 @@ class WhatsAppAdapter implements ChannelAdapter {
         messaging_product: "whatsapp",
         to: externalId,
         type: "text",
-        text: { body: message.text },
+        text: {
+          body: message.text,
+          preview_url: true,
+        },
       }),
     });
     if (!res.ok) {

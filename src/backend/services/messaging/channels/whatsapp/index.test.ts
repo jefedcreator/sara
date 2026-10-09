@@ -51,6 +51,11 @@ describe("send", () => {
       expect.objectContaining({ method: "POST" }),
     );
     const body = JSON.parse((fetchMock.mock.calls[0]![1] as any).body);
-    expect(body).toMatchObject({ messaging_product: "whatsapp", to: "234800", type: "text", text: { body: "hello" } });
+    expect(body).toMatchObject({
+      messaging_product: "whatsapp",
+      to: "234800",
+      type: "text",
+      text: { body: "hello", preview_url: true },
+    });
   });
 });
