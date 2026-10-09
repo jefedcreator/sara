@@ -48,4 +48,23 @@ describe("POST /api/webhooks/whatsapp", () => {
     const res = await POST(postReq({}));
     expect(res.status).toBe(200);
   });
+
+  it("passes onProgress and sends intermediate loading message", async () => {
+    mockedAdapter.isAuthentic.mockReturnValue(true);
+    mockedAdapter.normalizeInbound.mockReturnValue([
+      { channel: "WHATSAPP", externalId: "234800", text: "yes", messageId: "m1" },
+    ]);
+
+    mockedEngine.handle.mockImplementation(async (_msg: any, options: any) => {
+      if (options?.onProgress) {
+        await options.onProgress({ text: "Creating invoice... ⏳" });
+      }
+      return { text: "Invoice INV-1001 created ✅" };
+    });
+
+    const res = await POST(postReq({ entry: [] }));
+    expect(res.status).toBe(200);
+    expect(mockedAdapter.send).toHaveBeenNthCalledWith(1, "234800", { text: "Creating invoice... ⏳" });
+    expect(mockedAdapter.send).toHaveBeenNthCalledWith(2, "234800", { text: "Invoice INV-1001 created ✅" });
+  });
 });
