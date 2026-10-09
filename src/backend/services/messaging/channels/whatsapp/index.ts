@@ -8,23 +8,39 @@ const GRAPH = "https://graph.facebook.com/v21.0";
 class WhatsAppAdapter implements ChannelAdapter {
   channel: ChatChannel = "WHATSAPP";
 
+  private getVerifyToken(): string | undefined {
+    return (env.WHATSAPP_VERIFY_TOKEN || process.env.WHATSAPP_VERIFY_TOKEN)?.trim();
+  }
+
   verify(req: Request): Response {
     const url = new URL(req.url);
     const mode = url.searchParams.get("hub.mode");
     const token = url.searchParams.get("hub.verify_token");
     const challenge = url.searchParams.get("hub.challenge") ?? "";
-    if (mode === "subscribe" && token && token === env.WHATSAPP_VERIFY_TOKEN) {
-      return new Response(challenge, { status: 200 });
+    const expectedToken = this.getVerifyToken();
+
+    if (
+      mode === "subscribe" &&
+      token &&
+      expectedToken &&
+      token.trim() === expectedToken
+    ) {
+      return new Response(challenge, {
+        status: 200,
+        headers: { "Content-Type": "text/plain" },
+      });
     }
     return new Response("Forbidden", { status: 403 });
   }
 
   isAuthentic(req: Request, rawBody: string): boolean {
-    const secret = env.META_APP_SECRET;
+    const secret = env.META_APP_SECRET || process.env.META_APP_SECRET;
     if (!secret) return false;
     const signature = req.headers.get("x-hub-signature-256");
     if (!signature) return false;
-    const expected = "sha256=" + crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+    const expected =
+      "sha256=" +
+      crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
     const a = Buffer.from(signature);
     const b = Buffer.from(expected);
     return a.length === b.length && crypto.timingSafeEqual(a, b);
@@ -36,7 +52,9 @@ class WhatsAppAdapter implements ChannelAdapter {
     for (const entry of body?.entry ?? []) {
       for (const change of entry?.changes ?? []) {
         const value = change?.value ?? {};
-        const contactName = value?.contacts?.[0]?.profile?.name as string | undefined;
+        const contactName = value?.contacts?.[0]?.profile?.name as
+          | string
+          | undefined;
         for (const msg of value?.messages ?? []) {
           if (msg?.type !== "text" || !msg?.text?.body) continue;
           out.push({
@@ -53,10 +71,13 @@ class WhatsAppAdapter implements ChannelAdapter {
   }
 
   async send(externalId: string, message: OutboundMessage): Promise<void> {
-    const res = await fetch(`${GRAPH}/${env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
+    const phoneId = env.WHATSAPP_PHONE_NUMBER_ID || process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const token = env.WHATSAPP_TOKEN || process.env.WHATSAPP_TOKEN;
+
+    const res = await fetch(`${GRAPH}/${phoneId}/messages`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${env.WHATSAPP_TOKEN}`,
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -67,7 +88,9 @@ class WhatsAppAdapter implements ChannelAdapter {
       }),
     });
     if (!res.ok) {
-      console.error(`[WhatsApp] send failed: ${res.status} ${await res.text()}`);
+      console.error(
+        `[WhatsApp] send failed: ${res.status} ${await res.text()}`,
+      );
     }
   }
 }
