@@ -183,10 +183,10 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
 
       const updatedInvoicedata = { invoice: finalInvoice, business: invoiceRecord.business };
 
-      // Email customer when promoting draft to sent, or when an already sent/overdue invoice is updated.
+      // Email customer when invoice is SENT or OVERDUE.
       const shouldEmail =
-        (invoice.status === "DRAFT" && updatedInvoicedata.invoice.status === "SENT") ||
-        (invoice.status === "SENT" || invoice.status === "OVERDUE");
+        updatedInvoicedata.invoice.status === "SENT" ||
+        updatedInvoicedata.invoice.status === "OVERDUE";
       if (shouldEmail && updatedInvoicedata.invoice.clientEmail) {
         await emailInvoice(updatedInvoicedata.invoice, updatedInvoicedata.business);
       }
