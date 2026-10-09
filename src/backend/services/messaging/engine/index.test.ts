@@ -485,3 +485,69 @@ describe("service item selection with quantities", () => {
   });
 });
 
+describe("progress loading state", () => {
+  it("calls onProgress with 'Creating invoice... ⏳' when confirming invoice", async () => {
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "INVOICE_CONFIRM",
+      context: { customerName: "Ada", amount: 15000, description: "Haircut" },
+    });
+    mockedDispatch.createInvoice.mockResolvedValue({ number: "INV-1001", link: "https://sara.ng/i/inv-1" });
+
+    const onProgress = vi.fn().mockResolvedValue(undefined);
+    const reply = await conversationEngine.handle(inbound("yes", "m_prog_1"), { onProgress });
+
+    expect(onProgress).toHaveBeenCalledWith({ text: "Creating invoice... ⏳" });
+    expect(mockedDispatch.createInvoice).toHaveBeenCalled();
+    expect(reply?.text).toContain("Invoice INV-1001 created ✅");
+  });
+
+  it("calls onProgress with 'Creating receipt... ⏳' when confirming receipt", async () => {
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "RECEIPT_CONFIRM",
+      context: { customerName: "Chidi", amount: 20000 },
+    });
+    mockedDispatch.createReceipt.mockResolvedValue({ number: "REC-1001", link: "https://sara.ng/r/rec-1" });
+
+    const onProgress = vi.fn().mockResolvedValue(undefined);
+    const reply = await conversationEngine.handle(inbound("yes", "m_prog_2"), { onProgress });
+
+    expect(onProgress).toHaveBeenCalledWith({ text: "Creating receipt... ⏳" });
+    expect(mockedDispatch.createReceipt).toHaveBeenCalled();
+    expect(reply?.text).toContain("Receipt REC-1001 created ✅");
+  });
+
+  it("does not call onProgress when user declines confirmation", async () => {
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "INVOICE_CONFIRM",
+      context: { customerName: "Ada", amount: 15000 },
+    });
+
+    const onProgress = vi.fn().mockResolvedValue(undefined);
+    const reply = await conversationEngine.handle(inbound("no", "m_prog_3"), { onProgress });
+
+    expect(onProgress).not.toHaveBeenCalled();
+    expect(mockedDispatch.createInvoice).not.toHaveBeenCalled();
+    expect(reply?.text).toContain("Okay, cancelled.");
+  });
+
+  it("proceeds with creation if onProgress throws", async () => {
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "INVOICE_CONFIRM",
+      context: { customerName: "Ada", amount: 15000 },
+    });
+    mockedDispatch.createInvoice.mockResolvedValue({ number: "INV-1001", link: "https://sara.ng/i/inv-1" });
+
+    const onProgress = vi.fn().mockRejectedValue(new Error("Network error"));
+    const reply = await conversationEngine.handle(inbound("yes", "m_prog_4"), { onProgress });
+
+    expect(onProgress).toHaveBeenCalledWith({ text: "Creating invoice... ⏳" });
+    expect(mockedDispatch.createInvoice).toHaveBeenCalled();
+    expect(reply?.text).toContain("Invoice INV-1001 created ✅");
+  });
+});
+
+
