@@ -2,6 +2,7 @@ import {
   parseMoney,
   type DocumentFormSchema,
 } from "@/backend/validators/document-form.validator";
+import type { InvoiceDto, ReceiptDto } from "types";
 
 import type { LineItemInput } from "./api";
 
@@ -63,3 +64,57 @@ export function toDocumentPayload(values: DocumentFormSchema, currency: string) 
     services: services.length > 0 ? services : undefined,
   };
 }
+
+export function documentToFormValues(
+  doc: InvoiceDto | ReceiptDto,
+  kind: "invoice" | "receipt",
+): DocumentFormSchema {
+  const isInvoice = kind === "invoice";
+  const inv = isInvoice ? (doc as InvoiceDto) : null;
+  const rcp = !isInvoice ? (doc as ReceiptDto) : null;
+
+  const name = isInvoice ? inv!.clientName : (rcp!.name ?? "");
+  const email = isInvoice ? (inv!.clientEmail ?? "") : (rcp!.email ?? "");
+  const phone = isInvoice ? (inv!.clientPhone ?? "") : (rcp!.phone ?? "");
+
+  const hasServices = doc.services && doc.services.length > 0;
+  const mode = hasServices ? "services" : "amount";
+
+  const items = hasServices
+    ? doc.services.map((item) => ({
+        serviceId: item.serviceId,
+        quantity: String(item.quantity),
+        unitPrice: String(Number(item.unitPrice)),
+      }))
+    : [];
+
+  const amount = !hasServices ? String(Number(doc.subtotal)) : "";
+  const description = doc.notes ?? "";
+
+  const taxAmount = Number(doc.taxAmount) > 0 ? String(Number(doc.taxAmount)) : "";
+  const discount = Number(doc.discount) > 0 ? String(Number(doc.discount)) : "";
+
+  let dueAt = "";
+  if (isInvoice && inv?.dueAt) {
+    dueAt = new Date(inv.dueAt).toISOString().split("T")[0] ?? "";
+  }
+
+  const paymentMethod = !isInvoice && rcp?.paymentMethod === "BANK_TRANSFER"
+    ? "BANK_TRANSFER"
+    : "CASH";
+
+  return {
+    name,
+    email,
+    phone,
+    mode,
+    items,
+    amount,
+    description,
+    taxAmount,
+    discount,
+    dueAt,
+    paymentMethod,
+  };
+}
+
