@@ -51,6 +51,21 @@ describe("middleware", () => {
     expect(html).toContain('content="https://app.sara.ng/api/og/invoices"');
   });
 
+  it("answers a link crawler on /link with the link card", async () => {
+    const response = await visit("/link?t=xyz", WHATSAPP);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("vary")).toBe("user-agent");
+    const html = await response.text();
+    expect(html).toContain('content="Connect your chat · Sara"');
+    expect(html).toContain('content="https://app.sara.ng/link"');
+    expect(html).toContain('content="https://app.sara.ng/api/og/link"');
+  });
+
+  it("lets a signed-out person through to /link without redirecting", async () => {
+    const response = await visit("/link?t=xyz", CHROME);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
   it("still sends a signed-out person to sign in", async () => {
     const response = await visit("/invoices?page=2", CHROME);
     expect(response.status).toBe(307);
@@ -75,7 +90,8 @@ describe("middleware matcher", () => {
     "/dashboard",
     "/settings",
     "/onboarding",
-  ])("gates the owner page %s", (url) => {
+    "/link",
+  ])("gates the page %s", (url) => {
     expect(unstable_doesMiddlewareMatch({ config, url })).toBe(true);
   });
 
