@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "@phosphor-icons/react/dist/ssr";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import type { ServiceDto } from "types";
+import type { InvoiceDto, ReceiptDto, ServiceDto } from "types";
 
 import {
   documentFormSchema,
@@ -22,7 +22,7 @@ import {
   Textarea,
 } from "@/primitives";
 import { cn } from "@/utils/cn";
-import { computeTotals } from "@/utils/documents";
+import { computeTotals, documentToFormValues } from "@/utils/documents";
 import { formatMoney, todayIso } from "@/utils/format";
 
 export type DocumentKind = "invoice" | "receipt";
@@ -48,9 +48,13 @@ interface DocumentModalProps {
   error: string | null;
   /** Set once saved: the modal turns into the share view. */
   created: CreatedDocument | null;
+  editing?: InvoiceDto | ReceiptDto | null;
 }
 
-const COPY: Record<DocumentKind, { title: string; description: string; submit: string }> = {
+const COPY: Record<
+  DocumentKind,
+  { title: string; description: string; submit: string }
+> = {
   invoice: {
     title: "New invoice",
     description: "Sara makes the PDF. Share its link with your customer.",
@@ -71,7 +75,13 @@ function emptyValues(services: ServiceDto[]): DocumentFormSchema {
     phone: "",
     mode: first ? "services" : "amount",
     items: first
-      ? [{ serviceId: first.id, quantity: "1", unitPrice: String(Number(first.price)) }]
+      ? [
+          {
+            serviceId: first.id,
+            quantity: "1",
+            unitPrice: String(Number(first.price)),
+          },
+        ]
       : [],
     amount: "",
     description: "",
@@ -97,6 +107,7 @@ export function DocumentModal({
   isPending,
   error,
   created,
+  editing,
 }: DocumentModalProps) {
   const copy = COPY[kind];
   const {
@@ -107,7 +118,9 @@ export function DocumentModal({
     formState: { errors },
   } = useForm<DocumentFormSchema>({
     resolver: zodResolver(documentFormSchema),
-    defaultValues: emptyValues(services),
+    defaultValues: editing
+      ? documentToFormValues(editing, kind)
+      : emptyValues(services),
   });
   const items = useFieldArray({ control, name: "items" });
   const values = useWatch({ control });
@@ -124,7 +137,21 @@ export function DocumentModal({
     discount: values.discount ?? "",
   });
 
-  const submit = (draft: boolean) => handleSubmit((form) => onSubmit(form, { draft }));
+  const submit = (draft: boolean) =>
+    handleSubmit((form) => onSubmit(form, { draft }));
+
+  const docNumber = editing
+    ? "invoiceNumber" in editing
+      ? editing.invoiceNumber
+      : editing.receiptNumber
+    : null;
+
+  const title = editing
+    ? `Edit ${kind === "invoice" ? "invoice" : "receipt"} ${docNumber}`
+    : copy.title;
+  const description = editing
+    ? `Update ${kind === "invoice" ? "invoice details, line items, or customer information." : "receipt details or line items."}`
+    : copy.description;
 
   return (
     <Modal open={open} onOpenChange={onOpenChange}>
@@ -136,8 +163,8 @@ export function DocumentModal({
             <CreatedView kind={kind} created={created} currency={currency} />
           ) : (
             <>
-              <Modal.Title>{copy.title}</Modal.Title>
-              <Modal.Description>{copy.description}</Modal.Description>
+              <Modal.Title>{title}</Modal.Title>
+              <Modal.Description>{description}</Modal.Description>
 
               <form
                 noValidate
@@ -145,14 +172,30 @@ export function DocumentModal({
                 onSubmit={submit(false)}
                 className="mt-6 grid grid-cols-1 gap-5"
               >
-                <Field id={`${kind}-name`} label="Customer" error={errors.name?.message}>
+                <Field
+                  id={`${kind}-name`}
+                  label="Customer"
+                  error={errors.name?.message}
+                >
                   <Input placeholder="Funke Bello" {...register("name")} />
                 </Field>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <Field id={`${kind}-email`} label="Email (optional)" error={errors.email?.message}>
-                    <Input type="email" inputMode="email" {...register("email")} />
+                  <Field
+                    id={`${kind}-email`}
+                    label="Email (optional)"
+                    error={errors.email?.message}
+                  >
+                    <Input
+                      type="email"
+                      inputMode="email"
+                      {...register("email")}
+                    />
                   </Field>
-                  <Field id={`${kind}-phone`} label="Phone (optional)" error={errors.phone?.message}>
+                  <Field
+                    id={`${kind}-phone`}
+                    label="Phone (optional)"
+                    error={errors.phone?.message}
+                  >
                     <Input type="tel" inputMode="tel" {...register("phone")} />
                   </Field>
                 </div>
@@ -168,7 +211,9 @@ export function DocumentModal({
                           { value: "services", label: "Services" },
                           { value: "amount", label: "Custom amount" },
                         ]}
-                        onChange={(next) => setValue("mode", next, { shouldValidate: false })}
+                        onChange={(next) =>
+                          setValue("mode", next, { shouldValidate: false })
+                        }
                       />
                     ) : null}
                   </div>
@@ -198,15 +243,23 @@ export function DocumentModal({
                                     value={serviceField.value}
                                     onValueChange={(serviceId) => {
                                       serviceField.onChange(serviceId);
-                                      const service = services.find((s) => s.id === serviceId);
+                                      const service = services.find(
+                                        (s) => s.id === serviceId,
+                                      );
                                       if (service) {
-                                        setValue(`items.${index}.unitPrice`, String(Number(service.price)));
+                                        setValue(
+                                          `items.${index}.unitPrice`,
+                                          String(Number(service.price)),
+                                        );
                                       }
                                     }}
                                     placeholder="Pick a service"
                                   >
                                     {services.map((service) => (
-                                      <Select.Item key={service.id} value={service.id}>
+                                      <Select.Item
+                                        key={service.id}
+                                        value={service.id}
+                                      >
                                         {service.name}
                                       </Select.Item>
                                     ))}
@@ -219,14 +272,20 @@ export function DocumentModal({
                               label="Qty"
                               error={rowErrors?.quantity?.message}
                             >
-                              <Input inputMode="numeric" {...register(`items.${index}.quantity`)} />
+                              <Input
+                                inputMode="numeric"
+                                {...register(`items.${index}.quantity`)}
+                              />
                             </Field>
                             <Field
                               id={`${kind}-item-${index}-price`}
                               label={`Price (${currency})`}
                               error={rowErrors?.unitPrice?.message}
                             >
-                              <Input inputMode="decimal" {...register(`items.${index}.unitPrice`)} />
+                              <Input
+                                inputMode="decimal"
+                                {...register(`items.${index}.unitPrice`)}
+                              />
                             </Field>
                             <Button
                               variant="ghost"
@@ -241,7 +300,9 @@ export function DocumentModal({
                         );
                       })}
                       {errors.items?.message ? (
-                        <p className="text-danger text-[13px]">{errors.items.message}</p>
+                        <p className="text-danger text-[13px]">
+                          {errors.items.message}
+                        </p>
                       ) : null}
                       <Button
                         variant="secondary"
@@ -250,7 +311,10 @@ export function DocumentModal({
                         onClick={() => {
                           const unused =
                             services.find(
-                              (s) => !(values.items ?? []).some((i) => i?.serviceId === s.id),
+                              (s) =>
+                                !(values.items ?? []).some(
+                                  (i) => i?.serviceId === s.id,
+                                ),
                             ) ?? services[0];
                           if (!unused) return;
                           items.append({
@@ -266,22 +330,53 @@ export function DocumentModal({
                     </div>
                   ) : (
                     <div className="grid gap-4 sm:grid-cols-[180px_1fr]">
-                      <Field id={`${kind}-amount`} label={`Amount (${currency})`} error={errors.amount?.message}>
-                        <Input inputMode="decimal" placeholder="15000" {...register("amount")} />
+                      <Field
+                        id={`${kind}-amount`}
+                        label={`Amount (${currency})`}
+                        error={errors.amount?.message}
+                      >
+                        <Input
+                          inputMode="decimal"
+                          placeholder="15000"
+                          {...register("amount")}
+                        />
                       </Field>
-                      <Field id={`${kind}-description`} label="Description (optional)" error={errors.description?.message}>
-                        <Input placeholder="Wig install and styling" {...register("description")} />
+                      <Field
+                        id={`${kind}-description`}
+                        label="Description (optional)"
+                        error={errors.description?.message}
+                      >
+                        <Input
+                          placeholder="Wig install and styling"
+                          {...register("description")}
+                        />
                       </Field>
                     </div>
                   )}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
-                  <Field id={`${kind}-tax`} label="Tax (optional)" error={errors.taxAmount?.message}>
-                    <Input inputMode="decimal" placeholder="0" {...register("taxAmount")} />
+                  <Field
+                    id={`${kind}-tax`}
+                    label="Tax (optional)"
+                    error={errors.taxAmount?.message}
+                  >
+                    <Input
+                      inputMode="decimal"
+                      placeholder="0"
+                      {...register("taxAmount")}
+                    />
                   </Field>
-                  <Field id={`${kind}-discount`} label="Discount (optional)" error={errors.discount?.message}>
-                    <Input inputMode="decimal" placeholder="0" {...register("discount")} />
+                  <Field
+                    id={`${kind}-discount`}
+                    label="Discount (optional)"
+                    error={errors.discount?.message}
+                  >
+                    <Input
+                      inputMode="decimal"
+                      placeholder="0"
+                      {...register("discount")}
+                    />
                   </Field>
                 </div>
 
@@ -309,9 +404,15 @@ export function DocumentModal({
                       control={control}
                       name="paymentMethod"
                       render={({ field }) => (
-                        <Select ref={field.ref} value={field.value} onValueChange={field.onChange}>
+                        <Select
+                          ref={field.ref}
+                          value={field.value}
+                          onValueChange={field.onChange}
+                        >
                           <Select.Item value="CASH">Cash</Select.Item>
-                          <Select.Item value="BANK_TRANSFER">Bank transfer</Select.Item>
+                          <Select.Item value="BANK_TRANSFER">
+                            Bank transfer
+                          </Select.Item>
                         </Select>
                       )}
                     />
@@ -319,36 +420,95 @@ export function DocumentModal({
                 )}
 
                 {mode === "services" ? (
-                  <Field id={`${kind}-notes`} label="Notes (optional)" error={errors.description?.message}>
+                  <Field
+                    id={`${kind}-notes`}
+                    label="Notes (optional)"
+                    error={errors.description?.message}
+                  >
                     <Textarea rows={2} {...register("description")} />
                   </Field>
                 ) : null}
 
                 <dl className="border-line grid gap-1 border-t pt-4 text-[15px]">
-                  <Line label="Subtotal" value={formatMoney(totals.subtotal, currency)} />
+                  <Line
+                    label="Subtotal"
+                    value={formatMoney(totals.subtotal, currency)}
+                  />
                   {totals.taxAmount > 0 ? (
-                    <Line label="Tax" value={formatMoney(totals.taxAmount, currency)} soft />
+                    <Line
+                      label="Tax"
+                      value={formatMoney(totals.taxAmount, currency)}
+                      soft
+                    />
                   ) : null}
                   {totals.discount > 0 ? (
-                    <Line label="Discount" value={`− ${formatMoney(totals.discount, currency)}`} soft />
+                    <Line
+                      label="Discount"
+                      value={`− ${formatMoney(totals.discount, currency)}`}
+                      soft
+                    />
                   ) : null}
-                  <Line label="Total" value={formatMoney(totals.total, currency)} strong />
+                  <Line
+                    label="Total"
+                    value={formatMoney(totals.total, currency)}
+                    strong
+                  />
                 </dl>
 
                 {error ? <Notice tone="danger">{error}</Notice> : null}
 
                 <div className="grid gap-2.5 sm:flex sm:flex-row-reverse">
-                  <Button type="submit" isLoading={isPending}>
-                    {copy.submit}
-                  </Button>
-                  {kind === "invoice" ? (
-                    <Button variant="secondary" disabled={isPending} onClick={submit(true)}>
-                      Save as draft
-                    </Button>
+                  {editing ? (
+                    kind === "invoice" &&
+                    (editing as InvoiceDto).status === "DRAFT" ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={submit(true)}
+                          isLoading={isPending}
+                        >
+                          Save changes
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="primary"
+                          onClick={submit(false)}
+                          isLoading={isPending}
+                        >
+                          Save & send
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        isLoading={isPending}
+                      >
+                        Save changes
+                      </Button>
+                    )
                   ) : (
-                    <Modal.Close asChild>
-                      <Button variant="secondary">Cancel</Button>
-                    </Modal.Close>
+                    <>
+                      {kind === "invoice" ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={submit(true)}
+                          isLoading={isPending}
+                        >
+                          Save as draft
+                        </Button>
+                      ) : null}
+                      <Button
+                        type={kind === "invoice" ? "button" : "submit"}
+                        variant="primary"
+                        onClick={kind === "invoice" ? submit(false) : undefined}
+                        isLoading={isPending}
+                      >
+                        {copy.submit}
+                      </Button>
+                    </>
                   )}
                 </div>
               </form>
@@ -403,10 +563,14 @@ function CreatedView({
       </Modal.Title>
       <Modal.Description>
         {formatMoney(created.total, currency)} for {created.customer}.{" "}
-        {kind === "invoice" ? "Send the link so they can see what they owe." : "Send the link as their proof of payment."}
+        {kind === "invoice"
+          ? "Send the link so they can see what they owe."
+          : "Send the link as their proof of payment."}
       </Modal.Description>
       <div className="bg-surface mt-6 flex items-center gap-2 rounded-full py-1 pr-1 pl-4">
-        <code className="text-ink min-w-0 flex-1 truncate font-mono text-[13px]">{created.shareUrl}</code>
+        <code className="text-ink min-w-0 flex-1 truncate font-mono text-[13px]">
+          {created.shareUrl}
+        </code>
         <CopyLinkButton url={created.shareUrl} />
       </div>
       <div className="mt-6 grid gap-2.5 sm:flex sm:flex-row-reverse">
