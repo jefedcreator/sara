@@ -111,6 +111,26 @@ describe("PUT /api/invoices/[slug]", () => {
       clientEmail: "ada@example.com",
       services: [],
     });
+    mockedDb.invoice.update.mockResolvedValue({
+      id: "inv_1",
+      invoiceNumber: "INV-1001",
+      status: "SENT",
+      currency: "NGN",
+      subtotal: 30000,
+      taxAmount: 0,
+      discount: 0,
+      total: 30000,
+      amountPaid: 0,
+      clientEmail: "ada@example.com",
+      clientName: "Ada Updated",
+      clientPhone: null,
+      dueAt: null,
+      sentAt: null,
+      paidAt: null,
+      notes: null,
+      business: { id: "biz_1", name: "Tobi Beauty" },
+      services: [],
+    });
     const response = await put({ name: "Ada Updated" });
     expect(response.status).toBe(200);
     expect(mockedDb.invoice.update).toHaveBeenCalled();
