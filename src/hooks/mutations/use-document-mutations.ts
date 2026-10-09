@@ -7,7 +7,9 @@ import {
   api,
   type InvoiceCreateInput,
   type InvoicePaymentInput,
+  type InvoiceUpdateInput,
   type ReceiptCreateInput,
+  type ReceiptUpdateInput,
 } from "@/utils/api";
 
 /** Invoices and receipts both feed the dashboard's numbers. */
@@ -24,6 +26,15 @@ export function useCreateInvoiceMutation() {
   const invalidate = useInvalidateMoney();
   return useMutation({
     mutationFn: (values: InvoiceCreateInput) => api.invoices.create(values),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateInvoiceMutation() {
+  const invalidate = useInvalidateMoney();
+  return useMutation({
+    mutationFn: ({ slug, values }: { slug: string; values: InvoiceUpdateInput }) =>
+      api.invoices.update(slug, values),
     onSuccess: invalidate,
   });
 }
@@ -73,6 +84,15 @@ export function useCreateReceiptMutation() {
   const invalidate = useInvalidateMoney();
   return useMutation({
     mutationFn: (values: ReceiptCreateInput) => api.receipts.create(values),
+    onSuccess: invalidate,
+  });
+}
+
+export function useUpdateReceiptMutation() {
+  const invalidate = useInvalidateMoney();
+  return useMutation({
+    mutationFn: ({ slug, values }: { slug: string; values: ReceiptUpdateInput }) =>
+      api.receipts.update(slug, values),
     onSuccess: invalidate,
   });
 }

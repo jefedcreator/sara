@@ -112,9 +112,31 @@ export type InvoicePaymentInput = {
   paidAt?: string;
 };
 
+export type InvoiceUpdateInput = Partial<DocumentMoney> & {
+  name?: string;
+  email?: string;
+  phone?: string;
+  status?: "DRAFT" | "SENT";
+  amountPaid?: number;
+  dueAt?: string;
+  sentAt?: string;
+  notes?: string;
+  services?: LineItemInput[];
+};
+
 export type ReceiptCreateInput = DocumentMoney & {
   amountPaid: number;
   paymentMethod?: "CASH" | "BANK_TRANSFER" | "PAYSTACK";
+};
+
+export type ReceiptUpdateInput = Partial<DocumentMoney> & {
+  name?: string;
+  email?: string;
+  phone?: string;
+  amountPaid?: number;
+  paymentMethod?: "CASH" | "BANK_TRANSFER";
+  notes?: string;
+  services?: LineItemInput[];
 };
 
 // Matches PAGE_SIZE in src/server/lists.ts, so server-seeded pages line up.
@@ -260,6 +282,8 @@ export const api = {
       ),
     create: (values: InvoiceCreateInput) =>
       data<InvoiceDto & SharedLink>(http.post("/invoices", values)),
+    update: (slug: string, values: InvoiceUpdateInput) =>
+      data<InvoiceDto>(http.put(`/invoices/${encodeURIComponent(slug)}`, values)),
     recordPayment: (slug: string, values: InvoicePaymentInput) =>
       data<InvoiceDto>(http.put(`/invoices/${encodeURIComponent(slug)}`, values)),
     setStatus: (slug: string, status: "SENT" | "VOID") =>
@@ -282,6 +306,8 @@ export const api = {
       ),
     create: (values: ReceiptCreateInput) =>
       data<ReceiptDto & SharedLink>(http.post("/receipts", values)),
+    update: (slug: string, values: ReceiptUpdateInput) =>
+      data<ReceiptDto>(http.put(`/receipts/${encodeURIComponent(slug)}`, values)),
   },
 
   messaging: {
