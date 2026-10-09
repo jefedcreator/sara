@@ -27,6 +27,10 @@ export type SelectedServiceItem = {
   total: number;
 };
 
+export type HandleOptions = {
+  onProgress?: (message: OutboundMessage) => Promise<void> | void;
+};
+
 type Draft = {
   customerName?: string;
   amount?: number;
@@ -49,7 +53,10 @@ function text(body: string): OutboundMessage {
 }
 
 class ConversationEngine {
-  async handle(message: InboundMessage): Promise<OutboundMessage | null> {
+  async handle(
+    message: InboundMessage,
+    options?: HandleOptions,
+  ): Promise<OutboundMessage | null> {
     const identity = await chatSessionService.findIdentity(
       message.channel,
       message.externalId,
@@ -90,11 +97,15 @@ class ConversationEngine {
       return text(`Cancelled.\n\n${MAIN_MENU}`);
     }
 
-    const result = await this.route(state, {
-      text: trimmed,
-      businessId: identity.businessId,
-      context,
-    });
+    const result = await this.route(
+      state,
+      {
+        text: trimmed,
+        businessId: identity.businessId,
+        context,
+      },
+      options,
+    );
 
     await chatSessionService.save(session.id, {
       state: result.nextState,
@@ -105,7 +116,11 @@ class ConversationEngine {
     return result.reply;
   }
 
-  private async route(state: string, ctx: HandlerCtx): Promise<HandlerResult> {
+  private async route(
+    state: string,
+    ctx: HandlerCtx,
+    options?: HandleOptions,
+  ): Promise<HandlerResult> {
     switch (state) {
       case "INVOICE_CUSTOMER": return this.collectCustomer(ctx, "INVOICE");
       case "INVOICE_ITEM_OR_AMOUNT": return this.collectItemOrAmount(ctx, "INVOICE");
@@ -113,14 +128,14 @@ class ConversationEngine {
       case "INVOICE_MORE_ITEMS": return this.collectMoreItems(ctx, "INVOICE");
       case "INVOICE_AMOUNT": return this.collectAmount(ctx, "INVOICE");
       case "INVOICE_DESC": return this.collectDesc(ctx, "INVOICE");
-      case "INVOICE_CONFIRM": return this.confirm(ctx, "INVOICE");
+      case "INVOICE_CONFIRM": return this.confirm(ctx, "INVOICE", options);
       case "RECEIPT_CUSTOMER": return this.collectCustomer(ctx, "RECEIPT");
       case "RECEIPT_ITEM_OR_AMOUNT": return this.collectItemOrAmount(ctx, "RECEIPT");
       case "RECEIPT_ITEM_QTY": return this.collectItemQty(ctx, "RECEIPT");
       case "RECEIPT_MORE_ITEMS": return this.collectMoreItems(ctx, "RECEIPT");
       case "RECEIPT_AMOUNT": return this.collectAmount(ctx, "RECEIPT");
       case "RECEIPT_DESC": return this.collectDesc(ctx, "RECEIPT");
-      case "RECEIPT_CONFIRM": return this.confirm(ctx, "RECEIPT");
+      case "RECEIPT_CONFIRM": return this.confirm(ctx, "RECEIPT", options);
       case "SHARE_SERVICE_SELECT": return this.shareServiceSelect(ctx);
       case "MAIN_MENU":
       default: return this.mainMenu(ctx);
@@ -363,7 +378,11 @@ class ConversationEngine {
     };
   }
 
-  private async confirm(ctx: HandlerCtx, kind: "INVOICE" | "RECEIPT"): Promise<HandlerResult> {
+  private async confirm(
+    ctx: HandlerCtx,
+    kind: "INVOICE" | "RECEIPT",
+    options?: HandleOptions,
+  ): Promise<HandlerResult> {
     const answer = ctx.text.toLowerCase();
     if (answer !== "yes" && answer !== "y") {
       return { reply: text(`Okay, cancelled.\n\n${MAIN_MENU}`), nextState: "MAIN_MENU", context: null };
@@ -372,6 +391,17 @@ class ConversationEngine {
     if (!draft.customerName || draft.amount == null) {
       return { reply: text(`Something went wrong. Let's start over.\n\n${MAIN_MENU}`), nextState: "MAIN_MENU", context: null };
     }
+
+    if (options?.onProgress) {
+      try {
+        await options.onProgress(
+          text(kind === "INVOICE" ? "Creating invoice... ⏳" : "Creating receipt... ⏳"),
+        );
+      } catch (err) {
+        console.warn("[ConversationEngine] onProgress error ignored:", err);
+      }
+    }
+
     const servicesPayload = draft.selectedItems && draft.selectedItems.length > 0
       ? draft.selectedItems.map((it) => ({
           serviceId: it.serviceId,
