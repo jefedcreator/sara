@@ -68,6 +68,7 @@ export function ReceiptsPageClient({ currency, services, publicBaseUrl, initial 
               <ReceiptRow
                 receipt={receipt}
                 link={`${publicBaseUrl}${publicPath("receipt", receipt.publicId)}`}
+                onEdit={() => composer.start(receipt)}
               />
             </li>
           ))}

@@ -12,12 +12,12 @@ import type { BusinessSender } from "./messages";
  * the chat and the owner's copy button hand out. Never throws (emailService).
  */
 
-/** Sends a SENT invoice to its customer; skips drafts and invoices with no address. */
+/** Sends a SENT or OVERDUE invoice to its customer; skips drafts and invoices with no address. */
 export async function emailInvoice(
   invoice: Invoice,
   business: BusinessSender,
 ): Promise<SendResult | null> {
-  if (invoice.status !== "SENT" || !invoice.clientEmail) return null;
+  if ((invoice.status !== "SENT" && invoice.status !== "OVERDUE") || !invoice.clientEmail) return null;
   return emailService.sendInvoiceEmail({
     to: invoice.clientEmail,
     business,
