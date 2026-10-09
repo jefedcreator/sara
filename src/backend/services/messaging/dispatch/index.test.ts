@@ -86,3 +86,68 @@ describe("listUnpaidInvoices", () => {
     expect((await intentDispatcher.listUnpaidInvoices("biz_1")).toLowerCase()).toContain("no unpaid");
   });
 });
+
+describe("listFullServiceOptions", () => {
+  it("returns active services with IDs, names, prices and formatted labels", async () => {
+    mockedDb.service.findMany.mockResolvedValue([
+      { id: "srv_1", slug: "box-braids", name: "Box Braids", price: 15000, duration: 120, bookingMode: "SLOT" },
+    ]);
+    const options = await intentDispatcher.listFullServiceOptions("biz_1");
+    expect(options).toEqual([
+      {
+        id: "srv_1",
+        slug: "box-braids",
+        name: "Box Braids",
+        price: 15000,
+        currency: "NGN",
+        label: "Box Braids — NGN 15,000 (2 hr)",
+      },
+    ]);
+  });
+});
+
+describe("createInvoice with services", () => {
+  it("forwards line items to invoiceService.create", async () => {
+    (invoiceService.create as any).mockResolvedValue({
+      invoiceNumber: "INV-1013", slug: "acme-inv-1013", publicId: "pub_1013",
+    });
+    await intentDispatcher.createInvoice("biz_1", {
+      customerName: "Ada",
+      amount: 30000,
+      description: "Braids",
+      services: [
+        { serviceId: "srv_1", quantity: 2, unitPrice: 15000, total: 30000, description: "Box Braids" },
+      ],
+    });
+    expect(invoiceService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        services: [
+          { serviceId: "srv_1", quantity: 2, unitPrice: 15000, total: 30000, description: "Box Braids" },
+        ],
+      }),
+    );
+  });
+});
+
+describe("createReceipt with services", () => {
+  it("forwards line items to receiptService.create", async () => {
+    (receiptService.create as any).mockResolvedValue({
+      receiptNumber: "RCP-1008", slug: "acme-rcp-1008", publicId: "pub_1008",
+    });
+    await intentDispatcher.createReceipt("biz_1", {
+      customerName: "Ada",
+      amount: 15000,
+      services: [
+        { serviceId: "srv_1", quantity: 1, unitPrice: 15000, total: 15000, description: "Box Braids" },
+      ],
+    });
+    expect(receiptService.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        services: [
+          { serviceId: "srv_1", quantity: 1, unitPrice: 15000, total: 15000, description: "Box Braids" },
+        ],
+      }),
+    );
+  });
+});
+
