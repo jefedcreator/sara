@@ -54,7 +54,13 @@ class ChatSessionService {
 
   async claimMessage(sessionId: string, messageId: string): Promise<boolean> {
     const result = await db.chatSession.updateMany({
-      where: { id: sessionId, NOT: { lastProcessedMsgId: messageId } },
+      where: {
+        id: sessionId,
+        OR: [
+          { lastProcessedMsgId: null },
+          { lastProcessedMsgId: { not: messageId } },
+        ],
+      },
       data: { lastProcessedMsgId: messageId, lastActiveAt: new Date() },
     });
     return result.count === 1;
