@@ -21,8 +21,13 @@ vi.mock("@/backend/services/cloudinary", () => ({
     uploadImage: vi.fn().mockResolvedValue({ secure_url: "https://cdn.test/INV-1001.pdf" }),
   },
 }));
+vi.mock("@/backend/services/email/documents", () => ({
+  emailInvoice: vi.fn().mockResolvedValue(undefined),
+  emailReceipt: vi.fn().mockResolvedValue(undefined),
+}));
 
 import { db } from "@/server/db";
+import { emailInvoice } from "@/backend/services/email/documents";
 import { PUT } from "./route";
 
 const mockedDb = db as any;
@@ -66,6 +71,7 @@ beforeEach(() => {
     total: 30000,
     amountPaid: data.amountPaid ?? 0,
     clientName: "Ada",
+    clientEmail: "ada@example.com",
     business: { id: "biz_1", name: "Tobi Beauty" },
     services: [],
     ...data,
@@ -97,5 +103,17 @@ describe("PUT /api/invoices/[slug]", () => {
     const response = await put({ status: "PAID", amountPaid: 50000 });
     expect(response.status).toBe(400);
     expect(mockedDb.invoice.update).not.toHaveBeenCalled();
+  });
+
+  it("updates details on a SENT invoice and re-sends invoice email", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue({
+      ...invoice("SENT"),
+      clientEmail: "ada@example.com",
+      services: [],
+    });
+    const response = await put({ name: "Ada Updated" });
+    expect(response.status).toBe(200);
+    expect(mockedDb.invoice.update).toHaveBeenCalled();
+    expect(emailInvoice).toHaveBeenCalled();
   });
 });
