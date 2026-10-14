@@ -415,17 +415,33 @@ async function panelPhoto(url: string | null) {
 }
 
 /*
+ * A card re-encoded as JPEG, headers kept. For the cards that can carry a
+ * photo: as a PNG one weighs half a megabyte or more, and WhatsApp previews
+ * an image that heavy with the small thumbnail, or none. The flat-colour
+ * cards stay PNG, near 40KB and crisper. 4:4:4 keeps the coloured type sharp.
+ */
+async function asJpeg(card: Response) {
+  const jpeg = await sharp(Buffer.from(await card.arrayBuffer()))
+    .jpeg({ quality: 85, chromaSubsampling: "4:4:4", mozjpeg: true })
+    .toBuffer();
+  const headers = new Headers(card.headers);
+  headers.set("content-type", "image/jpeg");
+  headers.delete("content-length");
+  return new Response(new Uint8Array(jpeg), { headers });
+}
+
+/*
  * A service's card, for its booking link (/book) and its page (/services)
  * alike. Owners drop these links in Instagram bios and DMs, so the card is
  * the service's own: the business, the service, its price, a pill saying
  * what comes next, and the service photo (the mark on leaf grey when there
- * is none). Sara signs it quietly at the foot, single ink.
+ * is none). Sara signs it quietly at the foot, single ink. A JPEG (asJpeg).
  */
 export async function serviceCard(service: ServiceCardInput) {
   const image = await panelPhoto(service.image);
   const titleSize = service.name.length > 28 ? 60 : 76;
 
-  return new ImageResponse(
+  const card = new ImageResponse(
     <div
       style={{
         display: "flex",
@@ -517,6 +533,7 @@ export async function serviceCard(service: ServiceCardInput) {
     </div>,
     { ...OG_SIZE, fonts: await ogFonts() },
   );
+  return asJpeg(card);
 }
 
 /*
