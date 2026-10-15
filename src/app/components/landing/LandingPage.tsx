@@ -13,6 +13,7 @@ import { cn } from "@/utils/cn";
 import { whatsappHref } from "@/utils/whatsapp";
 
 import { CopyLinkButton } from "./CopyLinkButton";
+import { HeroDemo } from "./HeroDemo";
 import { LandingMotion } from "./LandingMotion";
 import { LandingNav } from "./LandingNav";
 
@@ -20,7 +21,7 @@ import { LandingNav } from "./LandingNav";
  * Sara landing page, ported from landing/v1/impeccable (the app-wide design
  * language, see /DESIGN.md). Styled entirely with Tailwind utilities on the
  * DESIGN.md tokens. Server-rendered; the only client pieces are the nav, the
- * scroll-motion root and the copy button.
+ * scroll-motion root, the hero demo video and the copy button.
  */
 
 const BOOKING_LINK = "app.sara.ng/book/tobi-knotless-braids";
@@ -370,24 +371,8 @@ export function LandingPage() {
             </p>
           </div>
 
-          {/*
-            HERO IMAGE SLOTS. Swap each div for next/image (object-cover) at the same size.
-            1) Tall card: WhatsApp conversation screenshot (menu → "1" → invoice for Ada,
-               NGN 15,000, gele tying → payment link). Ratio 9:19. Export @2x: 720×1520.
-            2) Overlapping card: "Business summary" reply (today, this week, 3 unpaid).
-               Ratio 5:4. Export @2x: 680×544.
-          */}
-          <div className="relative mx-auto mt-14 max-w-[760px] px-4 pb-16 md:px-8">
-            <div
-              className="rounded-shot from-accent-soft to-accent-tint shadow-float motion-safe:animate-rise-tall mx-auto aspect-[9/19] w-[min(320px,70vw)] -translate-x-[14%] bg-linear-to-b max-[520px]:-translate-x-[12%] max-[520px]:rounded-[26px]"
-              role="img"
-              aria-label="Sara WhatsApp conversation: the numbered menu, then an invoice for Ada, NGN 15,000 for gele tying, with its payment link"
-            />
-            <div
-              className="rounded-card border-line bg-canvas shadow-lift motion-safe:animate-rise-late absolute right-[max(16px,calc(50%_-_330px))] bottom-[120px] aspect-[5/4] w-[min(340px,58vw)] border max-[520px]:right-4 max-[520px]:bottom-24 max-[520px]:rounded-[18px] md:right-[max(32px,calc(50%_-_330px))]"
-              role="img"
-              aria-label="Sara Business summary reply: today's revenue, this week's revenue, 3 unpaid invoices"
-            />
+          <div className="mt-14 pb-16">
+            <HeroDemo />
           </div>
         </section>
 
