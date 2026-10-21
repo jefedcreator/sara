@@ -35,6 +35,14 @@ export const OG = {
 } as const;
 
 /*
+ * Every card is a square (OG_SIZE): text at the top, one full-width panel in
+ * the middle, and the status and Sara's signature along the foot.
+ */
+const CARD_PAD = 56;
+/** The width inside the padding, which the full-width panels fill. */
+const CARD_INNER = OG_SIZE.width - CARD_PAD * 2;
+
+/*
  * The app's own type from assets/fonts (static TTFs; satori cannot read the
  * woff2 next/font serves): Bricolage for display and the wordmark, Hanken for
  * everything else. Read once per process.
@@ -114,69 +122,59 @@ export function OgLockup({
 
 /*
  * A page's card, for pages previewed by what they are (the fixed CARDS):
- * white and calm like the landing page, the lockup top-left, the headline and
- * its line below, the mark large on a leaf-grey panel.
+ * white and calm like the landing page, the lockup at the top, the mark large
+ * on a leaf-grey panel, and the headline and its line at the foot.
  */
 export async function pageCard(card: CardKey) {
   const { headline, description } = CARDS[card];
-  const headlineSize = headline.length > 34 ? 64 : 72;
+  const headlineSize = headline.length > 34 ? 60 : 68;
   return new ImageResponse(
     <div
       style={{
         display: "flex",
+        flexDirection: "column",
         width: "100%",
         height: "100%",
         background: OG.canvas,
-        padding: 64,
-        gap: 56,
+        padding: CARD_PAD,
+        gap: 40,
       }}
     >
+      <OgLockup size={44} />
       <div
         style={{
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
           flex: 1,
-          paddingTop: 8,
-          paddingBottom: 8,
-        }}
-      >
-        <OgLockup size={44} />
-        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-          <div
-            style={{
-              fontFamily: "Bricolage",
-              fontSize: headlineSize,
-              lineHeight: 1.04,
-              letterSpacing: -0.04 * headlineSize,
-              color: OG.ink,
-            }}
-          >
-            {headline}
-          </div>
-          <div
-            style={{
-              fontFamily: "Hanken",
-              fontSize: 28,
-              lineHeight: 1.45,
-              color: OG.muted,
-            }}
-          >
-            {description}
-          </div>
-        </div>
-      </div>
-      <div
-        style={{
-          display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          width: 420,
           borderRadius: 32,
           background: OG.surface,
         }}
       >
-        <OgMark size={250} />
+        <OgMark size={220} />
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+        <div
+          style={{
+            fontFamily: "Bricolage",
+            fontSize: headlineSize,
+            lineHeight: 1.04,
+            letterSpacing: -0.04 * headlineSize,
+            color: OG.ink,
+          }}
+        >
+          {headline}
+        </div>
+        <div
+          style={{
+            fontFamily: "Hanken",
+            fontSize: 28,
+            lineHeight: 1.45,
+            color: OG.muted,
+          }}
+        >
+          {description}
+        </div>
       </div>
     </div>,
     { ...OG_SIZE, fonts: await ogFonts() },
@@ -194,9 +192,9 @@ const clip = (text: string, max: number) =>
 
 /*
  * An invoice or receipt link's card, laid out like a booking link's: the
- * business, the document and its dates on the left with the status pill and
- * a quiet Sara signature at the foot; on the right, the document itself on
- * leaf grey, total first, then up to three lines.
+ * business, the document and its dates at the top; the document itself on
+ * leaf grey across the middle, total first, then up to three lines; the
+ * status pill and a quiet Sara signature along the foot.
  */
 export async function documentCard(doc: SharedDocument) {
   const noun = doc.kind === "invoice" ? "Invoice" : "Receipt";
@@ -230,90 +228,45 @@ export async function documentCard(doc: SharedDocument) {
     <div
       style={{
         display: "flex",
+        flexDirection: "column",
         width: "100%",
         height: "100%",
         background: OG.canvas,
-        padding: 64,
-        gap: 56,
+        padding: CARD_PAD,
+        gap: 32,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          flex: 1,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div
-            style={{
-              fontFamily: "Hanken",
-              fontWeight: 600,
-              fontSize: 28,
-              color: OG.muted,
-            }}
-          >
-            {clip(doc.businessName, 36)}
-          </div>
-          <div
-            style={{
-              fontFamily: "Bricolage",
-              fontSize: titleSize,
-              lineHeight: 1.04,
-              letterSpacing: -0.035 * titleSize,
-              color: OG.ink,
-            }}
-          >
-            {title}
-          </div>
-          <div
-            style={{
-              fontFamily: "Hanken",
-              fontSize: 30,
-              color: OG.ink,
-              marginTop: 6,
-            }}
-          >
-            {dates.filter(Boolean).join(" · ")}
-          </div>
-        </div>
-
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         <div
           style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
+            fontFamily: "Hanken",
+            fontWeight: 600,
+            fontSize: 28,
+            color: OG.muted,
           }}
         >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              height: 60,
-              padding: "0 28px",
-              borderRadius: 999,
-              ...PILL[doc.status.tone],
-              fontFamily: "Hanken",
-              fontWeight: 600,
-              fontSize: 26,
-            }}
-          >
-            {doc.status.label}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              fontFamily: "Hanken",
-              fontSize: 22,
-              color: OG.faint,
-            }}
-          >
-            {`${noun}s by`}
-            <OgLockup size={30} color={OG.faint} accent={OG.faint} />
-          </div>
+          {clip(doc.businessName, 44)}
+        </div>
+        <div
+          style={{
+            fontFamily: "Bricolage",
+            fontSize: titleSize,
+            lineHeight: 1.04,
+            letterSpacing: -0.035 * titleSize,
+            color: OG.ink,
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontFamily: "Hanken",
+            fontSize: 30,
+            color: OG.ink,
+            marginTop: 4,
+          }}
+        >
+          {dates.filter(Boolean).join(" · ")}
         </div>
       </div>
 
@@ -321,7 +274,7 @@ export async function documentCard(doc: SharedDocument) {
         style={{
           display: "flex",
           flexDirection: "column",
-          width: 420,
+          flex: 1,
           padding: 40,
           borderRadius: 32,
           background: OG.surface,
@@ -354,16 +307,16 @@ export async function documentCard(doc: SharedDocument) {
             display: "flex",
             height: 2,
             background: OG.line,
-            margin: "28px 0 24px",
+            margin: "24px 0 20px",
           }}
         />
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {shown.map((line, i) => (
             <div key={i} style={row}>
               <span>
                 {line.quantity > 1
-                  ? `${clip(line.description.split("\n")[0]!, 15)} × ${line.quantity}`
-                  : clip(line.description.split("\n")[0]!, 20)}
+                  ? `${clip(line.description.split("\n")[0]!, 30)} × ${line.quantity}`
+                  : clip(line.description.split("\n")[0]!, 36)}
               </span>
               <span style={{ color: OG.muted }}>
                 {formatMoney(line.total, "")}
@@ -381,6 +334,43 @@ export async function documentCard(doc: SharedDocument) {
           </div>
         ) : null}
       </div>
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            height: 60,
+            padding: "0 28px",
+            borderRadius: 999,
+            ...PILL[doc.status.tone],
+            fontFamily: "Hanken",
+            fontWeight: 600,
+            fontSize: 26,
+          }}
+        >
+          {doc.status.label}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            fontFamily: "Hanken",
+            fontSize: 22,
+            color: OG.faint,
+          }}
+        >
+          {`${noun}s by`}
+          <OgLockup size={30} color={OG.faint} accent={OG.faint} />
+        </div>
+      </div>
     </div>,
     { ...OG_SIZE, fonts: await ogFonts() },
   );
@@ -396,7 +386,8 @@ export type ServiceCardInput = {
   image: string | null;
 };
 
-const PANEL = { width: 420, height: 502 };
+/** The service card's photo panel, full width under the text. */
+const PANEL = { width: CARD_INNER, height: 360 };
 
 /** A photo as a JPEG data URL cropped to the card's right panel, or null. */
 async function panelPhoto(url: string | null) {
@@ -433,9 +424,10 @@ async function asJpeg(card: Response) {
 /*
  * A service's card, for its booking link (/book) and its page (/services)
  * alike. Owners drop these links in Instagram bios and DMs, so the card is
- * the service's own: the business, the service, its price, a pill saying
- * what comes next, and the service photo (the mark on leaf grey when there
- * is none). Sara signs it quietly at the foot, single ink. A JPEG (asJpeg).
+ * the service's own: the business, the service and its price at the top, the
+ * service photo across the middle (the mark on leaf grey when there is none),
+ * and a pill saying what comes next at the foot. Sara signs it quietly beside
+ * the pill, single ink. A JPEG (asJpeg).
  */
 export async function serviceCard(service: ServiceCardInput) {
   const image = await panelPhoto(service.image);
@@ -445,71 +437,32 @@ export async function serviceCard(service: ServiceCardInput) {
     <div
       style={{
         display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
         width: "100%",
         height: "100%",
         background: OG.canvas,
-        padding: 64,
-        gap: 56,
+        padding: CARD_PAD,
+        gap: 32,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          flex: 1,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div style={{ fontFamily: "Hanken", fontWeight: 600, fontSize: 28, color: OG.muted }}>
-            {clip(service.businessName, 36)}
-          </div>
-          <div
-            style={{
-              fontFamily: "Bricolage",
-              fontSize: titleSize,
-              lineHeight: 1.04,
-              letterSpacing: -0.035 * titleSize,
-              color: OG.ink,
-            }}
-          >
-            {service.name}
-          </div>
-          <div style={{ fontFamily: "Hanken", fontSize: 30, color: OG.ink, marginTop: 6 }}>
-            {servicePriceLine(service)}
-          </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ fontFamily: "Hanken", fontWeight: 600, fontSize: 28, color: OG.muted }}>
+          {clip(service.businessName, 44)}
         </div>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              height: 68,
-              padding: "0 34px",
-              borderRadius: 999,
-              background: OG.accent,
-              color: OG.onAccent,
-              fontFamily: "Hanken",
-              fontWeight: 600,
-              fontSize: 28,
-            }}
-          >
-            {SERVICE_PICK[service.bookingMode]}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              fontFamily: "Hanken",
-              fontSize: 22,
-              color: OG.faint,
-            }}
-          >
-            Bookings by
-            <OgLockup size={30} color={OG.faint} accent={OG.faint} />
-          </div>
+        <div
+          style={{
+            fontFamily: "Bricolage",
+            fontSize: titleSize,
+            lineHeight: 1.04,
+            letterSpacing: -0.035 * titleSize,
+            color: OG.ink,
+          }}
+        >
+          {clip(service.name, 48)}
+        </div>
+        <div style={{ fontFamily: "Hanken", fontSize: 30, color: OG.ink, marginTop: 4 }}>
+          {servicePriceLine(service)}
         </div>
       </div>
 
@@ -530,6 +483,38 @@ export async function serviceCard(service: ServiceCardInput) {
           <OgMark size={200} />
         </div>
       )}
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            height: 68,
+            padding: "0 34px",
+            borderRadius: 999,
+            background: OG.accent,
+            color: OG.onAccent,
+            fontFamily: "Hanken",
+            fontWeight: 600,
+            fontSize: 28,
+          }}
+        >
+          {SERVICE_PICK[service.bookingMode]}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            fontFamily: "Hanken",
+            fontSize: 22,
+            color: OG.faint,
+          }}
+        >
+          Bookings by
+          <OgLockup size={30} color={OG.faint} accent={OG.faint} />
+        </div>
+      </div>
     </div>,
     { ...OG_SIZE, fonts: await ogFonts() },
   );
@@ -538,15 +523,15 @@ export async function serviceCard(service: ServiceCardInput) {
 
 /*
  * A booking link's card, laid out like the service and document cards: the
- * business, the service and its status on the left with Sara's quiet
- * signature; on the right a calendar leaf on leaf grey, because the date is
- * what the customer opens it for. Never the customer's name or the amount:
- * cards get forwarded into group chats.
+ * business and the service at the top; a calendar leaf on leaf grey across
+ * the middle, because the date is what the customer opens it for; the status
+ * and Sara's quiet signature along the foot. Never the customer's name or the
+ * amount: cards get forwarded into group chats.
  */
 /** One end of a stay or rental on the card's leaf: "Check-in", "Fri 2 Oct", "From 14:00". */
 function BookingLeg({ label, day, time }: { label: string; day: string; time: string }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column" }}>
+    <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
       <div style={{ fontFamily: "Hanken", fontWeight: 600, fontSize: 22, color: OG.muted }}>
         {label}
       </div>
@@ -585,7 +570,7 @@ export async function bookingCard(booking: PublicBooking, view: BookingView) {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          width: 420,
+          flex: 1,
           borderRadius: 32,
           background: OG.surface,
         }}
@@ -610,36 +595,39 @@ export async function bookingCard(booking: PublicBooking, view: BookingView) {
         </div>
       </div>
     ) : (
-      // A stay or rental: its two ends, labelled as on the booking page, then its length.
+      // A stay or rental: its two ends side by side, labelled as on the
+      // booking page, then its length.
       <div
         style={{
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
-          width: 420,
+          flex: 1,
           padding: "0 48px",
           borderRadius: 32,
           background: OG.surface,
         }}
       >
-        <BookingLeg
-          label={mode === "NIGHTLY" ? "Check-in" : "Pickup"}
-          day={shortDay(booking.startTime)}
-          time={`${mode === "NIGHTLY" ? "From " : ""}${formatSlotTime(booking.startTime)}`}
-        />
-        <div style={{ display: "flex", height: 2, background: OG.line, margin: "28px 0" }} />
-        <BookingLeg
-          label={mode === "NIGHTLY" ? "Check-out" : "Return"}
-          day={shortDay(booking.endTime)}
-          time={`${mode === "NIGHTLY" ? "By " : ""}${formatSlotTime(booking.endTime)}`}
-        />
+        <div style={{ display: "flex", gap: 40 }}>
+          <BookingLeg
+            label={mode === "NIGHTLY" ? "Check-in" : "Pickup"}
+            day={shortDay(booking.startTime)}
+            time={`${mode === "NIGHTLY" ? "From " : ""}${formatSlotTime(booking.startTime)}`}
+          />
+          <div style={{ display: "flex", width: 2, background: OG.line }} />
+          <BookingLeg
+            label={mode === "NIGHTLY" ? "Check-out" : "Return"}
+            day={shortDay(booking.endTime)}
+            time={`${mode === "NIGHTLY" ? "By " : ""}${formatSlotTime(booking.endTime)}`}
+          />
+        </div>
         <div
           style={{
             fontFamily: "Hanken",
             fontWeight: 600,
             fontSize: 26,
             color: OG.accentInk,
-            marginTop: 32,
+            marginTop: 40,
           }}
         >
           {unitCount(mode, booking.units)}
@@ -651,71 +639,63 @@ export async function bookingCard(booking: PublicBooking, view: BookingView) {
     <div
       style={{
         display: "flex",
+        flexDirection: "column",
         width: "100%",
         height: "100%",
         background: OG.canvas,
-        padding: 64,
-        gap: 56,
+        padding: CARD_PAD,
+        gap: 32,
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "space-between",
-          flex: 1,
-        }}
-      >
-        <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-          <div style={{ fontFamily: "Hanken", fontWeight: 600, fontSize: 28, color: OG.muted }}>
-            {clip(booking.businessName, 36)}
-          </div>
-          <div
-            style={{
-              fontFamily: "Bricolage",
-              fontSize: titleSize,
-              lineHeight: 1.04,
-              letterSpacing: -0.035 * titleSize,
-              color: OG.ink,
-            }}
-          >
-            {clip(booking.service.name, 48)}
-          </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ fontFamily: "Hanken", fontWeight: 600, fontSize: 28, color: OG.muted }}>
+          {clip(booking.businessName, 44)}
         </div>
-
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              height: 60,
-              padding: "0 28px",
-              borderRadius: 999,
-              ...PILL[pill.tone],
-              fontFamily: "Hanken",
-              fontWeight: 600,
-              fontSize: 26,
-            }}
-          >
-            {pill.label}
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              fontFamily: "Hanken",
-              fontSize: 22,
-              color: OG.faint,
-            }}
-          >
-            Bookings by
-            <OgLockup size={30} color={OG.faint} accent={OG.faint} />
-          </div>
+        <div
+          style={{
+            fontFamily: "Bricolage",
+            fontSize: titleSize,
+            lineHeight: 1.04,
+            letterSpacing: -0.035 * titleSize,
+            color: OG.ink,
+          }}
+        >
+          {clip(booking.service.name, 48)}
         </div>
       </div>
 
       {leaf}
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            height: 60,
+            padding: "0 28px",
+            borderRadius: 999,
+            ...PILL[pill.tone],
+            fontFamily: "Hanken",
+            fontWeight: 600,
+            fontSize: 26,
+          }}
+        >
+          {pill.label}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            fontFamily: "Hanken",
+            fontSize: 22,
+            color: OG.faint,
+          }}
+        >
+          Bookings by
+          <OgLockup size={30} color={OG.faint} accent={OG.faint} />
+        </div>
+      </div>
     </div>,
     { ...OG_SIZE, fonts: await ogFonts() },
   );
