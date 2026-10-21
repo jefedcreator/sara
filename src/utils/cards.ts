@@ -7,8 +7,8 @@
 
 export const SITE_NAME = "Sara";
 
-/** 1200×630: what WhatsApp, Instagram, Facebook, X and Slack all take large. */
-export const OG_SIZE = { width: 1200, height: 630 } as const;
+/** 875×875: the square every interacti product's card shares. */
+export const OG_SIZE = { width: 875, height: 875 } as const;
 
 /**
  * The fixed cards for pages whose preview says what the page is rather than
