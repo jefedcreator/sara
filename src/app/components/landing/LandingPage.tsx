@@ -16,6 +16,13 @@ import { CopyLinkButton } from "./CopyLinkButton";
 import { HeroDemo } from "./HeroDemo";
 import { LandingMotion } from "./LandingMotion";
 import { LandingNav } from "./LandingNav";
+import { ARRIVE_ITEM, ARRIVE_SELF } from "./motion";
+import {
+  ChatLink,
+  OwnerMessage,
+  SaraMessage,
+  WhatsAppChat,
+} from "./WhatsAppChat";
 
 /*
  * Sara landing page, ported from landing/v1/impeccable (the app-wide design
@@ -37,22 +44,6 @@ const H3_DISPLAY = "font-display font-medium tracking-[-0.02em]";
 const MSG =
   "w-fit max-w-full rounded-bubble px-3.5 py-2.5 text-[14.5px] leading-normal wrap-anywhere";
 const MSG_IN = "rounded-bl-[6px] border border-line bg-canvas text-ink";
-const MSG_OUT = "ml-auto rounded-br-[6px] bg-accent font-medium text-on-accent";
-const CHIP =
-  "mt-2 block rounded-chip bg-accent-soft px-2.5 py-[7px] text-[13px] font-semibold text-accent-ink";
-const TIME = "inline-block min-w-[3.2em] font-semibold text-accent-ink";
-
-/*
- * Scroll motion. LandingMotion puts [data-motion] on the page root and
- * [data-in] on each [data-arrive] group as it enters the viewport.
- * ARRIVE_ITEM: a child that waits (hidden) until its group is in, staggered by --i.
- * ARRIVE_SELF: a group that fades in as a whole.
- * Without JS or with reduced motion, [data-motion] is never set and nothing hides.
- */
-const ARRIVE_ITEM =
-  "transition-[opacity,translate,scale] duration-600 ease-out-expo delay-[calc(var(--i,0)*120ms)] [[data-motion]_[data-arrive]:not([data-in])_&]:translate-y-2.5 [[data-motion]_[data-arrive]:not([data-in])_&]:scale-98 [[data-motion]_[data-arrive]:not([data-in])_&]:opacity-0";
-const ARRIVE_SELF =
-  "transition-[opacity,translate] duration-700 ease-out-expo [[data-motion]_&:not([data-in])]:translate-y-4 [[data-motion]_&:not([data-in])]:opacity-0";
 
 // ---------- Small building blocks ----------
 
@@ -85,14 +76,6 @@ function StartButton({ href, id }: { href: string; id?: string }) {
   );
 }
 
-function Owner({ children }: { children: ReactNode }) {
-  return (
-    <p className={cn(MSG, MSG_OUT, ARRIVE_ITEM)} data-item>
-      {children}
-    </p>
-  );
-}
-
 function Sara({
   children,
   className = "shadow-bubble",
@@ -117,17 +100,14 @@ function MenuCard({
   children: ReactNode;
 }) {
   return (
-    <article
-      className="rounded-panel bg-surface px-[18px] pt-[22px] pb-5 min-[1040px]:nth-[3n+2]:mt-10"
-      data-arrive
-    >
-      <header className="mb-[18px] flex items-center gap-3">
+    <article className="min-[1040px]:nth-[3n+2]:mt-10" data-arrive>
+      <header className="mb-4 flex items-center gap-3">
         <span className="bg-accent text-on-accent grid size-8 place-items-center rounded-full text-[15px] leading-none font-bold">
           {n}
         </span>
         <h3 className={cn(H3_DISPLAY, "text-[19px] leading-[1.2]")}>{title}</h3>
       </header>
-      <div className="grid gap-2">{children}</div>
+      <WhatsAppChat>{children}</WhatsAppChat>
     </article>
   );
 }
@@ -460,52 +440,76 @@ export function LandingPage() {
               Every card below is a real exchange with Sara, from Tobi&apos;s
               beauty studio in Yaba.
             </p>
-            <div className="mt-12 grid items-start gap-4 min-[700px]:grid-cols-2 min-[1040px]:grid-cols-3 min-[1040px]:gap-5">
+            <div className="mt-12 grid items-start gap-x-4 gap-y-12 min-[700px]:grid-cols-2 min-[1040px]:grid-cols-3 min-[1040px]:gap-x-5">
               <MenuCard n={1} title="New invoice">
-                <Owner>1</Owner>
-                <Sara>New invoice. Customer, service and amount?</Sara>
-                <Owner>Ada, gele tying, 15000</Owner>
-                <Sara>
+                <OwnerMessage time="10:41">1</OwnerMessage>
+                <SaraMessage time="10:41">
+                  New invoice. Customer, service and amount?
+                </SaraMessage>
+                <OwnerMessage time="10:42">Ada, gele tying, 15000</OwnerMessage>
+                <SaraMessage
+                  time="10:42"
+                  preview={{
+                    title: "Invoice INV-0142 from Tobi Beauty Studio",
+                    body: "NGN 15,000 to pay. See it here or download the PDF.",
+                  }}
+                >
                   INV-0142 for Ada Okafor: Gele tying, NGN 15,000.
-                  <span className={CHIP}>🔗 Payment link ready to forward</span>
-                </Sara>
+                  <br />
+                  🔗 Payment link, ready to forward:{" "}
+                  <ChatLink>
+                    https://app.sara.ng/invoices/Xk39fjQ2aB7mN0pR
+                  </ChatLink>
+                </SaraMessage>
               </MenuCard>
               <MenuCard n={2} title="New receipt">
-                <Owner>2</Owner>
-                <Sara>New receipt. Customer, service and amount?</Sara>
-                <Owner>Chidi, low cut + beard trim, 6000 cash</Owner>
-                <Sara>
+                <OwnerMessage time="13:15">2</OwnerMessage>
+                <SaraMessage time="13:15">
+                  New receipt. Customer, service and amount?
+                </SaraMessage>
+                <OwnerMessage time="13:16">
+                  Chidi, low cut + beard trim, 6000 cash
+                </OwnerMessage>
+                <SaraMessage
+                  time="13:16"
+                  preview={{
+                    title: "Receipt RCT-0388 from Tobi Beauty Studio",
+                    body: "NGN 6,000 paid to Tobi Beauty Studio on 25 Sep 2026. See it here or download the PDF.",
+                  }}
+                >
                   RCT-0388 for Chidi Eze: Low cut + beard trim, NGN 6,000, paid
                   in cash.
-                  <span className={CHIP}>📄 RCT-0388.pdf</span>
-                </Sara>
+                  <br />
+                  📄 Receipt:{" "}
+                  <ChatLink>
+                    https://app.sara.ng/receipts/Qm7TzW2pLc9fHs4e
+                  </ChatLink>
+                </SaraMessage>
               </MenuCard>
               <MenuCard n={3} title="Share a service">
-                <Owner>3</Owner>
-                <Sara>
+                <OwnerMessage time="14:20">3</OwnerMessage>
+                <SaraMessage time="14:20">
                   Which service?
                   <br />
-                  1. Knotless braids — NGN 25,000 (4 hr)
+                  1. Knotless braids — NGN 25,000 (4&nbsp;hr)
                   <br />
-                  2. Boho braids — NGN 30,000 (5 hr)
-                </Sara>
-                <Owner>1</Owner>
-                <Sara>
+                  2. Boho braids — NGN 30,000 (5&nbsp;hr)
+                </SaraMessage>
+                <OwnerMessage time="14:20">1</OwnerMessage>
+                <SaraMessage
+                  time="14:21"
+                  preview={{
+                    title: "Knotless braids · Tobi Beauty Studio",
+                    body: "NGN 25,000 for 4 hr with Tobi Beauty Studio. Pick a time and pay with Paystack.",
+                  }}
+                >
                   Here&apos;s your booking link. Put it in your bio or send it
-                  to a customer:
-                  <span
-                    className={cn(
-                      CHIP,
-                      "font-mono font-medium tracking-[-0.01em]",
-                    )}
-                  >
-                    {BOOKING_LINK}
-                  </span>
-                </Sara>
+                  to a customer: <ChatLink>https://{BOOKING_LINK}</ChatLink>
+                </SaraMessage>
               </MenuCard>
               <MenuCard n={4} title="Unpaid invoices">
-                <Owner>4</Owner>
-                <Sara>
+                <OwnerMessage time="17:05">4</OwnerMessage>
+                <SaraMessage time="17:05">
                   3 unpaid, NGN 55,000 outstanding:
                   <br />
                   Kemi A. · Bridal makeup · NGN 15,000 left (Partially paid)
@@ -513,25 +517,25 @@ export function LandingPage() {
                   Bisi O. · Knotless braids · NGN 25,000
                   <br />
                   Ngozi E. · Gele tying · NGN 15,000
-                </Sara>
+                </SaraMessage>
               </MenuCard>
               <MenuCard n={5} title="Today's bookings">
-                <Owner>5</Owner>
-                <Sara>
+                <OwnerMessage time="08:02">5</OwnerMessage>
+                <SaraMessage time="08:02">
                   Today, Friday: 3 bookings
                   <br />
-                  <span className={TIME}>09:30</span> Ada Okafor · Gele tying
+                  <b className="font-semibold">09:30</b> Ada Okafor · Gele tying
                   <br />
-                  <span className={TIME}>12:00</span> Kemi Adeyemi · Bridal
+                  <b className="font-semibold">12:00</b> Kemi Adeyemi · Bridal
                   makeup
                   <br />
-                  <span className={TIME}>15:30</span> Funke Bello · Knotless
+                  <b className="font-semibold">15:30</b> Funke Bello · Knotless
                   braids
-                </Sara>
+                </SaraMessage>
               </MenuCard>
               <MenuCard n={6} title="Business summary">
-                <Owner>6</Owner>
-                <Sara>
+                <OwnerMessage time="19:48">6</OwnerMessage>
+                <SaraMessage time="19:48">
                   Today: NGN 31,000
                   <br />
                   This week: NGN 188,000
@@ -548,7 +552,7 @@ export function LandingPage() {
                   Gele tying NGN 45,000
                   <br />
                   Low cut + beard trim NGN 18,000
-                </Sara>
+                </SaraMessage>
               </MenuCard>
             </div>
           </div>
