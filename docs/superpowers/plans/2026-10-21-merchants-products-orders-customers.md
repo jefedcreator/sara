@@ -27,7 +27,10 @@
 - Low stock means 3 or fewer left of an option on a product that tracks stock.
 - Order numbers run `ORD-1001` upward per business. Every order also has a `publicId` (`nanoid(16)`).
 - A product has at most 5 photos. The first one is the link card image.
-- Customer URLs: `/products/<slug>`, `/products/<slug>/checkout`, `/orders/<publicId>`.
+- Customer URLs: `/products/<slug>` and `/orders/<publicId>`. Checkout is a sheet on the product page, not a page of its own.
+- UI tasks build to the UI direction section below, using the impeccable skill (v4.7.0; the project copy is at `.agents/skills/impeccable`).
+  - Invoke it before editing UI, so it loads PRODUCT.md, DESIGN.md and its craft rules.
+  - When a task's screens are built, run `.agents/skills/impeccable/scripts/impeccable detect --json <changed .tsx files>` once and fix what it reports.
 - Routes use `withMiddleware(handler, [authMiddleware, bodyValidatorMiddleware(schema) | queryValidatorMiddleware(schema)])`.
   - Responses are `ApiResponse<T>` or `PaginatedApiResponse<T>` from `types`.
   - Errors are thrown from `@/utils/exceptions`.
@@ -45,8 +48,119 @@
 1. **A payment arrives after its hold expired and the last item has since sold.** The order still becomes paid (NEW) with `oversold: true`, stock ends at 0 (never negative) and the owner alert says so. Tested in Task 14.
 2. **Paystack delivers the same `charge.success` twice**, from the webhook and the callback verification racing. The result is one order, one Payment, one receipt, and stock taken once. Tested in Task 14 for orders and Task 21 for invoices.
 3. **One phone typed four ways** ("0803 555 0142", "+234 803 555 0142", "2348035550142", "08035550142") resolves to one customer. Tested in Task 2.
-4. **A product is paused, or an option removed, while a customer has the checkout page open.** The checkout request fails with "This product is no longer available", and orders that already exist still show the name snapshot. Tested in Task 13 (checkout) and Task 16 (order page).
+4. **A product is paused, or an option removed, while a customer has the checkout sheet open.** The checkout request fails with "This product is no longer available", and orders that already exist still show the name snapshot. Tested in Task 13 (checkout) and Task 16 (order page).
 5. **An invoice that lists products gets two part payments.** The order is created and stock taken once, on the first payment. Tested in Task 20.
+
+## UI direction
+
+This was shaped with impeccable 4.7.0 on 2026-10-21. The owner chose:
+- checkout in a sheet on the product page
+- order actions on the order row
+- square, swipeable product photos on phones.
+
+**World.** Inherit `DESIGN.md` as it is: no new tokens and no `DESIGN.md` changes. Every new screen extends a sibling that already ships. Copy the sibling's composition, then change only what the new content needs.
+
+| New surface | Copy from |
+| --- | --- |
+| Customers list | `src/components/bookings/bookings-page-client.tsx` (header, rows, `Pager`) |
+| Customer page | `Panel` sections and the Today page's `Stat` |
+| Products screen | `src/components/services/services-page-client.tsx` and `service-card.tsx` |
+| Product editor | `src/components/services/service-modal.tsx` (a bottom sheet on phones) |
+| Orders screen | `bookings-page-client.tsx` and `src/components/bookings/booking-row.tsx` (actions on the row) |
+| Selling settings | `src/components/settings/hours-section.tsx` inside `Section` |
+| Product page | `src/components/public/service-profile.tsx` |
+| Checkout sheet | `src/components/book/details-modal.tsx` |
+| Customer order page | `src/components/documents/shared-document-page.tsx` |
+| Invoice Pay button | the phone bottom bar in `service-profile.tsx` |
+
+**Modes.** Owner screens are for getting work done: scannable, consistent, with nothing invented for flavour. The product page leads with the merchant's photos and has one action. Checkout and the order page are for getting work done too.
+
+**Rules for every new screen**
+- **Header:** the display headline Services and Bookings use, one muted line, and at most one primary button. No small labels above headings.
+- **Lists** are rows or cards on `bg-surface rounded-card`, never tables.
+- **Sheets:** a bottom sheet (`Modal`) only for create and edit forms, as Services does. Everything else happens in place.
+- **Statuses** use `StatusPill` with plain product words: New, Ready for pickup, Out for delivery, Delivered, Collected, Cancelled, Oversold. Oversold uses the danger tone. Stock words come from `stockBadge`.
+- **Loading** shows `Skeleton` rows, never a spinner in the content. **Errors** show `Notice tone="danger"` with `errorMessage(error)`.
+- **Empty states** teach the next step:
+  - Products: "Add your first product. Its link works like a booking link: put it in your bio or send it in a DM."
+  - Orders: "Paid orders land here. Share a product link to get your first."
+  - Customers: "Customers appear here as you book, invoice and sell."
+- **Phone numbers** are `tel:` links. **Money** uses `formatMoney` ("NGN 45,000") with tabular figures.
+- **Motion:** customer pages keep the existing `animate-rise`, `animate-rise-1` and `animate-rise-2` entrances. Owner screens get no entrance motion, only 150–250 ms state transitions.
+
+**Owner screens**
+- **Customers list:** a search field, then rows. Each row has the name and phone on the left and what they spent on the right. "Owes NGN 90,000" shows in danger text, only when it isn't zero.
+- **Customer page:**
+  - A "Customers" back link, the name as the headline, and the phone and email muted below.
+  - Spent, Owes and Customer since in one row, using the Today page's `Stat` at its existing size.
+  - New invoice (primary) and New receipt (secondary) buttons.
+  - The timeline as rows; each one opens the customer's own page in a new tab.
+  - "Edit details" opens the sheet. "Merge with another customer…" sits quietly at the sheet's foot and confirms with `ConfirmModal`: "Merge Tolu into Tolu Adeyemi? Their bookings, invoices, receipts and orders move to Tolu Adeyemi."
+- **Products:**
+  - Cards built like service cards, but with a **square** photo frame, so the owner sees what customers see.
+  - Each option is a row with its `stockBadge`, followed by the copy-link field, the Live switch and Edit.
+  - "Update stock" turns the option rows into number fields in place ("how many you have now"), with Save and Cancel. There is no separate stock sheet.
+  - The editor sheet runs in this order:
+    1. Photos: up to 5, with "Make cover" instead of drag-and-drop.
+    2. Name, Price, Description.
+    3. "Sizes, lengths or colours?": rows of name, price (placeholder "Same price") and stock, plus "Add an option".
+    4. "Track stock": off means made to order, and hides the stock fields.
+- **Orders:**
+  - A `Segmented` filter: To send out (New and Ready, oldest first, the default), Done and Cancelled (newest first).
+  - Each row is laid out like `booking-row.tsx`:
+    - Left: order number and date.
+    - Middle: status pill, customer name with a `tel:` phone, the items, and "Delivery to …" or "Pickup".
+    - Right: the total, then the next step as a small dark button (Mark ready, then Mark delivered or Mark collected), Cancel as a ghost button, and a copy-link icon for the customer's order page.
+  - Cancel confirms with `ConfirmModal`: "Cancel ORD-1022 and put the stock back?"
+  - An oversold order shows the Oversold pill and the line "Paid after it sold out. Restock or refund."
+  - An order that came from an invoice shows "From INV-1042" and a "Change to delivery" text button that opens an address field in place.
+- **Selling settings** (`id="selling"`):
+  - "What you sell" as a `Segmented` control.
+  - An "Offer delivery" `Switch`. When it's on, a fee field appears with the hint "One fee for every delivery. Use 0 for free delivery."
+  - An "Offer pickup" `Switch`, with the business address shown read-only beside an "Edit in Profile" link.
+  - One Save button, like the other sections.
+- **Onboarding:** "What do you sell?" as a `Segmented` control under the business name, with the hint "You can change this later in Settings."
+- **Today:**
+  - Section numbers keep matching the chat menu for this business, from `MENU[sells]`:
+    - SERVICES: unchanged.
+    - PRODUCTS: 5 is "Orders to send out".
+    - BOTH: 5 is Today's bookings and 7 is Orders to send out.
+  - Action 3 is "Share a link". For PRODUCTS it goes to `/products`. For BOTH it opens a sheet listing every service and product with its `CopyLinkButton`, the way the chat lists them.
+  - "Running low" is a `Panel` with no number, because it isn't a chat action, so `Panel`'s `n` becomes optional. It only shows when something is low.
+- **Item picker in the invoice and receipt forms:** products come after services under their own "Products" heading, labelled like `Frontal wig — 20" · NGN 45,000 · 11 in stock`. A sold-out option can still go on an invoice (a pre-order) but warns on a receipt.
+
+**Customer pages**
+- **Product page:** `ServiceProfile`'s structure on `PublicPage` (`width="wide"`, credit "Orders", so the footer reads "Orders by sara").
+  - **On a phone,** top to bottom:
+    1. A square photo frame the customer swipes through (CSS scroll-snap, `rounded-shot`). Position dots appear only with more than one photo, as buttons labelled like "Photo 2 of 3".
+    2. The name as the service page's h1, then the price.
+    3. Option chips styled like DESIGN.md's Booking Slots:
+       - available: white with a hairline border
+       - selected: mint wash with a deep teal outline
+       - sold out: leaf grey with faint struck-through text, disabled
+       - the first available option is preselected.
+    4. "Only 3 left" in `text-ink-2 font-semibold`, never danger red.
+    5. A quantity stepper copied from `src/components/book/day-count-stepper.tsx`.
+    6. The description, then the delivery and pickup terms ("Delivery: NGN 3,000", "Pickup: Admiralty Way, Lekki").
+    7. "More from <business>": up to six other products.
+
+    The one action, "Buy now · NGN 90,000", rides the fixed bottom bar.
+  - **On desktop,** the square photo column sits on the right and stays in view as you scroll (`lg:grid-cols-[1fr_460px]`). The button sits under the price.
+  - **When nothing can be bought:** if every option is sold out, the button is disabled and reads "Sold out". If `canBuy` is false, a `Notice` replaces the button: "Not available to buy online yet. Message <business> to order."
+- **Checkout sheet:** built like `DetailsModal`, titled "Your details". In order:
+  1. The line: `2 × Frontal wig — 20"` · NGN 90,000.
+  2. Delivery or Pickup as a `Segmented` control, or one fixed line when only one is offered.
+  3. The delivery address (a two-row `Textarea`) or the pickup address.
+  4. Name, Phone (required, `type="tel"`), and Email (optional, "for your receipt").
+  5. Items, Delivery fee and Total.
+  6. "Pay NGN 93,000 with Paystack", with the existing note "Payment is handled by Paystack. You come back here afterwards."
+
+  If the checkout returns 409 ("Only 4 left"), say so above the button and lower the quantity cap. If the product is no longer available, close the sheet and show a `Notice`.
+- **Customer order page:** built like `SharedDocumentPage` on `PublicPage` (narrow, credit "Orders").
+  - The status pill, the headline "Order ORD-1022" ("Your order" before it's paid), and "From Tobi Hair · Paid 21 Oct 2026".
+  - The document sheet with the lines, delivery fee and total. Then "Pickup from …" or "Delivery to …", and "View receipt".
+  - While the order is awaiting payment, `AwaitConfirmation` takes the sheet's place.
+- **Invoice Pay button:** on phones, it uses the fixed bottom bar from `ServiceProfile`: "Pay NGN 30,000 with Paystack". From `lg`, it's a large button under the document. It only shows when `payable` isn't null.
 
 ---
 
@@ -331,7 +445,7 @@ it("GET /api/customers needs a session", ...) // 401
 **Files:**
 - Create:
   - `src/app/(app)/customers/page.tsx` and `src/app/(app)/customers/[id]/page.tsx`
-  - `src/components/customers/customers-page-client.tsx`, `customer-row.tsx`, `customer-row.test.tsx`, `customer-detail-client.tsx`, `customer-edit-modal.tsx`, `merge-modal.tsx`
+  - `src/components/customers/customers-page-client.tsx`, `customer-row.tsx`, `customer-row.test.tsx`, `customer-detail-client.tsx`, `customer-edit-modal.tsx` (merging lives at the foot of this sheet)
   - `src/hooks/queries/use-customers.ts` and `src/hooks/mutations/use-customer-mutations.ts`
 - Modify:
   - `src/utils/api.ts`: add `api.customers.{list,get,update,merge}`
@@ -363,14 +477,14 @@ it("leaves out the owes line when nothing is owed", ...)
 
 - [ ] **Step 2: Run** `yarn test src/components/customers`. Expected: FAIL.
 
-- [ ] **Step 3: Build the screens to the spec's "Customers" section.**
-  - The list page has search and rows.
-  - The detail page has contact details with Edit, three stats (spent, owes, customer since), the timeline linking each entry to its page, a Merge action (pick the other customer by search, then confirm with `ConfirmModal`), and quick actions linking to `/invoices?compose=1&customer=<id>` and `/receipts?compose=1&customer=<id>`.
-  - Use `Panel`-style sections and the primitives from `@/primitives`.
+- [ ] **Step 3: Invoke the impeccable skill, then build both screens to the UI direction's "Customers list" and "Customer page".**
+  - New invoice and New receipt link to `/invoices?compose=1&customer=<id>` and `/receipts?compose=1&customer=<id>`.
+  - Use the primitives from `@/primitives`. The empty state is the UI direction's Customers line.
 
 - [ ] **Step 4: Verify.**
   - `yarn test` and `yarn typecheck` pass.
-  - In `yarn dev` at 375px width: search finds a customer by phone, the detail page shows the timeline, merging two customers leaves one, and the composer's customer search fills the fields.
+  - Run `.agents/skills/impeccable/scripts/impeccable detect --json src/components/customers src/app/\(app\)/customers` once and fix what it reports.
+  - In `yarn dev` at 375px and 1440px: search finds a customer by phone, the customer page shows the timeline, a merge from the edit sheet leaves one customer, and the composer's customer search fills the fields.
 
 - [ ] **Step 5: Commit** with `git commit -m "feat(customers): customer list, customer page and composer search"`
 
@@ -504,7 +618,7 @@ it("rejects a line with both a service and a product option", ...)
 **Files:**
 - Create:
   - `src/app/(app)/products/page.tsx`
-  - `src/components/products/products-page-client.tsx`, `product-card.tsx`, `product-modal.tsx`, `options-editor.tsx`, `stock-modal.tsx`
+  - `src/components/products/products-page-client.tsx`, `product-card.tsx` (which edits stock in place), `product-modal.tsx`, `options-editor.tsx`
   - `src/backend/validators/product-form.validator.ts` and `product-form.validator.test.ts`
   - `src/utils/stock.ts` and `stock.test.ts`
   - `src/hooks/queries/use-products.ts` and `src/hooks/mutations/use-product-mutations.ts`
@@ -542,14 +656,16 @@ it("needs a stock number for each option when stock is tracked", ...) // message
 
 - [ ] **Step 2: Run** `yarn test src/utils/stock src/backend/validators/product-form`. Expected: FAIL.
 
-- [ ] **Step 3: Implement the helpers, then the screen.**
-  - Product cards show the cover photo, name, price, a stock badge per option, and actions: Edit, Pause or Resume, Copy link (`productLink`), Adjust stock.
-  - The product modal has up to 5 photos (add, remove, reorder), name, description, price, a "Track stock" `Switch`, and the options editor (rows of name, optional price, stock; one unnamed row means "no options").
-  - The stock modal picks an option, then Add, Remove or Set to.
+- [ ] **Step 3: Implement the helpers. Then invoke the impeccable skill and build the screen to the UI direction's "Products" entry.**
+  - Product cards have a square photo frame, an option row with its `stockBadge`, the copy-link field (`productLink`), the Live switch (pause or resume) and Edit.
+  - "Update stock" edits stock in place: number fields, then Save, which calls `api.products.adjustStock(slug, { optionId, set })` per changed option.
+  - The editor sheet takes its sections in the direction's order. A product with no options is a single unnamed option row.
+  - The empty state is the UI direction's Products line.
 
 - [ ] **Step 4: Verify.**
   - `yarn test` and `yarn typecheck` pass.
-  - In `yarn dev` at 375px: create a product with three options and two photos, pause it, change its stock, and copy its link.
+  - Run `.agents/skills/impeccable/scripts/impeccable detect --json src/components/products` once and fix what it reports.
+  - In `yarn dev` at 375px and 1440px: create a product with three options and two photos, make the second photo the cover, pause the product, update its stock in place, and copy its link.
   - A SERVICES-only business sees no Products or Orders in the nav.
 
 - [ ] **Step 5: Commit** with `git commit -m "feat(products): products screen with options, photos and stock"`
@@ -583,12 +699,15 @@ it("refuses pickup without a business address", ...) // BadRequestException("Add
 
 - [ ] **Step 2: Run** `yarn test src/utils/selling src/backend/validators src/app/api/business`. Expected: FAIL.
 
-- [ ] **Step 3: Implement.**
+- [ ] **Step 3: Implement. Invoke the impeccable skill before the UI, and build it to the UI direction's "Selling settings" and "Onboarding" entries.**
   - Onboarding adds "What do you sell?" as a `Segmented` control (Services, Products, Both), defaulting to Services.
-  - Settings gets a "Selling" section (`id="selling"`) with the same control, an "Offer delivery" switch with a fee input, and an "Offer pickup" switch that shows the business address.
+  - Settings gets the "Selling" section (`id="selling"`): what you sell, the "Offer delivery" switch with a fee field and its hint, and the "Offer pickup" switch showing the business address and an "Edit in Profile" link.
   - When `canSellOnline` is false, the products page shows a `Notice`: "Set delivery or pickup before customers can buy online", linking to `/settings#selling`. If payment isn't ready, it gives the same message the services page uses.
 
-- [ ] **Step 4: Verify.** `yarn test` and `yarn typecheck` pass. In `yarn dev`: onboard as "Products", turn on pickup in Settings, and watch the notice clear.
+- [ ] **Step 4: Verify.**
+  - `yarn test` and `yarn typecheck` pass.
+  - Run `.agents/skills/impeccable/scripts/impeccable detect --json src/components/settings/selling-section.tsx src/components/onboarding/onboarding-client.tsx` once and fix what it reports.
+  - In `yarn dev` at 375px: onboard as "Products", turn on pickup in Settings, and watch the products page notice clear.
 
 - [ ] **Step 5: Commit** with `git commit -m "feat(business): what you sell, delivery fee and pickup settings"`
 
@@ -803,7 +922,7 @@ it("adds orders to the customer's timeline", ...) // label "Order ORD-1022", hre
 
 - [ ] **Step 5: Commit** with `git commit -m "feat(orders): mark orders ready, completed or cancelled"`
 
-### Task 16: Product page, checkout page and customer order page
+### Task 16: Product page, checkout sheet and customer order page
 
 **Files:**
 - Create:
@@ -811,9 +930,8 @@ it("adds orders to the customer's timeline", ...) // label "Order ORD-1022", hre
   - `src/utils/product-page.ts`, `src/utils/product-page.test.ts`
   - `src/server/order-page.ts`
   - `src/app/(public)/products/[slug]/{page,opengraph-image,not-found,loading}.tsx`
-  - `src/app/(public)/products/[slug]/checkout/page.tsx`
   - `src/app/(public)/orders/[publicId]/{page,not-found,loading}.tsx`
-  - `src/components/public/product-profile.tsx`, `src/components/public/checkout-form.tsx`, `src/components/public/order-page.tsx`
+  - `src/components/public/product-profile.tsx`, `photo-gallery.tsx`, `option-chips.tsx`, `checkout-sheet.tsx`, `order-page.tsx`. There is no checkout route: checkout is a sheet on the product page.
 - Modify:
   - `src/server/og.tsx`: add `productCard`
   - `src/server/link-cards.ts`: add `"product"` to `LinkCardKind`, add `["products", "product"]` to `SEGMENTS`, and add `RENDER.product`
@@ -844,15 +962,16 @@ it("cardFor reads a product link", ...) // cardFor(`${base}/products/frontal-wig
 
 - [ ] **Step 2: Run** `yarn test src/utils/product-page src/server`. Expected: FAIL.
 
-- [ ] **Step 3: Implement the loaders and helpers, then the pages.**
-  - The product page follows the approved mockup: photos, business name and area, name, price, option chips (sold-out options struck through and disabled), the availability note, a quantity stepper capped at available, and "Buy now · ₦X". The button goes to `/products/<slug>/checkout?option=<id>&qty=<n>`.
-  - When `canBuy` is false, the button is replaced by "Not available to buy online yet".
-  - The checkout page has the line summary, a Delivery/Pickup `Segmented` (only the offered ones), the address (delivery only), name, phone, optional email, the delivery fee line, the total, and "Pay ₦X". It posts `api.public.order` and redirects to `paymentUrl`.
-  - The order page shows `orderStatusLabel`, the lines, the fulfilment, the pickup or delivery address and the receipt link. While the order is `AWAITING_PAYMENT`, it shows `AwaitConfirmation`.
+- [ ] **Step 3: Implement the loaders and helpers. Then invoke the impeccable skill and build the pages to the UI direction's "Product page", "Checkout sheet" and "Customer order page" entries.**
+  - The photo gallery is a scroll-snap list of square frames with alt text. Its dots are buttons that scroll to their photo.
+  - Option chips preselect the first available option. The stepper is capped at `available`, and a null `available` means no cap.
+  - "Buy now · NGN X" opens the checkout sheet. The sheet posts `api.public.order`, then sends the browser to `paymentUrl`. A 409 lowers the cap and shows the message above the button.
+  - The order page shows `orderStatusLabel`, the lines, the fulfilment and address, and the receipt link. While the order is `AWAITING_PAYMENT`, it shows `AwaitConfirmation`.
 
 - [ ] **Step 4: Verify.**
   - `yarn test` and `yarn typecheck` pass.
-  - In `yarn dev` with Paystack test keys: buy a product end to end. The customer lands on `/orders/<publicId>` and sees "New", the owner gets the WhatsApp alert, and stock drops by the quantity.
+  - Run `.agents/skills/impeccable/scripts/impeccable detect --json src/components/public src/app/\(public\)/products src/app/\(public\)/orders` once and fix what it reports.
+  - In `yarn dev` with Paystack test keys, at 375px and 1440px: swipe through three photos, pick a sold-out option (it can't be picked), then buy end to end through the sheet. The customer lands on `/orders/<publicId>` and sees "New", the owner gets the WhatsApp alert, and stock drops by the quantity.
   - `curl -A "WhatsApp/2.0" http://localhost:3000/products/<slug>` returns card tags, and `/products/<slug>/opengraph-image` returns a JPEG.
 
 - [ ] **Step 5: Commit** with `git commit -m "feat(products): product page, checkout and customer order page"`
@@ -862,7 +981,7 @@ it("cardFor reads a product link", ...) // cardFor(`${base}/products/frontal-wig
 **Files:**
 - Create:
   - `src/app/(app)/orders/page.tsx`
-  - `src/components/orders/orders-page-client.tsx`, `order-row.tsx`, `order-row.test.tsx`, `order-modal.tsx`
+  - `src/components/orders/orders-page-client.tsx`, `order-row.tsx` (actions on the row, no pop-up), `order-row.test.tsx`
   - `src/hooks/queries/use-orders.ts` and `src/hooks/mutations/use-order-mutations.ts`
 - Modify: `src/utils/api.ts` (`api.orders.{list, get, update}`)
 
@@ -873,19 +992,25 @@ it("cardFor reads a product link", ...) // cardFor(`${base}/products/frontal-wig
 
 ```ts
 it("shows number, customer, items, total and status label", ...) // "ORD-1022", "Tolu Adeyemi", '2 × Frontal wig — 20"', "NGN 93,000", "Out for delivery"
-it("flags an oversold order", ...)                               // contains "Oversold"
+it("links the customer's phone", ...)                            // href "tel:+2348035550142"
+it.each([["NEW","PICKUP","Mark ready"],["READY","PICKUP","Mark collected"],["READY","DELIVERY","Mark delivered"]])(
+  "offers the next step for %s %s", ...)                         // button text equals the third value
+it("offers no next step on a completed or cancelled order", ...)
+it("flags an oversold order", ...)                               // contains "Oversold" and "Paid after it sold out. Restock or refund."
 ```
 
 - [ ] **Step 2: Run** `yarn test src/components/orders`. Expected: FAIL.
 
-- [ ] **Step 3: Build the screen.**
-  - A status filter (`Segmented`: To send out (New and Ready), Done, Cancelled), with rows that open a modal.
-  - The modal shows the customer, items, fulfilment, address, payment and receipt link.
-  - Its actions are Mark ready, Mark delivered or collected, and Cancel (with `ConfirmModal`: "Cancel ORD-1022 and put the stock back?").
-  - Invoice orders get a fulfilment editor.
-  - The owner's order details live in the modal because `/orders/<publicId>` is the customer's page.
+- [ ] **Step 3: Invoke the impeccable skill, then build the screen to the UI direction's "Orders" entry, copying `booking-row.tsx`.**
+  - Use a `Segmented` filter (To send out, Done, Cancelled) with `Pager` and `Skeleton` rows.
+  - Each row carries its own actions: the next step, Cancel (with `ConfirmModal`) and the copy-link icon for the customer's order page.
+  - An invoice order shows "From INV-1042". Its "Change to delivery" opens an address field in place, and saving calls `api.orders.update(slug, { fulfilment, deliveryAddress })`.
+  - The empty state is the UI direction's Orders line.
 
-- [ ] **Step 4: Verify.** `yarn test` and `yarn typecheck` pass. In `yarn dev` at 375px, move an order New → Ready → Delivered, and cancel another.
+- [ ] **Step 4: Verify.**
+  - `yarn test` and `yarn typecheck` pass.
+  - Run `.agents/skills/impeccable/scripts/impeccable detect --json src/components/orders` once and fix what it reports.
+  - In `yarn dev` at 375px and 1440px: move an order New → Ready → Delivered from its row, cancel another and see its stock come back, and switch an invoice order to delivery.
 
 - [ ] **Step 5: Commit** with `git commit -m "feat(orders): orders screen for the owner"`
 
@@ -947,11 +1072,14 @@ it("warns when a receipt sells more than is in stock", ...)        // composer h
 
 - [ ] **Step 2: Run** `yarn test src/utils/documents src/hooks`. Expected: FAIL.
 
-- [ ] **Step 3: Implement.**
-  - The item picker lists services, then each active product option, labelled like `Frontal wig — 20" · NGN 45,000 · 11 in stock`.
-  - A receipt line that sells more than is in stock shows the warning inline. Saving is still allowed.
+- [ ] **Step 3: Implement to the UI direction's item-picker entry.**
+  - The item picker lists services, then each active product option under a "Products" heading, labelled like `Frontal wig — 20" · NGN 45,000 · 11 in stock`.
+  - A sold-out option can still be picked on an invoice. A receipt line that sells more than is in stock shows the warning in place, and saving is still allowed.
 
-- [ ] **Step 4: Verify.** `yarn test` and `yarn typecheck` pass. In `yarn dev`, create an invoice with a product line and a service line.
+- [ ] **Step 4: Verify.**
+  - `yarn test` and `yarn typecheck` pass.
+  - Run `.agents/skills/impeccable/scripts/impeccable detect --json src/components/documents/document-modal.tsx` once and fix what it reports.
+  - In `yarn dev` at 375px, create an invoice with a product line and a service line.
 
 - [ ] **Step 5: Commit** with `git commit -m "feat(documents): pick products in the invoice and receipt composer"`
 
@@ -1034,9 +1162,12 @@ it("payable is null for paid, void and draft invoices", ...)
 - [ ] **Step 3: Implement.**
   - `process` runs one transaction: Payment (`PAYSTACK`, `invoiceId`, `customerId`), then `amountPaid`, `status` and `paidAt`.
   - After it, `createFromInvoice`, the receipt with `paymentId` (which copies the invoice lines), the owner alert, and `emailReceipt`.
-  - The button reads "Pay NGN 30,000" and sits under the totals on the customer invoice page. It's shown only when `payable` isn't null.
+  - Build the button to the UI direction's "Invoice Pay button" entry: "Pay NGN 30,000 with Paystack". On phones it sits in the fixed bottom bar copied from `ServiceProfile`; from `lg` it's a large button under the document. It's shown only when `payable` isn't null.
 
-- [ ] **Step 4: Verify.** `yarn test` and `yarn typecheck` pass. In `yarn dev` with Paystack test keys, pay a part-paid invoice and see it turn Paid, with a receipt and an alert.
+- [ ] **Step 4: Verify.**
+  - `yarn test` and `yarn typecheck` pass.
+  - Run `.agents/skills/impeccable/scripts/impeccable detect --json src/components/documents` once and fix what it reports.
+  - In `yarn dev` with Paystack test keys, at 375px and 1440px: pay a part-paid invoice and see it turn Paid, with a receipt and an alert.
 
 - [ ] **Step 5: Commit** with `git commit -m "feat(invoices): customers can pay an invoice online"`
 
@@ -1045,14 +1176,19 @@ it("payable is null for paid, void and draft invoices", ...)
 ### Task 22: Today page for merchants
 
 **Files:**
+- Create: `src/utils/menu.ts`, `src/utils/menu.test.ts`, `src/components/dashboard/share-link-sheet.tsx`
 - Modify:
   - `src/backend/services/dashboard/index.ts` and `index.test.ts`
   - `types/index.ts` (`DashboardData`)
   - `src/components/dashboard/dashboard-page-client.tsx` and `revenue-bars.tsx`
-  - `src/app/(app)/dashboard/page.tsx` (passes `sells`)
+  - `src/components/dashboard/panel.tsx`: `n` becomes optional, and a panel without it shows no number
+  - `src/app/(app)/dashboard/page.tsx`: passes `sells`, plus services and products for the share sheet
 
 **Interfaces:**
 - Produces:
+  - `type MenuAction = "NEW_INVOICE" | "NEW_RECEIPT" | "SHARE_LINK" | "UNPAID" | "TODAY_BOOKINGS" | "SUMMARY" | "ORDERS_TO_SEND"`
+  - `MENU: Record<"SERVICES" | "PRODUCTS" | "BOTH", { action: MenuAction; label: string }[]>`. It's client-safe and shared by the Today page and the chat engine (Task 23).
+  - `menuNumber(sells, action: MenuAction): number | null`
   - `type ItemRevenue = { kind: "SERVICE" | "PRODUCT"; id: string; name: string; slug: string; totalRevenue: number; count: number }`
   - `dashboardService.revenueByItem(businessId): Promise<ItemRevenue[]>`
   - `dashboardService.ordersToSendOut(businessId): Promise<{ slug: string; orderNumber: string; clientName: string; status: "NEW" | "READY"; fulfilment: "DELIVERY" | "PICKUP"; total: number }[]>`
@@ -1062,20 +1198,32 @@ it("payable is null for paid, void and draft invoices", ...)
 - [ ] **Step 1: Write the failing tests.**
 
 ```ts
+expect(MENU.SERVICES.map((m) => m.label)).toEqual(["New invoice", "New receipt", "Share a service (booking link)", "Unpaid invoices", "Today's bookings", "Business summary"]);
+expect(menuNumber("SERVICES", "TODAY_BOOKINGS")).toBe(5);
+expect(menuNumber("PRODUCTS", "ORDERS_TO_SEND")).toBe(5);
+expect(menuNumber("BOTH", "ORDERS_TO_SEND")).toBe(7);
+expect(menuNumber("PRODUCTS", "TODAY_BOOKINGS")).toBeNull();
 it("merges service and product revenue, highest first", ...) // products summed from OrderLine.total of NEW/READY/COMPLETED orders, count = quantity
 it("includes options with exactly 3 left and leaves out 4", ...)
 it("leaves untracked and paused products out of running low", ...)
 it("lists New and Ready orders oldest first, at most 10", ...)
 ```
 
-- [ ] **Step 2: Run** `yarn test src/backend/services/dashboard`. Expected: FAIL.
+- [ ] **Step 2: Run** `yarn test src/utils/menu src/backend/services/dashboard`. Expected: FAIL.
 
-- [ ] **Step 3: Implement.**
-  - The "Revenue by service" panel becomes "Revenue by item".
-  - For PRODUCTS or BOTH businesses, add an "Orders to send out" panel (`href="/orders"`) and a "Running low" panel (`href="/products"`).
-  - A SERVICES business sees today's layout, with the revenue panel renamed.
+- [ ] **Step 3: Implement `menu.ts` and the dashboard methods. Then invoke the impeccable skill and build the page to the UI direction's "Today" entry.**
+  - Every numbered section and action takes its number from `menuNumber(sells, …)`, so the Today page keeps matching the chat.
+  - **Action 3:** "Share a service" (SERVICES, links to `/services`), "Share a link" (PRODUCTS, links to `/products`), or "Share a link" opening `share-link-sheet.tsx` (BOTH). The sheet lists every active service and product with its `CopyLinkButton`.
+  - **Panels:**
+    - "Orders to send out" links to `/orders`.
+    - "Running low" has no number, links to `/products`, and shows only when the list isn't empty.
+    - "Revenue by service" becomes "Revenue by item" and lists services and products together.
+  - A SERVICES business sees today's layout with only the revenue panel renamed.
 
-- [ ] **Step 4: Verify.** `yarn test` and `yarn typecheck` pass. The Today page renders for a SERVICES business and a PRODUCTS business at 375px.
+- [ ] **Step 4: Verify.**
+  - `yarn test` and `yarn typecheck` pass.
+  - Run `.agents/skills/impeccable/scripts/impeccable detect --json src/components/dashboard` once and fix what it reports.
+  - The Today page renders for a SERVICES, a PRODUCTS and a BOTH business at 375px and 1440px, and its numbers match each business's chat menu.
 
 - [ ] **Step 5: Commit** with `git commit -m "feat(dashboard): orders to send out, running low and revenue by item"`
 
@@ -1085,11 +1233,9 @@ it("lists New and Ready orders oldest first, at most 10", ...)
 - Modify: `src/backend/services/messaging/engine/index.ts` and `index.test.ts`, `src/backend/services/messaging/dispatch/index.ts` and `index.test.ts`, `src/backend/services/customer/index.ts` (`findByName`), and `PRODUCT.md`
 
 **Interfaces:**
-- Consumes: `customerService`, `productService`, `stockBadge`, `productLink`, `optionLabel` and `dashboardService.ordersToSendOut`.
+- Consumes: `MENU` and `MenuAction` from `src/utils/menu.ts` (Task 22), `customerService`, `productService`, `stockBadge`, `productLink`, `optionLabel` and `dashboardService.ordersToSendOut`.
 - Produces:
-  - `type MenuAction = "NEW_INVOICE" | "NEW_RECEIPT" | "SHARE_LINK" | "UNPAID" | "TODAY_BOOKINGS" | "SUMMARY" | "ORDERS_TO_SEND"`
-  - `MENU: Record<BusinessSells, { action: MenuAction; label: string }[]>`
-  - `mainMenuText(sells: BusinessSells): string`
+  - `mainMenuText(sells: BusinessSells): string`, built from `MENU[sells]`
   - `intentDispatcher.listItemOptions(businessId): Promise<ItemOption[]>`. `ItemOption` is `FullServiceOption` plus `kind: "SERVICE" | "PRODUCT"` and `productOptionId?`. It replaces `listFullServiceOptions`.
   - `intentDispatcher.listShareOptions(businessId): Promise<{ kind: "SERVICE" | "PRODUCT"; slug: string; label: string }[]>`
   - `intentDispatcher.productLinkText(slug: string): string`
@@ -1136,4 +1282,36 @@ it("offers product options in the invoice item list", ...)
 ```bash
 git add src PRODUCT.md
 git commit -m "feat(chat): menu for merchants, product links and customer matching"
+```
+
+### Task 24: Impeccable review of the new screens
+
+**Files:**
+- Modify: whichever new-screen files the review's findings point at.
+- Modify: `.gitignore`, adding `.impeccable/review/` (`.impeccable/design.json` is tracked; the screenshots must not be).
+- Screenshots go in `.impeccable/review/merchants/`.
+
+- [ ] **Step 1: Seed and capture.**
+  - In `yarn dev`, set up three businesses (SERVICES, PRODUCTS and BOTH) with realistic data:
+    - three products: one with three options and photos, one made to order, one sold out
+    - five orders across statuses, including an oversold one and one from an invoice
+    - eight customers, including one with a long name.
+  - Capture each new screen at 375×812 and at 1440×900:
+    - Today
+    - Customers, and one customer's page
+    - Products, and the product editor sheet
+    - Orders
+    - Settings → Selling
+    - the product page and the checkout sheet
+    - a customer order page, awaiting payment and paid
+    - an unpaid invoice with its Pay button.
+  - Open each capture once to check it shows what its name says.
+- [ ] **Step 2: Review.** Invoke the impeccable skill and run `audit` over `src/components/{customers,products,orders,public,dashboard,settings,documents}` (accessibility, responsiveness, performance). Then run `critique` on the captures against this plan's UI direction.
+- [ ] **Step 3: Fix the material findings in one batch.** Recapture the same screens once to confirm, then stop. Anything still open goes to the owner as a list instead of another round.
+- [ ] **Step 4: Verify.** Run `.agents/skills/impeccable/scripts/impeccable detect --json` once over the changed UI directories (expected: no findings), then `yarn test`, `yarn typecheck` and `yarn lint`.
+- [ ] **Step 5: Commit**
+
+```bash
+git add .gitignore src
+git commit -m "fix(ui): impeccable review fixes for the merchant screens"
 ```

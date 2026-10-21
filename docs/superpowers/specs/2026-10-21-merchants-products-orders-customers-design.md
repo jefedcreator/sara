@@ -85,9 +85,19 @@ the mockups.
 15. **Low stock means 3 or fewer left of an option** on a product that tracks stock. The Today
     page lists those options.
 16. **Order numbers run ORD-1001, ORD-1002, … per business**, like invoices and receipts.
-17. **URLs:** `/products/<slug>` is the product page and `/products/<slug>/checkout` is checkout,
-    as in the approved mockup. `/orders/<publicId>` is the customer's order page, like
-    `/bookings/<publicId>`.
+17. **URLs:** `/products/<slug>` is the product page. `/orders/<publicId>` is the customer's
+    order page, like `/bookings/<publicId>`. There's no separate checkout page: see below.
+
+## UI decisions (shaped with impeccable, 2026-10-21)
+
+The owner chose these after the brainstorm, through impeccable's shape step:
+
+- **Checkout is a sheet on the product page**, the way booking a service ends in a details sheet
+  today. "Buy now" opens it. This replaces the `/products/<slug>/checkout` page in the mockup.
+- **The owner acts on an order from its row** on the Orders screen, like a booking row: the next
+  step and Cancel are buttons on the row, with no pop-up.
+- **On a phone, product photos sit in a square frame the customer swipes through.** Name, price
+  and options sit right under it.
 
 ## Goals
 
@@ -198,7 +208,8 @@ These are shapes, not final names. The builder chooses names and indexes.
 
 The page shows:
 
-- photos, the business name and area, product name and price
+- photos (on a phone, a square frame the customer swipes through), the business name and area,
+  product name and price
 - option chips: sold-out options are struck through and can't be picked
 - "Only N left" when a stock-tracked option has 3 or fewer
 - a quantity stepper capped at what's available
@@ -208,9 +219,9 @@ A paused or deleted product shows the same not-found page a service does. The pa
 card for WhatsApp and Instagram, built like the service cards (`opengraph-image.tsx`, square
 875×875, primed before sending with `primeLinkCard`).
 
-### Checkout: `/products/<slug>/checkout`
+### Checkout sheet (on the product page)
 
-The page shows:
+"Buy now" opens a sheet over the product page, like the booking details sheet. It shows:
 
 - the chosen line
 - Delivery or Pickup (only the ones the business offers)
@@ -229,7 +240,8 @@ The page shows:
 5. Returns the payment URL.
 
 The Paystack callback returns through `/api/webhooks/paystack?o=<orderSlug>` (bookings use
-`?b=`) to a done page. For pickup, the done page shows the pickup address.
+`?b=`) to the customer's order page, `/orders/<publicId>`. For pickup, that page shows the pickup
+address.
 
 If the business has no Paystack subaccount yet, products can't be bought online. The builder
 should mirror what service pages do in that case today.
@@ -363,8 +375,8 @@ should mirror what service pages do in that case today.
   - pause, copy link, adjust stock.
 - **Orders:**
   - a list filtered by status
-  - an order page with items, customer, fulfilment, address, payment and receipt
-  - actions: Mark ready, Mark delivered or collected, Cancel.
+  - each order row shows items, customer, fulfilment, address, payment and receipt
+  - actions on the row: Mark ready, Mark delivered or collected, Cancel.
 - **Customers:** as described above.
 - **Settings:** what you sell, delivery fee, pickup.
 
