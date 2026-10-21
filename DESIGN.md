@@ -27,6 +27,8 @@ colors:
   instagram-pink: "#ff0069"
   instagram-purple: "#d300c5"
   instagram-violet: "#7638fa"
+  wa-wallpaper: "#efeae2"
+  wa-out: "#d9fdd3"
 typography:
   display:
     fontFamily: "Bricolage Grotesque, Hanken Grotesk, sans-serif"
@@ -181,6 +183,9 @@ A restrained palette: white, green-tinted neutrals and a single WhatsApp green u
 ### Brand Marks (sign-in only)
 - **Google, Facebook, Instagram** (google-*, facebook, instagram-*): each provider's own logo colours, used only inside that provider's mark on the sign-in buttons. Never for text, fills or anything that is not the logo itself.
 
+### WhatsApp Mockups (landing only)
+- **Chat Wallpaper** (wa-wallpaper) and **Sent Green** (wa-out): WhatsApp's own light-mode chat ground and sent-bubble fill, used only inside the WhatsApp Mockups (see Components). Never for UI. The doodles on the wallpaper are an original tile (`public/landing/wa-doodles.svg`), not WhatsApp's artwork.
+
 ### Named Rules
 **The Green Fill Rule.** WhatsApp green is a fill, never a text colour on white. If it has to be read, it is Deep Teal-Green.
 
@@ -270,7 +275,15 @@ One mark, **Handoff**: an "s" in two halves. The top half is the owner's busines
 Rejected on the way here, not to be re-proposed: any chat bubble (Sara is an admin assistant, not a messaging brand), a six-petal burst or four-point star (reads as an AI sparkle), an "s" of beads, a receipt bubble (a ghost), a concierge bell (a food cloche), stacked list rows (a list icon), and the cradle and clover alternates.
 
 ### Chat Bubbles (signature)
-Sara's replies: white, hairline border, 18px radius with a 6px bottom-left corner. Owner messages: WhatsApp green with green-ink text and a 6px bottom-right corner, right-aligned. Numbers in a menu render as green circular numerals (32px). This is the system's illustration language; use it wherever the product's behaviour needs explaining.
+Sara's replies: white, hairline border, 18px radius with a 6px bottom-left corner. Owner messages: WhatsApp green with green-ink text and a 6px bottom-right corner, right-aligned. Numbers in a menu render as green circular numerals (32px). This is the system's illustration language; use it wherever the product's behaviour needs explaining. Where a surface presents itself as a real chat, use the WhatsApp Mockup instead.
+
+### WhatsApp Mockups
+A chat with Sara as the owner's WhatsApp shows it, for surfaces that present a real exchange (the landing page's six menu cards). iOS in light mode, matching the hero recording; built in `src/app/components/landing/WhatsAppChat.tsx`.
+- **Frame:** 28px panel, hairline border, Float shadow. White header (back chevron, Sara's ink tile cropped to a circle, "sara", video and call icons), the doodle wallpaper, a white "Today" chip, and the input bar (plus, sticker field, camera, green mic disc with an on-accent icon). The chrome is aria-hidden.
+- **Owner messages:** right, Sent Green, ink text, iOS tail at the bottom-right, time and grey double ticks (delivered: Sara sends no read receipts).
+- **Sara's replies:** left, white, iOS tail at the bottom-left, time only.
+- **Content:** Sara sends plain text, so a reply has no colour or chips: line breaks, bold at most, and links underlined in deep teal-green. A link gets WhatsApp's preview (mint thumbnail with the mark, then the title and description the link's own metadata writes, then app.sara.ng) and the grey forward button beside the bubble.
+- **Motion:** each message arrives in turn as the card scrolls in, like the other bubbles.
 
 ### Booking Slots
 Day chips and time pills in a grid: available = white with hairline, selected = green fill (days) or mint wash with deep teal outline (times), taken = leaf grey with struck-through faint text, closed = dashed border.

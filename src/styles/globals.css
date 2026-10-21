@@ -50,6 +50,10 @@
   --color-instagram-purple: #d300c5;
   --color-instagram-violet: #7638fa;
 
+  /* WhatsApp's own chat colours, inside the landing page's WhatsApp mockups only. Never UI. */
+  --color-wa-wallpaper: #efeae2;
+  --color-wa-out: #d9fdd3;
+
   --radius-chip: 10px;
   --radius-bubble: 18px;
   --radius-card: 24px;
