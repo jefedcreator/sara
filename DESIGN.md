@@ -282,7 +282,8 @@ A chat with Sara as the owner's WhatsApp shows it, for surfaces that present a r
 - **Frame:** 28px panel, hairline border, Float shadow. White header (back chevron, Sara's ink tile cropped to a circle, "sara", video and call icons), the doodle wallpaper, a white "Today" chip, and the input bar (plus, sticker field, camera, green mic disc with an on-accent icon). The chrome is aria-hidden.
 - **Owner messages:** right, Sent Green, ink text, iOS tail at the bottom-right, time and grey double ticks (delivered: Sara sends no read receipts).
 - **Sara's replies:** left, white, iOS tail at the bottom-left, time only.
-- **Content:** Sara sends plain text, so a reply has no colour or chips: line breaks, bold at most, and links underlined in deep teal-green. A link gets WhatsApp's preview (mint thumbnail with the mark, then the title and description the link's own metadata writes, then app.sara.ng) and the grey forward button beside the bubble.
+- **Height:** a phone's. A long exchange keeps its latest messages in view and the earlier ones slip under the header, as in a screenshot; a short one sits at its own height.
+- **Content:** Sara's replies word for word, as `messaging/engine` and `messaging/dispatch` write them; when the product's wording changes, these change with it. Sara sends plain text, so a reply has no colour or chips: line breaks, bold at most, and links underlined in deep teal-green. A link gets WhatsApp's preview (mint thumbnail with the mark, then the title and description the link's own metadata writes, then app.sara.ng) and the grey forward button beside the bubble.
 - **Motion:** each message arrives in turn as the card scrolls in, like the other bubbles.
 
 ### Booking Slots
