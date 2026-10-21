@@ -33,6 +33,12 @@ import {
 
 const BOOKING_LINK = "app.sara.ng/book/tobi-knotless-braids";
 
+// The links Sara sends in the menu cards' chats (server/share.ts). For 3 it
+// sends the service's page, whose "Book a time" opens BOOKING_LINK.
+const INVOICE_LINK = "https://app.sara.ng/invoices/Xk39fjQ2aB7mN0pR";
+const RECEIPT_LINK = "https://app.sara.ng/receipts/Qm7TzW2pLc9fHs4e";
+const SERVICE_LINK = "https://app.sara.ng/services/tobi-knotless-braids";
+
 // ---------- Shared class lists (full literals so Tailwind can see them) ----------
 
 const WRAP = "mx-auto w-full max-w-page px-4 md:px-8";
@@ -441,61 +447,101 @@ export function LandingPage() {
               beauty studio in Yaba.
             </p>
             <div className="mt-12 grid items-start gap-x-4 gap-y-12 min-[700px]:grid-cols-2 min-[1040px]:grid-cols-3 min-[1040px]:gap-x-5">
+              {/* Sara's replies word for word (messaging/engine and dispatch). The long flows show their latest messages, as a screenshot would. */}
               <MenuCard n={1} title="New invoice">
-                <OwnerMessage time="10:41">1</OwnerMessage>
-                <SaraMessage time="10:41">
-                  New invoice. Customer, service and amount?
+                <OwnerMessage time="10:42">15000</OwnerMessage>
+                <SaraMessage time="10:42">
+                  What&apos;s it for? (or &apos;skip&apos;)
                 </SaraMessage>
-                <OwnerMessage time="10:42">Ada, gele tying, 15000</OwnerMessage>
+                <OwnerMessage time="10:42">Gele tying</OwnerMessage>
+                <SaraMessage time="10:42">
+                  New invoice: Ada · 15,000 · Gele tying
+                  <br />
+                  <br />
+                  Reply YES to create, NO to cancel
+                </SaraMessage>
+                <OwnerMessage time="10:43">YES</OwnerMessage>
+                <SaraMessage time="10:43" grouped>
+                  Creating invoice... ⏳
+                </SaraMessage>
                 <SaraMessage
-                  time="10:42"
+                  time="10:43"
                   preview={{
-                    title: "Invoice INV-0142 from Tobi Beauty Studio",
+                    title: "Invoice INV-1042 from Tobi Beauty Studio",
                     body: "NGN 15,000 to pay. See it here or download the PDF.",
                   }}
                 >
-                  INV-0142 for Ada Okafor: Gele tying, NGN 15,000.
+                  Invoice INV-1042 created ✅
                   <br />
-                  🔗 Payment link, ready to forward:{" "}
-                  <ChatLink>
-                    https://app.sara.ng/invoices/Xk39fjQ2aB7mN0pR
-                  </ChatLink>
+                  Payment link: <ChatLink>{INVOICE_LINK}</ChatLink>
+                  <br />
+                  <br />
+                  Share with Ada:
+                  <br />
+                  — — —
+                  <br />
+                  Hi Ada, here&apos;s your invoice. Pay securely:{" "}
+                  <ChatLink>{INVOICE_LINK}</ChatLink>
+                  <br />— — —
                 </SaraMessage>
               </MenuCard>
               <MenuCard n={2} title="New receipt">
-                <OwnerMessage time="13:15">2</OwnerMessage>
+                <OwnerMessage time="13:15">Chidi</OwnerMessage>
                 <SaraMessage time="13:15">
-                  New receipt. Customer, service and amount?
+                  Add a service, or enter a custom amount:
+                  <br />
+                  1. Knotless braids — NGN 25,000 (4&nbsp;hr)
+                  <br />
+                  2. Boho braids — NGN 30,000 (5&nbsp;hr)
+                  <br />
+                  3. Gele tying — NGN 15,000 (1&nbsp;hr)
+                  <br />
+                  4. Bridal makeup — NGN 18,000 (2&nbsp;hr)
+                  <br />
+                  <br />
+                  Reply with a service number, or enter an amount (e.g. 5000)
                 </SaraMessage>
-                <OwnerMessage time="13:16">
-                  Chidi, low cut + beard trim, 6000 cash
-                </OwnerMessage>
+                <OwnerMessage time="13:15">6000</OwnerMessage>
+                <SaraMessage time="13:15">
+                  What&apos;s it for? (or &apos;skip&apos;)
+                </SaraMessage>
+                <OwnerMessage time="13:16">Low cut + beard trim</OwnerMessage>
+                <SaraMessage time="13:16">
+                  New receipt: Chidi · 6,000 · Low cut + beard trim
+                  <br />
+                  <br />
+                  Reply YES to create, NO to cancel
+                </SaraMessage>
+                <OwnerMessage time="13:16">YES</OwnerMessage>
+                <SaraMessage time="13:16" grouped>
+                  Creating receipt... ⏳
+                </SaraMessage>
                 <SaraMessage
                   time="13:16"
                   preview={{
-                    title: "Receipt RCT-0388 from Tobi Beauty Studio",
+                    title: "Receipt RCP-1088 from Tobi Beauty Studio",
                     body: "NGN 6,000 paid to Tobi Beauty Studio on 25 Sep 2026. See it here or download the PDF.",
                   }}
                 >
-                  RCT-0388 for Chidi Eze: Low cut + beard trim, NGN 6,000, paid
-                  in cash.
+                  Receipt RCP-1088 created ✅
                   <br />
-                  📄 Receipt:{" "}
-                  <ChatLink>
-                    https://app.sara.ng/receipts/Qm7TzW2pLc9fHs4e
-                  </ChatLink>
+                  Receipt link: <ChatLink>{RECEIPT_LINK}</ChatLink>
                 </SaraMessage>
               </MenuCard>
               <MenuCard n={3} title="Share a service">
                 <OwnerMessage time="14:20">3</OwnerMessage>
                 <SaraMessage time="14:20">
-                  Which service?
+                  Which service? Reply with a number:
                   <br />
                   1. Knotless braids — NGN 25,000 (4&nbsp;hr)
                   <br />
                   2. Boho braids — NGN 30,000 (5&nbsp;hr)
+                  <br />
+                  3. Gele tying — NGN 15,000 (1&nbsp;hr)
+                  <br />
+                  4. Bridal makeup — NGN 18,000 (2&nbsp;hr)
                 </SaraMessage>
-                <OwnerMessage time="14:20">1</OwnerMessage>
+                <OwnerMessage time="14:21">1</OwnerMessage>
                 <SaraMessage
                   time="14:21"
                   preview={{
@@ -503,55 +549,44 @@ export function LandingPage() {
                     body: "NGN 25,000 for 4 hr with Tobi Beauty Studio. Pick a time and pay with Paystack.",
                   }}
                 >
-                  Here&apos;s your booking link. Put it in your bio or send it
-                  to a customer: <ChatLink>https://{BOOKING_LINK}</ChatLink>
+                  Share this booking link with your customer:
+                  <br />
+                  <ChatLink>{SERVICE_LINK}</ChatLink>
+                  <br />
+                  — — —
+                  <br />
+                  Hi! You can book here: <ChatLink>{SERVICE_LINK}</ChatLink>
+                  <br />— — —
                 </SaraMessage>
               </MenuCard>
               <MenuCard n={4} title="Unpaid invoices">
                 <OwnerMessage time="17:05">4</OwnerMessage>
                 <SaraMessage time="17:05">
-                  3 unpaid, NGN 55,000 outstanding:
-                  <br />
-                  Kemi A. · Bridal makeup · NGN 15,000 left (Partially paid)
-                  <br />
-                  Bisi O. · Knotless braids · NGN 25,000
-                  <br />
-                  Ngozi E. · Gele tying · NGN 15,000
+                  🧾 Unpaid invoices:
+                  <br />• Kemi Adeyemi — NGN 15,000{" "}
+                  <span className="whitespace-nowrap">(INV-1039)</span>
+                  <br />• Bisi Ogunleye — NGN 25,000{" "}
+                  <span className="whitespace-nowrap">(INV-1040)</span>
+                  <br />• Ngozi Eze — NGN 15,000{" "}
+                  <span className="whitespace-nowrap">(INV-1041)</span>
                 </SaraMessage>
               </MenuCard>
               <MenuCard n={5} title="Today's bookings">
                 <OwnerMessage time="08:02">5</OwnerMessage>
                 <SaraMessage time="08:02">
-                  Today, Friday: 3 bookings
-                  <br />
-                  <b className="font-semibold">09:30</b> Ada Okafor · Gele tying
-                  <br />
-                  <b className="font-semibold">12:00</b> Kemi Adeyemi · Bridal
-                  makeup
-                  <br />
-                  <b className="font-semibold">15:30</b> Funke Bello · Knotless
-                  braids
+                  📅 Today&apos;s bookings:
+                  <br />• 9:30&#8239;AM — Gele tying (Ada&nbsp;Okafor)
+                  <br />• 12:00&#8239;PM — Bridal makeup (Kemi&nbsp;Adeyemi)
+                  <br />• 3:30&#8239;PM — Knotless braids (Funke&nbsp;Bello)
                 </SaraMessage>
               </MenuCard>
               <MenuCard n={6} title="Business summary">
                 <OwnerMessage time="19:48">6</OwnerMessage>
                 <SaraMessage time="19:48">
-                  Today: NGN 31,000
-                  <br />
-                  This week: NGN 188,000
-                  <br />
-                  Unpaid: 3 invoices
-                  <br />
-                  <br />
-                  By service this week:
-                  <br />
-                  Knotless braids NGN 75,000
-                  <br />
-                  Bridal makeup NGN 50,000
-                  <br />
-                  Gele tying NGN 45,000
-                  <br />
-                  Low cut + beard trim NGN 18,000
+                  📊 Business summary
+                  <br />• Today&apos;s revenue: NGN 31,000
+                  <br />• This week: NGN 188,000
+                  <br />• Unpaid invoices: 3
                 </SaraMessage>
               </MenuCard>
             </div>
@@ -676,7 +711,7 @@ export function LandingPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="text-faint font-mono text-xs font-medium">
-                    INV-0139
+                    INV-1039
                   </p>
                   <p
                     className={cn(H3_DISPLAY, "mt-1 text-[22px] leading-[1.2]")}
@@ -722,7 +757,7 @@ export function LandingPage() {
                 className={cn(MSG, MSG_IN, "shadow-bubble mt-7 max-w-[360px]")}
               >
                 ✅ Payment received: Kemi paid NGN 10,000 for Bridal makeup.
-                Receipt RCT-0412 sent.
+                Receipt RCP-1089 sent.
               </p>
               <p className={cn(SUB, "mt-3 text-sm")}>
                 When a payment lands, the receipt is created for you. Nothing to

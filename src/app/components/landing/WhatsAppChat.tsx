@@ -24,6 +24,9 @@ import { ARRIVE_ITEM } from "./motion";
  * read receipts), and Sara's in white. Sara sends plain text, so a reply has
  * no colour of its own: links are underlined, and WhatsApp draws their
  * preview. The wa-* colours are WhatsApp's own and are used only here.
+ *
+ * Like a screenshot, the window has a phone's height: a long exchange keeps
+ * its latest messages in view and the earlier ones slip under the header.
  */
 
 const BUBBLE =
@@ -48,7 +51,7 @@ export function WhatsAppChat({ children }: { children: ReactNode }) {
           <Phone size={19} />
         </span>
       </div>
-      <div className="grid gap-2 px-3 pt-3.5 pb-2">
+      <div className="flex max-h-[580px] flex-col justify-end gap-2 overflow-hidden px-3 pt-3.5 pb-2">
         <p
           className="bg-canvas text-ink-2 shadow-bubble mx-auto mb-1 w-fit rounded-full px-3 py-[5px] text-xs leading-none font-semibold"
           aria-hidden="true"
@@ -97,24 +100,35 @@ export function OwnerMessage({
 /**
  * Sara's reply: left, white. With a `preview`, the reply carries a link and
  * shows WhatsApp's link preview above it and the forward button beside it.
+ * `grouped`: Sara's next message follows straight on, so this one drops its
+ * tail and sits close to it, as WhatsApp groups a run of messages.
  */
 export function SaraMessage({
   time,
   preview,
+  grouped = false,
   children,
 }: {
   time: string;
   preview?: { title: string; body: string };
+  grouped?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className={cn("flex items-center gap-2", ARRIVE_ITEM)} data-item>
-      <p className={cn(BUBBLE, "bg-canvas rounded-bl-[4px]")}>
+    <div
+      className={cn(
+        "flex items-center gap-2",
+        grouped && "-mb-1.5",
+        ARRIVE_ITEM,
+      )}
+      data-item
+    >
+      <p className={cn(BUBBLE, "bg-canvas", !grouped && "rounded-bl-[4px]")}>
         <span className="sr-only">Sara: </span>
         {preview ? <LinkPreview {...preview} /> : null}
         {children}
         <Stamp time={time} />
-        <Tail className="fill-canvas -left-[5px]" />
+        {grouped ? null : <Tail className="fill-canvas -left-[5px]" />}
       </p>
       {preview ? (
         <span
