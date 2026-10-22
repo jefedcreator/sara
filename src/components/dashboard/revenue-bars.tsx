@@ -3,7 +3,7 @@ import type { DashboardData } from "types";
 import { formatMoney } from "@/utils/format";
 
 /**
- * Revenue per service as a ranked bar list. One series, so one hue (the
+ * Revenue per service and product as a ranked bar list. One series, so one hue (the
  * accent fill) and no legend; every bar carries its name and value as text,
  * because the fill alone is under 3:1 on white.
  */
@@ -11,7 +11,7 @@ export function RevenueBars({
   rows,
   currency,
 }: {
-  rows: DashboardData["revenueByService"];
+  rows: DashboardData["revenueByItem"];
   currency: string;
 }) {
   const max = Math.max(...rows.map((r) => r.totalRevenue), 1);
@@ -20,14 +20,14 @@ export function RevenueBars({
     <ul className="grid grid-cols-1 gap-3.5">
       {rows.map((row) => {
         const share = Math.max(2, (row.totalRevenue / max) * 100);
-        const bookings = `${row.totalBookings} booking${row.totalBookings === 1 ? "" : "s"}`;
+        const count = countLabel(row.kind, row.count);
         return (
-          <li key={row.serviceId} title={`${row.serviceName}: ${formatMoney(row.totalRevenue, currency)} from ${bookings}`}>
+          <li key={`${row.kind}-${row.id}`} title={`${row.name}: ${formatMoney(row.totalRevenue, currency)} from ${count}`}>
             <div className="flex items-baseline justify-between gap-3 text-[15px]">
-              <span className="min-w-0 truncate font-semibold">{row.serviceName}</span>
+              <span className="min-w-0 truncate font-semibold">{row.name}</span>
               <span className="text-ink-2 whitespace-nowrap">
                 {formatMoney(row.totalRevenue, currency)}
-                <span className="text-muted"> · {bookings}</span>
+                <span className="text-muted"> · {count}</span>
               </span>
             </div>
             {/* A native progress bar, so the width is data, not an inline style. */}
@@ -42,4 +42,8 @@ export function RevenueBars({
       })}
     </ul>
   );
+}
+
+function countLabel(kind: DashboardData["revenueByItem"][number]["kind"], count: number) {
+  return kind === "SERVICE" ? `${count} booking${count === 1 ? "" : "s"}` : `${count} sold`;
 }

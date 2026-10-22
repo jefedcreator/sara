@@ -11,6 +11,9 @@ vi.mock("@/server/db", () => ({
     payment: { aggregate: vi.fn() },
     invoice: { count: vi.fn(), aggregate: vi.fn(), findMany: vi.fn() },
     booking: { findMany: vi.fn() },
+    orderLine: { findMany: vi.fn() },
+    order: { findMany: vi.fn() },
+    product: { findMany: vi.fn() },
   },
 }));
 
@@ -57,6 +60,9 @@ describe("GET /api/dashboard", () => {
         { serviceId: "s1", service: { name: "Knotless braids", slug: "kb", price: 25000 } },
         { serviceId: "s1", service: { name: "Knotless braids", slug: "kb", price: 25000 } },
       ]);
+    mockedDb.orderLine.findMany.mockResolvedValue([]);
+    mockedDb.order.findMany.mockResolvedValue([]);
+    mockedDb.product.findMany.mockResolvedValue([]);
     mockedDb.invoice.findMany.mockResolvedValue([
       {
         slug: "inv-1",
@@ -89,11 +95,14 @@ describe("GET /api/dashboard", () => {
       startTime: start.toISOString(),
     });
     expect(body.data.unpaidInvoices[0].outstanding).toBe(20000);
-    expect(body.data.revenueByService[0]).toMatchObject({
-      serviceName: "Knotless braids",
+    expect(body.data.revenueByItem[0]).toMatchObject({
+      kind: "SERVICE",
+      name: "Knotless braids",
       totalRevenue: 50000,
-      totalBookings: 2,
+      count: 2,
     });
+    expect(body.data.ordersToSendOut).toEqual([]);
+    expect(body.data.runningLow).toEqual([]);
   });
 
   it("refuses a signed-out request", async () => {
