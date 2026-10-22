@@ -14,6 +14,7 @@ import {
 } from "@/backend/validators/business.validator";
 import { db } from "@/server/db";
 import {
+  BadRequestException,
   ConflictException,
   InternalServerErrorException,
   NotFoundException,
@@ -235,6 +236,31 @@ export const PUT = withMiddleware<UpdateBusinessValidatorSchema>(
             );
           }
         }
+      }
+
+      // Check the state the business will be in after this patch: fields left
+      // out keep their saved values.
+      const nextOffersPickup =
+        payload.offersPickup ?? user.business.offersPickup;
+      const nextAddress =
+        payload.address !== undefined ? payload.address : user.business.address;
+      if (nextOffersPickup && !nextAddress?.trim()) {
+        throw new BadRequestException("Add your business address for pickup");
+      }
+
+      const nextOffersDelivery =
+        payload.offersDelivery ?? user.business.offersDelivery;
+      const nextDeliveryFee =
+        payload.deliveryFee !== undefined
+          ? payload.deliveryFee
+          : user.business.deliveryFee;
+      if (
+        nextOffersDelivery &&
+        (nextDeliveryFee === null || nextDeliveryFee === undefined)
+      ) {
+        throw new BadRequestException(
+          "Set a delivery fee, or 0 for free delivery",
+        );
       }
 
       const business = await db.business.update({
