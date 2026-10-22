@@ -40,6 +40,7 @@ Add these under **Settings -> Secrets and variables -> Actions**:
 | `INSTAGRAM_CLIENT_ID`, `INSTAGRAM_CLIENT_SECRET` | Required for Instagram sign-in (sign-in button disabled if unset) |
 | `RESEND_API_KEY`, `EMAIL_FROM` | Optional: transactional email. Unset, emails go to `pm2 logs sara` |
 | `CRON_SECRET` | Optional: guards the booking reminder endpoint (see below) |
+| `ADMIN_API_TOKEN`, `ADMIN_ORIGIN` | Optional: switch on the admin API (see below). `ADMIN_API_TOKEN` is at least 32 characters, the same in every interacti product; `ADMIN_ORIGIN` is the dashboard's origin, no trailing slash |
 | `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY`, `PAYSTACK_WEBHOOK_SECRET` | Optional: payments |
 | `MONO_CLIENT_ID`, `MONO_SECRET_KEY`, `NEXT_PUBLIC_MONO_PUBLIC_KEY` | Optional: Mono bank connect |
 | `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TOKEN`, `META_APP_SECRET` | Optional: WhatsApp Cloud API |
@@ -98,6 +99,18 @@ and needs a scheduler. Add it to the deploy user's crontab (`crontab -e`):
 ```cron
 0 * * * * curl -fsS -o /dev/null -H "Authorization: Bearer $(sed -n 's/^CRON_SECRET="\(.*\)"$/\1/p' /srv/sara/shared/.env)" http://127.0.0.1:3003/api/cron/booking-reminders
 ```
+
+## Admin API
+
+`/api/admin` is off until `ADMIN_API_TOKEN` is set: with it unset, every
+request and preflight answers 404. The token is one random secret of at least
+32 characters (`openssl rand -base64 32`), the same in every interacti
+product, sent as `Authorization: Bearer <token>`. Rotating it means changing
+the secret, re-running the workflow and restarting. `ADMIN_ORIGIN` is the
+dashboard's origin (no trailing slash); only that origin gets CORS headers.
+Both are optional in `src/env.js`. The deploy workflow's `.env` step carries
+them from repository secrets of the same names (see "Required repository
+secrets"); leave the secrets unset to keep the admin off.
 
 ## Atlas
 
