@@ -96,7 +96,6 @@ export async function takeStock(
     where: { id: { in: [...quantities.keys()] } },
     select: {
       id: true,
-      stock: true,
       product: { select: { tracksStock: true } },
     },
   });
@@ -107,12 +106,27 @@ export async function takeStock(
     if (!option.product.tracksStock) continue;
 
     const quantity = quantities.get(option.id) ?? 0;
-    if (quantity > option.stock) short = true;
 
-    await client.productOption.update({
-      where: { id: option.id },
-      data: { stock: Math.max(option.stock - quantity, 0) },
+    // A conditional decrement is atomic in the database whatever the caller's
+    // isolation level, so a receipt sale and an online payment landing
+    // together can't both read the same count and overwrite each other.
+    const enough: Prisma.ProductOptionWhereInput = {
+      id: option.id,
+      stock: { gte: quantity },
+    };
+    const taken = await client.productOption.updateMany({
+      where: enough,
+      data: { stock: { decrement: quantity } },
     });
+
+    if (taken.count === 0) {
+      // Not enough left: take what remains and report the shortfall.
+      short = true;
+      await client.productOption.update({
+        where: { id: option.id },
+        data: { stock: 0 },
+      });
+    }
   }
 
   return { short };

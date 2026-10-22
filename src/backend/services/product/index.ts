@@ -1,6 +1,7 @@
 import type { Prisma, Product, ProductOption } from "@prisma/client";
 import slugify from "slugify";
 
+import { MAX_PHOTOS } from "@/backend/validators/product.validator";
 import { db } from "@/server/db";
 import { BadRequestException, NotFoundException } from "@/utils/exceptions";
 
@@ -28,7 +29,6 @@ export type ProductUpdateInput = Partial<ProductInput> & {
 
 export type StockChange = { add: number } | { set: number };
 
-const MAX_PHOTOS = 5;
 const MAX_OPTIONS = 20;
 const MAX_NAME_LENGTH = 255;
 

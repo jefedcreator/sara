@@ -1,5 +1,6 @@
 import { isSerializationFailure } from "@/backend/services/booking/conflicts";
 import { emailService } from "@/backend/services/email";
+import { formatMoney } from "@/backend/services/messaging/engine/amount";
 import { ownerNotifier } from "@/backend/services/messaging/notify";
 import type { SuccessfulPaymentData } from "@/backend/services/paystack";
 import { takeStock } from "@/backend/services/product/stock";
@@ -21,11 +22,16 @@ type ExistingPayment = {
   order: { publicId: string } | null;
 };
 
-/** The next order number and the stock shortfall from inside the transaction. */
+/**
+ * What the transaction did. `firstPayment` is false when the order had already
+ * been paid by another charge: the money is recorded, but no stock is taken
+ * and the number stays.
+ */
 type RecordedPayment = {
   payment: { id: string };
   orderNumber: string;
   oversold: boolean;
+  firstPayment: boolean;
 };
 
 /**
@@ -124,19 +130,36 @@ export async function processOrderPayment(
   const record = () =>
     db.$transaction(
       async (tx): Promise<RecordedPayment> => {
-        const stock = await takeStock(tx, stockLines);
-        const orderNumber = await nextOrderNumber(tx, order.businessId);
-        const paidAt = new Date();
-
-        await tx.order.update({
-          where: { id: order.id },
-          data: {
-            status: "NEW",
-            paidAt,
-            orderNumber,
-            oversold: stock.short,
-          },
+        // Claim the order out of AWAITING_PAYMENT. Only the first charge for
+        // an order takes stock and numbers it; a second charge (the customer
+        // paid twice) finds nothing to claim and is recorded on its own.
+        const unpaid: Prisma.OrderWhereInput = {
+          id: order.id,
+          status: "AWAITING_PAYMENT",
+        };
+        const claimed = await tx.order.updateMany({
+          where: unpaid,
+          data: { status: "NEW", paidAt: new Date() },
         });
+        const firstPayment = claimed.count > 0;
+
+        let orderNumber: string;
+        let oversold = false;
+        if (firstPayment) {
+          const stock = await takeStock(tx, stockLines);
+          oversold = stock.short;
+          orderNumber = await nextOrderNumber(tx, order.businessId);
+          await tx.order.update({
+            where: { id: order.id },
+            data: { orderNumber, oversold },
+          });
+        } else {
+          const current = await tx.order.findUniqueOrThrow({
+            where: { id: order.id },
+            select: { orderNumber: true, slug: true },
+          });
+          orderNumber = current.orderNumber ?? current.slug;
+        }
 
         const payment = await tx.payment.create({
           data: {
@@ -152,7 +175,7 @@ export async function processOrderPayment(
           },
         });
 
-        return { payment, orderNumber, oversold: stock.short };
+        return { payment, orderNumber, oversold, firstPayment };
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
     );
@@ -178,7 +201,21 @@ export async function processOrderPayment(
     outcome = await record();
   }
 
-  const { payment, orderNumber, oversold } = outcome;
+  const { payment, orderNumber, oversold, firstPayment } = outcome;
+
+  // A second charge for an order that is already paid: keep the money on
+  // record and tell the owner, but don't send a second receipt or confirmation.
+  if (!firstPayment) {
+    try {
+      await ownerNotifier.notify(
+        order.businessId,
+        `💳 A second payment of ${formatMoney(amount / 100, order.currency)} came in for ${orderNumber} (${order.clientName}). Refund the customer if they paid twice by mistake.`,
+      );
+    } catch (error) {
+      console.warn("[Paystack Webhook] Owner notification failed:", error);
+    }
+    return { order: { publicId: order.publicId } };
+  }
 
   // Best effort: the automatic receipt, with the delivery fee as its own line.
   let receiptUrl: string | null = null;

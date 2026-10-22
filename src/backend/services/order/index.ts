@@ -3,7 +3,7 @@ import { customerService } from "@/backend/services/customer";
 import { emailService } from "@/backend/services/email";
 import { paystackService } from "@/backend/services/paystack";
 import type { ResolvedLine } from "@/backend/services/lines";
-import { optionLabel } from "@/backend/services/product/labels";
+import { optionLabel } from "@/utils/labels";
 import {
   availableStock,
   returnStock,
@@ -555,15 +555,23 @@ class OrderService {
     }
 
     const now = new Date();
-    const data: Prisma.OrderUpdateInput = { status: to };
+    const data: Prisma.OrderUpdateManyMutationInput = { status: to };
     if (to === "READY") data.readyAt = now;
     if (to === "COMPLETED") data.completedAt = now;
     if (to === "CANCELLED") data.cancelledAt = now;
 
     const updated = await db.$transaction(async (tx) => {
-      const result = await tx.order.update({
+      // Only move the order from the status it was read in: two taps on
+      // Cancel (or a cancel racing a complete) must not both apply, or the
+      // stock would go back twice.
+      const where: Prisma.OrderWhereInput = { id: order.id, status: order.status };
+      const moved = await tx.order.updateMany({ where, data });
+      if (moved.count === 0) {
+        throw new ConflictException("This order just changed. Refresh to see where it is now.");
+      }
+
+      const result = await tx.order.findUniqueOrThrow({
         where: { id: order.id },
-        data,
         include: orderSummaryInclude,
       });
 
@@ -615,9 +623,11 @@ class OrderService {
   }
 
   /**
-   * Switch an order between delivery and pickup. Delivery charges the
-   * business's fee, pickup has none; stock is untouched. Invoice orders may
-   * add delivery when the customer asks for it after paying.
+   * Switch an order the owner recorded (from an invoice or a receipt) between
+   * delivery and pickup, while it is still to send out. The money is already
+   * in, so the fee and total never change: a delivery added after payment is
+   * the owner's call to charge for separately. An online order keeps what the
+   * customer chose and paid for at checkout.
    */
   async setFulfilment(
     businessId: string,
@@ -626,11 +636,23 @@ class OrderService {
   ): Promise<OrderSummary> {
     const order = await db.order.findFirst({
       where: { slug, businessId },
-      include: orderActionInclude,
+      select: { id: true, status: true, source: true },
     });
 
     if (!order) {
       throw new NotFoundException("Order not found");
+    }
+
+    if (order.source === "ONLINE") {
+      throw new BadRequestException(
+        "An online order keeps the delivery or pickup the customer paid for",
+      );
+    }
+
+    if (order.status !== "NEW" && order.status !== "READY") {
+      throw new BadRequestException(
+        `An order that is ${STATUS_WORD[order.status]} can't change how it is sent`,
+      );
     }
 
     // `||`: a blank address counts as none.
@@ -640,20 +662,14 @@ class OrderService {
       throw new BadRequestException("Enter a delivery address");
     }
 
-    const deliveryFee =
-      input.fulfilment === "DELIVERY"
-        ? Number(order.business.deliveryFee ?? 0)
-        : 0;
+    const data: Prisma.OrderUpdateInput = {
+      fulfilment: input.fulfilment,
+      deliveryAddress: input.fulfilment === "DELIVERY" ? deliveryAddress : null,
+    };
 
     return db.order.update({
       where: { id: order.id },
-      data: {
-        fulfilment: input.fulfilment,
-        deliveryAddress:
-          input.fulfilment === "DELIVERY" ? deliveryAddress : null,
-        deliveryFee,
-        total: Number(order.subtotal) + deliveryFee,
-      },
+      data,
       include: orderSummaryInclude,
     });
   }

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { InvoiceDto, ProductDto, ReceiptDto } from "types";
 
-import { optionLabel } from "@/backend/services/product/labels";
+import { optionLabel } from "@/utils/labels";
 
 import type { DocumentFormSchema } from "@/backend/validators/document-form.validator";
 import type {

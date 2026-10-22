@@ -114,6 +114,7 @@ export function OrderRow({ order, link, busy, error, onAdvance, onCancel, onSwit
 
         {editing ? (
           <form
+            noValidate
             className="mt-3 grid max-w-md gap-3"
             onSubmit={(event) => {
               event.preventDefault();
@@ -123,7 +124,7 @@ export function OrderRow({ order, link, busy, error, onAdvance, onCancel, onSwit
             <Field
               id={`address-${order.id}`}
               label="Delivery address"
-              hint="Delivery adds your delivery fee to the total."
+              hint="The customer has already paid, so no delivery fee is added."
               error={error ?? undefined}
             >
               <Input

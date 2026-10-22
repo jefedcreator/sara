@@ -1,10 +1,16 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { isAxiosError } from "axios";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
-import { optionLabel } from "@/backend/services/product/labels";
+import {
+  checkoutFormSchema,
+  type CheckoutFormSchema,
+} from "@/backend/validators/order.validator";
+
+import { optionLabel } from "@/utils/labels";
 import {
   ArrowDisc,
   Button,
@@ -21,14 +27,6 @@ import { formatMoney } from "@/utils/format";
 import type { ProductOptionPage, ProductPage } from "@/utils/product-page";
 
 type Fulfilment = "DELIVERY" | "PICKUP";
-
-type CheckoutForm = {
-  fulfilment: Fulfilment;
-  deliveryAddress: string;
-  clientName: string;
-  clientPhone: string;
-  clientEmail: string;
-};
 
 interface CheckoutSheetProps {
   open: boolean;
@@ -70,7 +68,8 @@ export function CheckoutSheet({
     setValue,
     watch,
     formState: { errors },
-  } = useForm<CheckoutForm>({
+  } = useForm<CheckoutFormSchema>({
+    resolver: zodResolver(checkoutFormSchema),
     defaultValues: {
       fulfilment: defaultFulfilment,
       deliveryAddress: "",
@@ -109,7 +108,7 @@ export function CheckoutSheet({
     fulfilmentOptions.push({ value: "PICKUP", label: "Pickup" });
   }
 
-  async function submit(values: CheckoutForm) {
+  async function submit(values: CheckoutFormSchema) {
     setRequestError(null);
     setIsPending(true);
 
@@ -213,10 +212,7 @@ export function CheckoutSheet({
                 <Textarea
                   rows={2}
                   autoComplete="street-address"
-                  {...register("deliveryAddress", {
-                    validate: (value) =>
-                      value.trim().length > 0 || "Enter a delivery address",
-                  })}
+                  {...register("deliveryAddress")}
                 />
               </Field>
             ) : (
@@ -235,10 +231,7 @@ export function CheckoutSheet({
             >
               <Input
                 autoComplete="name"
-                {...register("clientName", {
-                  validate: (value) =>
-                    value.trim().length > 0 || "Enter your name",
-                })}
+                {...register("clientName")}
               />
             </Field>
 
@@ -252,10 +245,7 @@ export function CheckoutSheet({
                 type="tel"
                 inputMode="tel"
                 autoComplete="tel"
-                {...register("clientPhone", {
-                  validate: (value) =>
-                    value.trim().length >= 7 || "Enter your phone number",
-                })}
+                {...register("clientPhone")}
               />
             </Field>
 
@@ -269,12 +259,7 @@ export function CheckoutSheet({
                 type="email"
                 inputMode="email"
                 autoComplete="email"
-                {...register("clientEmail", {
-                  validate: (value) =>
-                    !value.trim() ||
-                    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim()) ||
-                    "Enter a valid email",
-                })}
+                {...register("clientEmail")}
               />
             </Field>
 

@@ -129,6 +129,23 @@ describe("POST /api/products", () => {
     );
   });
 
+  it("refuses a sixth photo before uploading any of them", async () => {
+    const form = buildForm();
+    for (let i = 1; i <= 6; i++) {
+      form.append("photos", new File([`p${i}`], `p${i}.jpg`, { type: "image/jpeg" }));
+    }
+
+    const response = await POST(multipartRequest(form), {
+      params: Promise.resolve({}),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(422);
+    expect(body.message).toBe("A product can have up to 5 photos");
+    expect(mockedCloudinary.uploadFile).not.toHaveBeenCalled();
+    expect(mockedProduct.create).not.toHaveBeenCalled();
+  });
+
   it("needs a session", async () => {
     const response = await POST(
       createMockRequest({

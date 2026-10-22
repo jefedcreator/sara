@@ -10,7 +10,7 @@ export {
 export { getBookingReceipt, getPublicService } from "./book";
 export { getPublicBooking } from "./booking-page";
 export { getPublicOrder } from "./order-page";
-export { getProductPage } from "./product-page";
+export { getProductPage, getProductPageDetail } from "./product-page";
 export { getServicePage } from "./service-page";
 export { getSharedInvoice, getSharedReceipt } from "./documents";
 export {

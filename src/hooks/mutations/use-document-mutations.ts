@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { customerKeys } from "@/hooks/queries/use-customers";
 import { dashboardKeys } from "@/hooks/queries/use-dashboard";
 import { invoiceKeys } from "@/hooks/queries/use-invoices";
 import { orderKeys } from "@/hooks/queries/use-orders";
@@ -15,9 +16,9 @@ import {
 } from "@/utils/api";
 
 /**
- * Invoices and receipts both feed the dashboard's numbers, and a sale of
- * products makes (or cancels) an order and moves stock, so those lists go
- * stale with them.
+ * Invoices and receipts both feed the dashboard's numbers and each customer's
+ * spent and owed figures, and a sale of products makes (or cancels) an order
+ * and moves stock, so those lists go stale with them.
  */
 function useInvalidateMoney() {
   const queryClient = useQueryClient();
@@ -27,6 +28,7 @@ function useInvalidateMoney() {
     void queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
     void queryClient.invalidateQueries({ queryKey: orderKeys.all });
     void queryClient.invalidateQueries({ queryKey: productKeys.all });
+    void queryClient.invalidateQueries({ queryKey: customerKeys.all });
   };
 }
 

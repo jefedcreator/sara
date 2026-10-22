@@ -1,25 +1,29 @@
 import {
   authMiddleware,
+  bodyValidatorMiddleware,
   queryValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
 import { productService } from "@/backend/services/product";
 import {
+  assertPhotoCount,
+  photosFrom,
+  uploadPhotos,
+} from "@/backend/services/product/photos";
+import {
   productQueryValidatorSchema,
   productValidatorSchema,
   type ProductQueryValidatorSchema,
+  type ProductValidatorSchema,
 } from "@/backend/validators/product.validator";
 import {
   ForbiddenException,
   HttpException,
   InternalServerErrorException,
   NotFoundException,
-  UnprocessableEntityException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import type { ApiResponse, ProductDto } from "types";
-
-import { photosFrom, uploadPhotos } from "./photos";
 
 /**
  * @body ProductValidatorSchema
@@ -29,7 +33,7 @@ import { photosFrom, uploadPhotos } from "./photos";
  * @contentType multipart/form-data
  * @auth bearer
  */
-export const POST = withMiddleware<unknown>(
+export const POST = withMiddleware<ProductValidatorSchema>(
   async (request) => {
     try {
       const user = request.user!;
@@ -45,25 +49,14 @@ export const POST = withMiddleware<unknown>(
         );
       }
 
-      const parsed = productValidatorSchema.safeParse(request.parsedBody ?? {});
-      if (!parsed.success) {
-        const issue = parsed.error.issues[0];
-        throw new UnprocessableEntityException(
-          issue?.path.length
-            ? `${issue.path.join(".")}: ${issue.message}`
-            : (issue?.message ?? "Validation failed"),
-        );
-      }
+      // The middleware kept one photo; the whole list comes from the form.
+      const input = { ...request.validatedData! };
+      delete input.photos;
+      const photos = photosFrom(request);
+      assertPhotoCount(photos.length);
 
-      const photoUrls = await uploadPhotos(
-        business.id,
-        photosFrom(request),
-      );
-      const product = await productService.create(
-        business.id,
-        parsed.data,
-        photoUrls,
-      );
+      const photoUrls = await uploadPhotos(business.id, photos);
+      const product = await productService.create(business.id, input, photoUrls);
 
       const response: ApiResponse<ProductDto> = {
         status: 201,
@@ -81,7 +74,7 @@ export const POST = withMiddleware<unknown>(
       );
     }
   },
-  [authMiddleware],
+  [authMiddleware, bodyValidatorMiddleware(productValidatorSchema)],
 );
 
 /**

@@ -1,7 +1,7 @@
 import { dashboardService } from "@/backend/services/dashboard";
 import { invoiceService } from "@/backend/services/invoice";
 import { productService, type ProductWithOptions } from "@/backend/services/product";
-import { optionLabel } from "@/backend/services/product/labels";
+import { optionLabel } from "@/utils/labels";
 import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
 import { productLink, publicLink, serviceLink } from "@/server/share";

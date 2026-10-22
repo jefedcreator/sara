@@ -17,7 +17,7 @@ import {
   type DocumentFormSchema,
 } from "@/backend/validators/document-form.validator";
 import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
-import { optionLabel } from "@/backend/services/product/labels";
+import { optionLabel } from "@/utils/labels";
 import { useCustomersQuery } from "@/hooks/queries/use-customers";
 import { useProductsQuery } from "@/hooks/queries/use-products";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";

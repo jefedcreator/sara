@@ -3,8 +3,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/server/db", () => {
   const db: any = {
     payment: { findUnique: vi.fn(), create: vi.fn() },
-    order: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn() },
-    productOption: { findMany: vi.fn(), update: vi.fn() },
+    order: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    productOption: { findMany: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
   };
   db.$transaction = vi.fn(async (cb: (tx: typeof db) => unknown) => cb(db));
   return { db };
@@ -28,6 +34,7 @@ vi.mock("@/backend/services/messaging/notify", () => ({
   ownerNotifier: { notify: vi.fn().mockResolvedValue(undefined) },
 }));
 
+import { mockShelf } from "@/backend/test-utils/shelf";
 import { emailService } from "@/backend/services/email";
 import { ownerNotifier } from "@/backend/services/messaging/notify";
 import type { SuccessfulPaymentData } from "@/backend/services/paystack";
@@ -105,6 +112,8 @@ const paymentFor = (
   ...patch,
 });
 
+let shelf: ReturnType<typeof mockShelf>;
+
 beforeEach(() => {
   vi.clearAllMocks();
   mockedDb.payment.findUnique.mockResolvedValue(null);
@@ -118,10 +127,11 @@ beforeEach(() => {
     ...ORDER,
     ...data,
   }));
-  mockedDb.productOption.findMany.mockResolvedValue([
+  shelf = mockShelf(mockedDb.productOption, [
     { id: "opt_1", stock: 10, product: { tracksStock: true } },
   ]);
-  mockedDb.productOption.update.mockResolvedValue({});
+  // The order is still waiting for payment, so the claim succeeds.
+  mockedDb.order.updateMany.mockResolvedValue({ count: 1 });
   mockedDb.$transaction.mockImplementation(async (cb: (tx: any) => unknown) =>
     cb(mockedDb),
   );
@@ -140,14 +150,13 @@ describe("processOrderPayment", () => {
 
     expect(result).toEqual({ order: { publicId: "ord_pub" } });
 
+    expect(mockedDb.order.updateMany).toHaveBeenCalledWith({
+      where: { id: "ord_1", status: "AWAITING_PAYMENT" },
+      data: { status: "NEW", paidAt: expect.any(Date) },
+    });
     expect(mockedDb.order.update).toHaveBeenCalledWith({
       where: { id: "ord_1" },
-      data: expect.objectContaining({
-        status: "NEW",
-        orderNumber: "ORD-1001",
-        oversold: false,
-        paidAt: expect.any(Date),
-      }),
+      data: { orderNumber: "ORD-1001", oversold: false },
     });
 
     expect(mockedDb.payment.create).toHaveBeenCalledWith({
@@ -164,11 +173,7 @@ describe("processOrderPayment", () => {
       }),
     });
 
-    expect(mockedDb.productOption.update).toHaveBeenCalledWith({
-      where: { id: "opt_1" },
-      data: { stock: 8 },
-    });
-    expect(mockedDb.productOption.update).toHaveBeenCalledTimes(1);
+    expect(shelf.stockOf("opt_1")).toBe(8);
 
     expect(mockedDb.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: "Serializable",
@@ -176,7 +181,7 @@ describe("processOrderPayment", () => {
   });
 
   it("sets oversold when a late payment finds the stock gone, and never goes below zero", async () => {
-    mockedDb.productOption.findMany.mockResolvedValue([
+    shelf = mockShelf(mockedDb.productOption, [
       { id: "opt_1", stock: 1, product: { tracksStock: true } },
     ]);
 
@@ -188,10 +193,7 @@ describe("processOrderPayment", () => {
         data: expect.objectContaining({ oversold: true }),
       }),
     );
-    expect(mockedDb.productOption.update).toHaveBeenCalledWith({
-      where: { id: "opt_1" },
-      data: { stock: 0 },
-    });
+    expect(shelf.stockOf("opt_1")).toBe(0);
     expect(mockedNotifier.notify).toHaveBeenCalledWith(
       "biz_1",
       expect.stringContaining(
@@ -212,9 +214,33 @@ describe("processOrderPayment", () => {
     expect(mockedDb.$transaction).not.toHaveBeenCalled();
     expect(mockedDb.order.update).not.toHaveBeenCalled();
     expect(mockedDb.payment.create).not.toHaveBeenCalled();
-    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+    expect(shelf.stockOf("opt_1")).toBe(10);
     expect(mockedReceipt.create).not.toHaveBeenCalled();
     expect(mockedEmail.sendOrderEmail).not.toHaveBeenCalled();
+  });
+
+  it("records a second charge for a paid order without taking stock again or renumbering", async () => {
+    // A different reference: the customer paid twice for the same order.
+    mockedDb.order.updateMany.mockResolvedValue({ count: 0 });
+    mockedDb.order.findUniqueOrThrow.mockResolvedValue({
+      orderNumber: "ORD-1022",
+      slug: "tobi-hair-abc",
+    });
+
+    const result = await processOrderPayment(paymentFor({ reference: "ref_second" }));
+
+    expect(result).toEqual({ order: { publicId: "ord_pub" } });
+    expect(mockedDb.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ orderId: "ord_1", reference: "ref_second", amount: 93000 }),
+    });
+    expect(shelf.stockOf("opt_1")).toBe(10);
+    expect(mockedDb.order.update).not.toHaveBeenCalled();
+    expect(mockedReceipt.create).not.toHaveBeenCalled();
+    expect(mockedEmail.sendOrderEmail).not.toHaveBeenCalled();
+    expect(mockedNotifier.notify).toHaveBeenCalledWith(
+      "biz_1",
+      "💳 A second payment of NGN 93,000 came in for ORD-1022 (Tolu Adeyemi). Refund the customer if they paid twice by mistake.",
+    );
   });
 
   it("records nothing when the amount doesn't match", async () => {
@@ -224,7 +250,7 @@ describe("processOrderPayment", () => {
     expect(mockedDb.$transaction).not.toHaveBeenCalled();
     expect(mockedDb.payment.create).not.toHaveBeenCalled();
     expect(mockedDb.order.update).not.toHaveBeenCalled();
-    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+    expect(shelf.stockOf("opt_1")).toBe(10);
     expect(mockedReceipt.create).not.toHaveBeenCalled();
     expect(mockedNotifier.notify).not.toHaveBeenCalled();
   });
