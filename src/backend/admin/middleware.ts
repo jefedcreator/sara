@@ -1,5 +1,6 @@
 import type {
   AuthRequest,
+  MiddlewareFunction,
   MiddlewareResponse,
   QueryParameters,
 } from "@/backend/middleware/types";
@@ -7,7 +8,11 @@ import { adminEnabled, tokenMatches } from "./kit/access";
 import { forbidden, notFound } from "./kit/errors";
 import { whereForKey } from "./kit/keys";
 import { listQuerySchema, writeSchema } from "./kit/schema";
-import type { AdminResource } from "./kit/types";
+import type {
+  AdminListQuery,
+  AdminResource,
+  AdminWriteBody,
+} from "./kit/types";
 import { resolvedAdmin } from "./registry";
 
 // Run in this order: auth → resource → can → list query or body. Each one
@@ -25,6 +30,17 @@ const stop = (statusCode: number, message: string): MiddlewareResponse => ({
   statusCode,
   next: false,
 });
+
+/**
+ * Types what a kit schema parsed. The kit's schemas are `z.ZodTypeAny`, whose
+ * output is `unknown` under Zod 4 (it was `any` under Zod 3), so `.data`
+ * can't be assigned to `request.query` or `request.validatedData` as it
+ * stands. `listQuerySchema` and `writeSchema` are built to produce exactly
+ * `AdminListQuery` and `AdminWriteBody`; this is the one place that says so.
+ */
+function parsedAs<T>(data: unknown): T {
+  return data as T;
+}
 
 /** The resource named by the path, or undefined for one that isn't registered. */
 function resourceOf(
@@ -75,12 +91,10 @@ export const adminCanMiddleware =
  * Parses the list parameters and sets `request.query`. The 422 is the one
  * `queryValidatorMiddleware` gives.
  */
-export const adminListQueryMiddleware = async <
-  B = unknown,
-  Q = QueryParameters,
->(
-  request: AuthRequest<B, Q>,
-): Promise<MiddlewareResponse> => {
+export const adminListQueryMiddleware: MiddlewareFunction<
+  unknown,
+  AdminListQuery
+> = async (request) => {
   const resource = resourceOf(request.params);
   if (!resource) return stop(404, "Not Found");
   try {
@@ -100,7 +114,7 @@ export const adminListQueryMiddleware = async <
           : "Invalid query parameters",
       );
     }
-    request.query = result.data;
+    request.query = parsedAs<AdminListQuery>(result.data);
   } catch (error) {
     console.error(error);
     return stop(400, "Error parsing query parameters");
@@ -114,10 +128,8 @@ export const adminListQueryMiddleware = async <
  * `bodyValidatorMiddleware` gives.
  */
 export const adminBodyMiddleware =
-  (mode: "create" | "update") =>
-  async <B = unknown, Q = QueryParameters>(
-    request: AuthRequest<B, Q>,
-  ): Promise<MiddlewareResponse> => {
+  (mode: "create" | "update"): MiddlewareFunction<AdminWriteBody> =>
+  async (request) => {
     const resource = resourceOf(request.params);
     if (!resource) return stop(404, "Not Found");
 
@@ -140,6 +152,6 @@ export const adminBodyMiddleware =
           : (errorMessage ?? "Validation failed"),
       );
     }
-    request.validatedData = result.data;
+    request.validatedData = parsedAs<AdminWriteBody>(result.data);
     return proceed();
   };
