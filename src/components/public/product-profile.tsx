@@ -38,7 +38,11 @@ function QuantityStepper({
   onChange: (value: number) => void;
 }) {
   return (
-    <div className="border-line flex items-center justify-between rounded-full border p-1.5">
+    <div
+      role="group"
+      aria-label="Quantity"
+      className="border-line flex items-center justify-between rounded-full border p-1.5"
+    >
       <button
         type="button"
         className={STEP}

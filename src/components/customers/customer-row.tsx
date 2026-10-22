@@ -11,15 +11,17 @@ interface CustomerRowProps {
 /**
  * One customer: who they are on the left, what they've spent on the right.
  * Only a real debt earns the danger line, so a settled customer stays quiet.
+ * The name's link covers the whole row, so the tap target is the row, not one
+ * line of text; the phone link sits above it and still dials.
  */
 export function CustomerRow({ customer, currency }: CustomerRowProps) {
   return (
-    <article className="rounded-card bg-surface flex items-start justify-between gap-4 px-4 py-4 sm:px-5">
+    <article className="rounded-card bg-surface relative flex items-start justify-between gap-4 px-4 py-4 sm:px-5">
       <div className="min-w-0">
         <h3 className="text-[16px] leading-snug font-semibold">
           <Link
             href={`/customers/${encodeURIComponent(customer.id)}`}
-            className="decoration-accent-tint underline-offset-4 hover:underline"
+            className="decoration-accent-tint after:rounded-card underline-offset-4 after:absolute after:inset-0 hover:underline"
           >
             {customer.name}
           </Link>
@@ -27,7 +29,7 @@ export function CustomerRow({ customer, currency }: CustomerRowProps) {
         {customer.phone ? (
           <a
             href={`tel:${customer.phone}`}
-            className="text-muted hover:text-ink mt-0.5 inline-block text-sm underline decoration-accent-tint underline-offset-4"
+            className="text-muted hover:text-ink relative z-10 mt-0.5 inline-block text-sm underline decoration-accent-tint underline-offset-4"
           >
             {customer.phone}
           </a>

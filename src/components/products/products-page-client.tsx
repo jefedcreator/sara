@@ -158,7 +158,7 @@ export function ProductsPageClient({
               </Link>
             </>
           ) : (
-            "Your bank account isn't linked, so booking links can't take payments yet."
+            "Your bank account isn't linked, so product links can't take payments yet."
           )}
         </Notice>
       ) : null}

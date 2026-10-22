@@ -52,7 +52,10 @@ export function OrdersPageClient({ publicBaseUrl, initial }: OrdersPageClientPro
       { slug: order.slug, values: { status } },
       {
         onSuccess: onDone,
-        onError: (error) => setNotice(errorMessage(error)),
+        // A failed cancel shows in the open confirm sheet, so it isn't repeated on the page.
+        onError: (error) => {
+          if (status !== "CANCELLED") setNotice(errorMessage(error));
+        },
         onSettled: () => setBusySlug(null),
       },
     );
@@ -102,7 +105,7 @@ export function OrdersPageClient({ publicBaseUrl, initial }: OrdersPageClientPro
           ))}
         </div>
       ) : query.isError ? (
-        <Notice tone="danger">Orders didn&apos;t load. Refresh to try again.</Notice>
+        <Notice tone="danger">{errorMessage(query.error)}</Notice>
       ) : rows.length === 0 ? (
         <p className="rounded-card bg-surface text-muted px-5 py-6 text-[15px]">{EMPTY[view]}</p>
       ) : (
@@ -143,6 +146,7 @@ export function OrdersPageClient({ publicBaseUrl, initial }: OrdersPageClientPro
             : "The customer gets a cancellation email. Refunds, if any, are up to you."
         }
         confirmLabel="Cancel order"
+        cancelLabel="Keep order"
         tone="danger"
         isPending={update.isPending}
         onConfirm={() => target && advance(target, "CANCELLED", () => setCancelOpen(false))}

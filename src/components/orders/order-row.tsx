@@ -134,7 +134,7 @@ export function OrderRow({ order, link, busy, error, onAdvance, onCancel, onSwit
               />
             </Field>
             <div className="flex gap-2">
-              <Button type="submit" size="sm" variant="dark" isLoading={busy} disabled={!address.trim()}>
+              <Button type="submit" size="sm" variant="dark" isLoading={busy} disabled={busy || !address.trim()}>
                 Save address
               </Button>
               <Button type="button" size="sm" variant="ghost" onClick={() => setEditing(false)} disabled={busy}>
@@ -147,18 +147,19 @@ export function OrderRow({ order, link, busy, error, onAdvance, onCancel, onSwit
 
       <div className="flex flex-col gap-3 sm:items-end">
         <p className="text-[17px] font-semibold tabular-nums">{formatMoney(order.total, order.currency)}</p>
+        {/* The next step first, then Cancel, then the link to the customer's page. */}
         <div className="flex flex-wrap gap-2 sm:justify-end">
           {step ? (
             <Button size="sm" variant="dark" onClick={() => onAdvance(step.status)} isLoading={busy}>
               {step.label}
             </Button>
           ) : null}
-          <CopyLinkIconButton url={link} label={`Copy link to order ${number}`} />
           {isOpen ? (
             <Button size="sm" variant="ghost" onClick={onCancel} disabled={busy}>
               Cancel
             </Button>
           ) : null}
+          <CopyLinkIconButton url={link} label={`Copy link to order ${number}`} />
         </div>
       </div>
     </article>
