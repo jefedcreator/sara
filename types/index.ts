@@ -211,6 +211,9 @@ export type PublicOrderDto = Serialized<Order> & {
   paymentReference: string;
 };
 
+/** Where to send a customer to pay an invoice's remaining balance. */
+export type PublicInvoicePaymentDto = { paymentUrl: string };
+
 /** What the business sells. */
 export type Sells = "SERVICES" | "PRODUCTS" | "BOTH";
 

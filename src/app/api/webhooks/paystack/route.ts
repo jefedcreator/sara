@@ -3,6 +3,7 @@ import {
   isSerializationFailure,
 } from "@/backend/services/booking/conflicts";
 import { emailService } from "@/backend/services/email";
+import { invoicePayments } from "@/backend/services/invoice/payment";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { formatMoney } from "@/backend/services/messaging/engine/amount";
 import { ownerNotifier } from "@/backend/services/messaging/notify";
@@ -30,7 +31,9 @@ export const runtime = "nodejs";
  *              On `charge.success`:
  *              1. Orders: hands the charge to `processOrderPayment` when the
  *                 metadata carries an `orderId`.
- *              2. Bookings: checks idempotency, validates the booking, then
+ *              2. Invoices: hands it to `invoicePayments.process` when the
+ *                 metadata carries an `invoiceId`.
+ *              3. Bookings: checks idempotency, validates the booking, then
  *                 atomically confirms it and creates a Payment record.
  */
 export async function POST(request: Request) {
@@ -85,9 +88,10 @@ export async function POST(request: Request) {
  * @description Handles Paystack post-payment redirect (Callback URL).
  *              Paystack redirects the user's browser here after payment.
  *              We perform a server-side redirect to the frontend to cleanly strip query parameters.
- *              A payment already linked to a booking or an order goes straight to
- *              that page; otherwise we verify the transaction with Paystack before
- *              following the `?b=<bookingSlug>` or `?o=<orderSlug>` hint.
+ *              A payment already linked to a booking, an order or an invoice
+ *              goes straight to that page; otherwise we verify the transaction
+ *              with Paystack before following the `?b=<bookingSlug>`,
+ *              `?o=<orderSlug>` or `?i=<invoicePublicId>` hint.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -95,6 +99,7 @@ export async function GET(request: Request) {
     url.searchParams.get("reference") || url.searchParams.get("trxref");
   const bookingSlug = url.searchParams.get("b");
   const orderSlug = url.searchParams.get("o");
+  const invoicePublicId = url.searchParams.get("i");
   const baseUrl = appBaseUrl();
 
   if (reference) {
@@ -105,6 +110,9 @@ export async function GET(request: Request) {
           select: { id: true, publicId: true, slug: true },
         },
         order: {
+          select: { publicId: true },
+        },
+        invoice: {
           select: { publicId: true },
         },
       },
@@ -119,6 +127,12 @@ export async function GET(request: Request) {
     if (existingPayment?.order) {
       return NextResponse.redirect(
         new URL(publicPath("order", existingPayment.order.publicId), baseUrl),
+      );
+    }
+
+    if (existingPayment?.invoice) {
+      return NextResponse.redirect(
+        new URL(publicPath("invoice", existingPayment.invoice.publicId), baseUrl),
       );
     }
 
@@ -144,6 +158,12 @@ export async function GET(request: Request) {
             new URL(publicPath("order", result.order.publicId), baseUrl),
           );
         }
+
+        if (result && "invoice" in result && result.invoice) {
+          return NextResponse.redirect(
+            new URL(publicPath("invoice", result.invoice.publicId), baseUrl),
+          );
+        }
       }
     } catch (error: any) {
       console.error(
@@ -161,6 +181,18 @@ export async function GET(request: Request) {
     if (order) {
       return NextResponse.redirect(
         new URL(publicPath("order", order.publicId), baseUrl),
+      );
+    }
+  }
+
+  if (invoicePublicId) {
+    const invoice = await db.invoice.findUnique({
+      where: { publicId: invoicePublicId },
+      select: { publicId: true },
+    });
+    if (invoice) {
+      return NextResponse.redirect(
+        new URL(publicPath("invoice", invoice.publicId), baseUrl),
       );
     }
   }
@@ -185,7 +217,7 @@ export async function GET(request: Request) {
  *
  * Flow:
  * 1. If the metadata carries an `orderId`, hand the charge to the order
- *    processor and stop there.
+ *    processor and stop there. An `invoiceId` goes to the invoice processor.
  * 2. Otherwise extract bookingId and businessId from transaction metadata.
  * 3. Idempotency check — skip if a payment with this reference already exists.
  * 4. Validate the booking exists and is in PENDING status.
@@ -199,6 +231,12 @@ async function processSuccessfulPayment(data: SuccessfulPaymentData) {
   if (typeof metadata?.orderId === "string") {
     const result = await processOrderPayment(data);
     return result ? { order: result.order } : null;
+  }
+
+  // Invoices likewise: a part payment is a charge for an invoice, not a booking.
+  if (typeof metadata?.invoiceId === "string") {
+    const result = await invoicePayments.process(data);
+    return result ? { invoice: result.invoice } : null;
   }
 
   let bookingId = metadata?.bookingId as string | undefined;

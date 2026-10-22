@@ -37,6 +37,12 @@ export type SharedDocument = {
   paymentMethod: string | null;
   notes: string | null;
   pdfUrl: string | null;
+  /**
+   * What the customer can pay online right now: the invoice's remaining
+   * balance. Null on receipts and on invoices that are draft, paid, void or
+   * whose business can't take card payments.
+   */
+  payable: { amount: number; currency: string } | null;
 };
 
 /** "Invoice INV-1012" / "Receipt RCP-1007". */
