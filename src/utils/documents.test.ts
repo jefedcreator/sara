@@ -106,6 +106,7 @@ describe("toDocumentPayload", () => {
 });
 
 const MOCK_INVOICE: InvoiceDto = {
+  order: null,
   id: "inv_1",
   slug: "inv-1",
   publicId: "pub_inv_1",

@@ -4,6 +4,7 @@ import {
   resolveDocumentLines,
   type DocumentLineInput,
 } from "@/backend/services/lines";
+import { orderService, type OrderFulfilmentInput } from "@/backend/services/order";
 import { generateReceiptPdf } from "@/backend/services/pdf";
 import { db } from "@/server/db";
 import {
@@ -31,6 +32,8 @@ export type CreateReceiptInput = {
   paymentId?: string | null;
   customerId?: string | null;
   lines?: DocumentLineInput[];
+  /** How the products on a walk-in receipt reach the customer. Defaults to pickup. */
+  sale?: OrderFulfilmentInput;
 };
 
 class ReceiptService {
@@ -128,6 +131,28 @@ class ReceiptService {
       if (!receipt.business) {
         throw new InternalServerErrorException(
           "Failed to retrieve business details for the receipt",
+        );
+      }
+
+      // A receipt for an existing payment (an invoice's or an online order's)
+      // already has its order. Any other receipt that sold products is a sale
+      // that just happened, so it becomes an order and takes the stock.
+      if (!input.paymentId) {
+        await orderService.createFromReceipt(
+          tx,
+          {
+            id: receipt.id,
+            businessId: business.id,
+            customerId: customer?.id ?? null,
+            currency: receipt.currency,
+            name: receipt.name,
+            phone: receipt.phone,
+            email: receipt.email,
+            amountPaid: Number(receipt.amountPaid),
+            paymentMethod: receipt.paymentMethod,
+            lines: resolvedLines,
+          },
+          input.sale ?? { fulfilment: "PICKUP" },
         );
       }
 

@@ -9,6 +9,7 @@ vi.mock("@/server/db", () => {
   const db: any = {
     session: { findUnique: vi.fn(), delete: vi.fn() },
     invoice: { findUnique: vi.fn(), update: vi.fn() },
+    order: { findUnique: vi.fn() },
   };
   db.$transaction = vi.fn(async (cb: (tx: typeof db) => unknown) => cb(db));
   return { db };
@@ -26,7 +27,15 @@ vi.mock("@/backend/services/email/documents", () => ({
   emailReceipt: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/backend/services/order", () => ({
+  orderService: {
+    createFromInvoice: vi.fn().mockResolvedValue(null),
+    setStatus: vi.fn().mockResolvedValue({}),
+  },
+}));
+
 import { db } from "@/server/db";
+import { orderService } from "@/backend/services/order";
 import { emailInvoice } from "@/backend/services/email/documents";
 import { PUT } from "./route";
 
@@ -34,12 +43,14 @@ const mockedDb = db as any;
 const BUSINESS = { id: "biz_1", ownerId: "user_1" };
 const USER = { id: "user_1", name: "Owner", email: "owner@example.com" };
 
-function invoice(status: string) {
+function invoice(status: string, amountPaid = 0, total = 30000) {
   return {
     id: "inv_1",
     slug: "inv-1",
+    businessId: "biz_1",
     status,
-    total: 30000,
+    total,
+    amountPaid,
     business: { ownerId: "user_1" },
   };
 }
@@ -135,5 +146,96 @@ describe("PUT /api/invoices/[slug]", () => {
     expect(response.status).toBe(200);
     expect(mockedDb.invoice.update).toHaveBeenCalled();
     expect(emailInvoice).toHaveBeenCalled();
+  });
+});
+
+describe("PUT /api/invoices/[slug] orders", () => {
+  it("creates the order on the first payment, in the same transaction", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(invoice("SENT", 0, 50000));
+
+    const response = await put({ status: "PARTIALLY_PAID", amountPaid: 20000 });
+
+    expect(response.status).toBe(200);
+    expect(orderService.createFromInvoice).toHaveBeenCalledTimes(1);
+    expect(orderService.createFromInvoice).toHaveBeenCalledWith(mockedDb, "inv_1");
+    expect(mockedDb.$transaction).toHaveBeenCalled();
+  });
+
+  it("a second part payment doesn't create another order", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(
+      invoice("PARTIALLY_PAID", 20000, 50000),
+    );
+
+    const response = await put({ status: "PARTIALLY_PAID", amountPaid: 40000 });
+
+    expect(response.status).toBe(200);
+    expect(orderService.createFromInvoice).not.toHaveBeenCalled();
+  });
+
+  it("settling the balance of a part-paid invoice doesn't create another order", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(
+      invoice("PARTIALLY_PAID", 20000, 50000),
+    );
+
+    const response = await put({ status: "PAID", amountPaid: 50000 });
+
+    expect(response.status).toBe(200);
+    expect(orderService.createFromInvoice).not.toHaveBeenCalled();
+  });
+
+  it("doesn't create an order for an edit that records no money", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(invoice("SENT"));
+
+    const response = await put({ name: "Ada Updated" });
+
+    expect(response.status).toBe(200);
+    expect(orderService.createFromInvoice).not.toHaveBeenCalled();
+  });
+
+  it("voiding with cancelOrder cancels the order, which puts its stock back", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(invoice("PARTIALLY_PAID", 20000, 50000));
+    mockedDb.order.findUnique.mockResolvedValue({ slug: "tobi-hair-abc", status: "NEW" });
+
+    const response = await put({ status: "VOID", cancelOrder: true });
+
+    expect(response.status).toBe(200);
+    expect(mockedDb.order.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { invoiceId: "inv_1" } }),
+    );
+    expect(orderService.setStatus).toHaveBeenCalledWith(
+      "biz_1",
+      "tobi-hair-abc",
+      "CANCELLED",
+    );
+  });
+
+  it("voiding without cancelOrder leaves the order alone", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(invoice("PARTIALLY_PAID", 20000, 50000));
+    mockedDb.order.findUnique.mockResolvedValue({ slug: "tobi-hair-abc", status: "NEW" });
+
+    const response = await put({ status: "VOID" });
+
+    expect(response.status).toBe(200);
+    expect(orderService.setStatus).not.toHaveBeenCalled();
+  });
+
+  it("leaves a completed order alone even when asked to cancel it", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(invoice("PARTIALLY_PAID", 20000, 50000));
+    mockedDb.order.findUnique.mockResolvedValue({ slug: "tobi-hair-abc", status: "COMPLETED" });
+
+    const response = await put({ status: "VOID", cancelOrder: true });
+
+    expect(response.status).toBe(200);
+    expect(orderService.setStatus).not.toHaveBeenCalled();
+  });
+
+  it("voids an invoice that never made an order", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(invoice("SENT"));
+    mockedDb.order.findUnique.mockResolvedValue(null);
+
+    const response = await put({ status: "VOID", cancelOrder: true });
+
+    expect(response.status).toBe(200);
+    expect(orderService.setStatus).not.toHaveBeenCalled();
   });
 });

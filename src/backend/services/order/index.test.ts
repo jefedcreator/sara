@@ -13,6 +13,10 @@ vi.mock("@/server/db", () => {
       update: vi.fn(),
     },
     orderLine: { groupBy: vi.fn() },
+    business: { findUnique: vi.fn() },
+    payment: { create: vi.fn() },
+    receipt: { update: vi.fn() },
+    invoice: { findUnique: vi.fn() },
   };
   db.$transaction = vi.fn(async (cb: (tx: typeof db) => unknown) => cb(db));
   return { db };
@@ -177,6 +181,9 @@ beforeEach(() => {
   ]);
   mockedDb.productOption.update.mockResolvedValue({});
   mockedDb.orderLine.groupBy.mockResolvedValue([]);
+  mockedDb.business.findUnique.mockResolvedValue({ slug: "tobi-hair" });
+  mockedDb.payment.create.mockResolvedValue({ id: "pay_1" });
+  mockedDb.receipt.update.mockResolvedValue({});
   mockedDb.order.findFirst.mockResolvedValue(null);
   mockedDb.order.findUnique.mockResolvedValue(null);
   mockedDb.order.findMany.mockResolvedValue([]);
@@ -775,5 +782,249 @@ describe("orderService.setFulfilment", () => {
     });
 
     expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+  });
+});
+
+const PRODUCT_LINE = {
+  serviceId: null,
+  productOptionId: "opt_1",
+  name: 'Frontal wig — 20"',
+  description: null,
+  quantity: 2,
+  unitPrice: 45000,
+  total: 90000,
+  position: 0,
+};
+
+const SERVICE_LINE = {
+  serviceId: "srv_1",
+  productOptionId: null,
+  name: "Wig install",
+  description: null,
+  quantity: 1,
+  unitPrice: 15000,
+  total: 15000,
+  position: 1,
+};
+
+const RECEIPT = {
+  id: "rcp_1",
+  businessId: "biz_1",
+  customerId: "cus_1",
+  currency: "NGN",
+  name: "Tolu Adeyemi",
+  phone: "08035550142",
+  email: "tolu@example.com",
+  amountPaid: 105000,
+  paymentMethod: null,
+  lines: [PRODUCT_LINE, SERVICE_LINE],
+};
+
+describe("orderService.createFromReceipt", () => {
+  it("records a collected sale: a completed order, stock taken and the payment attached to both", async () => {
+    mockedDb.order.findFirst.mockResolvedValue({ orderNumber: "ORD-1021" });
+
+    const order = await orderService.createFromReceipt(mockedDb, RECEIPT, {
+      fulfilment: "PICKUP",
+    });
+
+    expect(order).not.toBeNull();
+    const data = mockedDb.order.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      businessId: "biz_1",
+      customerId: "cus_1",
+      orderNumber: "ORD-1022",
+      status: "COMPLETED",
+      source: "RECEIPT",
+      fulfilment: "PICKUP",
+      deliveryAddress: null,
+      subtotal: 90000,
+      total: 90000,
+      receiptId: "rcp_1",
+      clientName: "Tolu Adeyemi",
+      completedAt: expect.any(Date),
+      paidAt: expect.any(Date),
+    });
+    // Only the product line is on the order; the service line stays on the receipt.
+    expect(data.lines.create).toEqual([
+      {
+        productOptionId: "opt_1",
+        name: 'Frontal wig — 20"',
+        quantity: 2,
+        unitPrice: 45000,
+        total: 90000,
+      },
+    ]);
+    expect(mockedDb.productOption.update).toHaveBeenCalledWith({
+      where: { id: "opt_1" },
+      data: { stock: 8 },
+    });
+    expect(mockedDb.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        businessId: "biz_1",
+        orderId: "ord_1",
+        amount: 105000,
+        method: "CASH",
+      }),
+    });
+    expect(mockedDb.receipt.update).toHaveBeenCalledWith({
+      where: { id: "rcp_1" },
+      data: { paymentId: "pay_1" },
+    });
+  });
+
+  it("keeps the payment method the owner picked", async () => {
+    await orderService.createFromReceipt(
+      mockedDb,
+      { ...RECEIPT, paymentMethod: "BANK_TRANSFER" },
+      { fulfilment: "PICKUP" },
+    );
+
+    expect(mockedDb.payment.create.mock.calls[0][0].data.method).toBe(
+      "BANK_TRANSFER",
+    );
+  });
+
+  it("starts a delivery sale as NEW with its address", async () => {
+    await orderService.createFromReceipt(mockedDb, RECEIPT, {
+      fulfilment: "DELIVERY",
+      deliveryAddress: "  12 Admiralty Way ",
+    });
+
+    const data = mockedDb.order.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      status: "NEW",
+      fulfilment: "DELIVERY",
+      deliveryAddress: "12 Admiralty Way",
+      completedAt: null,
+    });
+  });
+
+  it("refuses delivery without an address", async () => {
+    await expect(
+      orderService.createFromReceipt(mockedDb, RECEIPT, {
+        fulfilment: "DELIVERY",
+        deliveryAddress: " ",
+      }),
+    ).rejects.toThrow("Enter a delivery address");
+
+    expect(mockedDb.order.create).not.toHaveBeenCalled();
+    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+  });
+
+  it("returns null and writes nothing when the receipt has only service lines", async () => {
+    const order = await orderService.createFromReceipt(
+      mockedDb,
+      { ...RECEIPT, lines: [SERVICE_LINE] },
+      { fulfilment: "PICKUP" },
+    );
+
+    expect(order).toBeNull();
+    expect(mockedDb.order.create).not.toHaveBeenCalled();
+    expect(mockedDb.payment.create).not.toHaveBeenCalled();
+    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+  });
+
+  it("marks the order oversold when the shelf had fewer than were sold", async () => {
+    mockedDb.productOption.findMany.mockResolvedValue([
+      { id: "opt_1", stock: 1, product: { tracksStock: true } },
+    ]);
+
+    await orderService.createFromReceipt(mockedDb, RECEIPT, {
+      fulfilment: "PICKUP",
+    });
+
+    expect(mockedDb.order.create.mock.calls[0][0].data.oversold).toBe(true);
+    expect(mockedDb.productOption.update).toHaveBeenCalledWith({
+      where: { id: "opt_1" },
+      data: { stock: 0 },
+    });
+  });
+});
+
+describe("orderService.createFromInvoice", () => {
+  const INVOICE = {
+    id: "inv_1",
+    businessId: "biz_1",
+    customerId: "cus_1",
+    currency: "NGN",
+    clientName: "Tolu Adeyemi",
+    clientPhone: "08035550142",
+    clientEmail: "tolu@example.com",
+    lines: [
+      { ...PRODUCT_LINE, id: "il_1", invoiceId: "inv_1" },
+      { ...SERVICE_LINE, id: "il_2", invoiceId: "inv_1" },
+    ],
+  };
+
+  it("creates a NEW pickup order from the product lines and takes the stock", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(INVOICE);
+
+    const order = await orderService.createFromInvoice(mockedDb, "inv_1");
+
+    expect(order).not.toBeNull();
+    expect(mockedDb.order.findUnique).toHaveBeenCalledWith({
+      where: { invoiceId: "inv_1" },
+    });
+    const data = mockedDb.order.create.mock.calls[0][0].data;
+    expect(data).toMatchObject({
+      businessId: "biz_1",
+      customerId: "cus_1",
+      orderNumber: "ORD-1001",
+      status: "NEW",
+      source: "INVOICE",
+      fulfilment: "PICKUP",
+      invoiceId: "inv_1",
+      subtotal: 90000,
+      total: 90000,
+    });
+    expect(data.lines.create).toHaveLength(1);
+    expect(mockedDb.productOption.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("is idempotent on the invoice: an existing order is returned untouched", async () => {
+    const existing = makeOrder({ id: "ord_9", invoiceId: "inv_1" });
+    mockedDb.order.findUnique.mockResolvedValue(existing);
+
+    const order = await orderService.createFromInvoice(mockedDb, "inv_1");
+
+    expect(order).toBe(existing);
+    expect(mockedDb.invoice.findUnique).not.toHaveBeenCalled();
+    expect(mockedDb.order.create).not.toHaveBeenCalled();
+    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+  });
+
+  it("takes stock once across two part payments", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(INVOICE);
+
+    // First payment: nothing there yet, so the order is made.
+    const first = await orderService.createFromInvoice(mockedDb, "inv_1");
+    // Second payment: the order the first one made is found.
+    mockedDb.order.findUnique.mockResolvedValue(first);
+    const second = await orderService.createFromInvoice(mockedDb, "inv_1");
+
+    expect(second).toBe(first);
+    expect(mockedDb.order.create).toHaveBeenCalledTimes(1);
+    expect(mockedDb.productOption.update).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns null when the invoice lists only services", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue({
+      ...INVOICE,
+      lines: [{ ...SERVICE_LINE, id: "il_2", invoiceId: "inv_1" }],
+    });
+
+    const order = await orderService.createFromInvoice(mockedDb, "inv_1");
+
+    expect(order).toBeNull();
+    expect(mockedDb.order.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses an invoice that does not exist", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(null);
+
+    await expect(
+      orderService.createFromInvoice(mockedDb, "inv_x"),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

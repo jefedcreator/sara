@@ -420,11 +420,16 @@ export const api = {
       data<InvoiceDto>(http.put(`/invoices/${encodeURIComponent(slug)}`, values)),
     recordPayment: (slug: string, values: InvoicePaymentInput) =>
       data<InvoiceDto>(http.put(`/invoices/${encodeURIComponent(slug)}`, values)),
-    setStatus: (slug: string, status: "SENT" | "VOID") =>
+    setStatus: (
+      slug: string,
+      status: "SENT" | "VOID",
+      opts?: { cancelOrder?: boolean },
+    ) =>
       data<InvoiceDto>(
         http.put(`/invoices/${encodeURIComponent(slug)}`, {
           status,
           ...(status === "SENT" ? { sentAt: new Date().toISOString() } : {}),
+          ...(status === "VOID" && opts?.cancelOrder ? { cancelOrder: true } : {}),
         }),
       ),
     remove: (slug: string) =>

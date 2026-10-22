@@ -7,13 +7,14 @@ import {
   updateInvoiceValidatorSchema,
   type UpdateInvoiceValidatorSchema,
 } from "@/backend/validators/invoice.validator";
-import { publicBusinessSelect } from "@/backend/selects";
+import { invoiceOrderSelect, publicBusinessSelect } from "@/backend/selects";
 import { customerService } from "@/backend/services/customer";
 import { db } from "@/server/db";
 import { generateInvoicePdf } from "@/backend/services/pdf";
 import { cloudinaryService } from "@/backend/services/cloudinary";
 import { emailInvoice } from "@/backend/services/email/documents";
 import { resolveDocumentLines } from "@/backend/services/lines";
+import { orderService } from "@/backend/services/order";
 import { type ApiResponse, type InvoiceListItem } from "types";
 import {
   BadRequestException,
@@ -24,7 +25,9 @@ import {
 import { type Invoice, type Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
-const PAYMENT_FIELDS = new Set(["status", "amountPaid", "paidAt"]);
+// What a part-paid invoice may still change: take payments, or be voided
+// (cancelOrder rides along with the void).
+const PAYMENT_FIELDS = new Set(["status", "amountPaid", "paidAt", "cancelOrder"]);
 
 /**
  * @body UpdateInvoiceValidatorSchema
@@ -122,14 +125,45 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
         };
       }
 
-      const invoiceRecord = await db.invoice.update({
-        where: { slug },
-        data,
-        include: {
-          business: true,
-          lines: { include: { service: true }, orderBy: { position: "asc" } },
-        },
+      // The first money against an invoice that lists products makes the
+      // order and takes the stock, in the same transaction as the payment.
+      const firstPayment =
+        Number(invoice.amountPaid) === 0 &&
+        payload.amountPaid !== undefined &&
+        payload.amountPaid > 0;
+
+      const invoiceRecord = await db.$transaction(async (tx) => {
+        const updated = await tx.invoice.update({
+          where: { slug },
+          data,
+          include: {
+            business: true,
+            lines: { include: { service: true }, orderBy: { position: "asc" } },
+          },
+        });
+
+        if (firstPayment) {
+          await orderService.createFromInvoice(tx, updated.id);
+        }
+
+        return updated;
       });
+
+      // Voiding can cancel the invoice's order too, which puts its stock back.
+      // An order that is already completed or cancelled is left alone.
+      if (payload.status === "VOID" && payload.cancelOrder) {
+        const order = await db.order.findUnique({
+          where: { invoiceId: invoice.id },
+          select: { slug: true, status: true },
+        });
+        if (order && (order.status === "NEW" || order.status === "READY")) {
+          await orderService.setStatus(
+            invoice.businessId,
+            order.slug,
+            "CANCELLED",
+          );
+        }
+      }
 
       if (!invoiceRecord.business) {
         throw new InternalServerErrorException(
@@ -294,6 +328,7 @@ export const GET = withMiddleware<unknown>(
             },
           },
           payments: true,
+          order: { select: invoiceOrderSelect },
           _count: {
             select: {
               payments: true,

@@ -17,7 +17,7 @@ import {
 import { useInvoicesQuery } from "@/hooks/queries/use-invoices";
 import { useCustomerQuery } from "@/hooks/queries/use-customers";
 import { useDocumentComposer } from "@/hooks/use-document-composer";
-import { Button, ConfirmModal, Notice, Pager, Segmented } from "@/primitives";
+import { Button, ConfirmModal, Notice, Pager, Segmented, Switch } from "@/primitives";
 import { parseMoney } from "@/backend/validators/document-form.validator";
 import type { InvoiceListParams } from "@/utils/api";
 import { errorMessage } from "@/utils/axios";
@@ -46,6 +46,12 @@ const EMPTY: Record<InvoiceView, string> = {
 
 type Confirm = { kind: "void" | "delete"; invoice: InvoiceDto };
 
+/** An order can still be called off until it is handed over. */
+function cancellableOrder(invoice: InvoiceDto) {
+  const { order } = invoice;
+  return order && (order.status === "NEW" || order.status === "READY") ? order : null;
+}
+
 interface InvoicesPageClientProps {
   currency: string;
   services: ServiceDto[];
@@ -70,6 +76,8 @@ export function InvoicesPageClient({ currency, services, publicBaseUrl, initial 
   const [payKey, setPayKey] = useState(0);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // Off by default: cancelling an order puts its stock back, so it is a choice.
+  const [cancelOrder, setCancelOrder] = useState(false);
 
   // A customer page can open this screen with `?compose=1&customer=<id>`.
   const searchParams = useSearchParams();
@@ -150,13 +158,21 @@ export function InvoicesPageClient({ currency, services, publicBaseUrl, initial 
     if (!confirm) return;
     const done = { onSuccess: () => setConfirmOpen(false) };
     if (confirm.kind === "void") {
-      setStatus.mutate({ slug: confirm.invoice.slug, status: "VOID" }, done);
+      setStatus.mutate(
+        {
+          slug: confirm.invoice.slug,
+          status: "VOID",
+          cancelOrder: cancelOrder && cancellableOrder(confirm.invoice) !== null,
+        },
+        done,
+      );
     } else {
       remove.mutate(confirm.invoice.slug, done);
     }
   }
 
   const confirmMutation = confirm?.kind === "void" ? setStatus : remove;
+  const orderToCancel = confirm?.kind === "void" ? cancellableOrder(confirm.invoice) : null;
   const rows = query.data?.data ?? [];
 
   return (
@@ -222,6 +238,7 @@ export function InvoicesPageClient({ currency, services, publicBaseUrl, initial 
                 onSend={() => markSent(invoice)}
                 onVoid={() => {
                   setStatus.reset();
+                  setCancelOrder(false);
                   setConfirm({ kind: "void", invoice });
                   setConfirmOpen(true);
                 }}
@@ -265,11 +282,28 @@ export function InvoicesPageClient({ currency, services, publicBaseUrl, initial 
             : `Delete ${confirm?.invoice.invoiceNumber ?? "invoice"}?`
         }
         description={
-          confirmMutation.isError
-            ? errorMessage(confirmMutation.error)
-            : confirm?.kind === "void"
-              ? "It stops counting as unpaid. The PDF link still works, so tell your customer it's cancelled."
-              : "It's removed for good, along with its PDF link."
+          confirmMutation.isError ? (
+            errorMessage(confirmMutation.error)
+          ) : confirm?.kind === "void" ? (
+            <>
+              It stops counting as unpaid. The PDF link still works, so tell your customer it&apos;s
+              cancelled.
+              {orderToCancel ? (
+                <label className="text-ink mt-5 flex cursor-pointer items-center justify-between gap-4 text-[15px] font-semibold">
+                  <span>
+                    Also cancel {orderToCancel.orderNumber ?? "its order"} and put the stock back
+                  </span>
+                  <Switch
+                    checked={cancelOrder}
+                    onCheckedChange={setCancelOrder}
+                    aria-label="Also cancel the order and put the stock back"
+                  />
+                </label>
+              ) : null}
+            </>
+          ) : (
+            "It's removed for good, along with its PDF link."
+          )
         }
         confirmLabel={confirm?.kind === "void" ? "Void invoice" : "Delete invoice"}
         tone="danger"

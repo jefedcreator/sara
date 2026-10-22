@@ -20,6 +20,14 @@ export const publicBusinessSelect = {
   currency: true,
 } satisfies Prisma.BusinessSelect;
 
+/** The order an invoice made when it was first paid, as a list row shows it. */
+export const invoiceOrderSelect = {
+  id: true,
+  slug: true,
+  status: true,
+  orderNumber: true,
+} satisfies Prisma.OrderSelect;
+
 /** What an invoice list row carries (GET /api/invoices and the invoices page). */
 export const invoiceListInclude = {
   business: { select: publicBusinessSelect },
@@ -28,6 +36,7 @@ export const invoiceListInclude = {
   booking: {
     select: { id: true, slug: true, clientName: true, startTime: true },
   },
+  order: { select: invoiceOrderSelect },
   _count: { select: { payments: true } },
 } satisfies Prisma.InvoiceInclude;
 

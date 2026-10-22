@@ -91,7 +91,11 @@ export const invoiceValidatorSchema = z.object({
 });
 
 export const updateInvoiceValidatorSchema = z
-  .object(withoutDefaults(invoiceValidatorSchema.shape))
+  .object({
+    ...withoutDefaults(invoiceValidatorSchema.shape),
+    // Only meaningful with status VOID: also cancel the order the invoice made.
+    cancelOrder: z.boolean().optional(),
+  })
   .partial()
   .strict();
 

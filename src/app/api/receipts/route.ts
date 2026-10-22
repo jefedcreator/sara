@@ -63,6 +63,7 @@ export const POST = withMiddleware<ReceiptValidatorSchema>(
         paymentId: payload.paymentId,
         customerId: payload.customerId,
         lines: payload.lines,
+        sale: payload.sale,
       });
 
       // A receipt with an address goes to the customer too.
