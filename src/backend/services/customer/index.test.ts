@@ -472,6 +472,102 @@ describe("customerService.resolve", () => {
   });
 });
 
+describe("customerService.findByName", () => {
+  it("returns the one customer with exactly that name", async () => {
+    const tolu = makeCustomer();
+    const junior = makeCustomer({
+      id: "cus_2",
+      name: "Tolu Adeyemi Jr",
+      nameKey: "tolu adeyemi jr",
+    });
+    mockedDb.customer.findMany
+      .mockResolvedValueOnce([tolu])
+      .mockResolvedValueOnce([junior]);
+
+    const result = await customerService.findByName("biz_1", "  tolu   ADEYEMI ");
+
+    expect(result.exact?.id).toBe("cus_1");
+    expect(result.similar.map((customer) => customer.id)).toEqual(["cus_2"]);
+    expect(mockedDb.customer.findMany).toHaveBeenCalledWith({
+      where: { businessId: "biz_1", nameKey: "tolu adeyemi" },
+      orderBy: { createdAt: "asc" },
+      take: 5,
+    });
+    expect(mockedDb.customer.findMany).toHaveBeenCalledWith({
+      where: { businessId: "biz_1", nameKey: { startsWith: "tolu adeyemi " } },
+      orderBy: { nameKey: "asc" },
+      take: 5,
+    });
+  });
+
+  it("finds customers whose name starts with the typed words", async () => {
+    mockedDb.customer.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        makeCustomer({ id: "cus_1" }),
+        makeCustomer({ id: "cus_2", name: "Tolu Bakare", nameKey: "tolu bakare" }),
+      ]);
+
+    const result = await customerService.findByName("biz_1", "Tolu");
+
+    expect(result.exact).toBeNull();
+    expect(result.similar.map((customer) => customer.id)).toEqual([
+      "cus_1",
+      "cus_2",
+    ]);
+    expect(mockedDb.customer.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { businessId: "biz_1", nameKey: { startsWith: "tolu " } },
+      }),
+    );
+  });
+
+  it("offers every customer sharing the exact name instead of picking one", async () => {
+    mockedDb.customer.findMany
+      .mockResolvedValueOnce([
+        makeCustomer({ id: "cus_1", phone: "+2348035550142" }),
+        makeCustomer({ id: "cus_2", phone: "+2348035559999" }),
+      ])
+      .mockResolvedValueOnce([
+        makeCustomer({ id: "cus_3", name: "Tolu Adeyemi Jr", nameKey: "tolu adeyemi jr" }),
+      ]);
+
+    const result = await customerService.findByName("biz_1", "Tolu Adeyemi");
+
+    expect(result.exact).toBeNull();
+    expect(result.similar.map((customer) => customer.id)).toEqual([
+      "cus_1",
+      "cus_2",
+      "cus_3",
+    ]);
+  });
+
+  it("offers at most five customers", async () => {
+    mockedDb.customer.findMany
+      .mockResolvedValueOnce([
+        makeCustomer({ id: "cus_1" }),
+        makeCustomer({ id: "cus_2" }),
+      ])
+      .mockResolvedValueOnce(
+        ["a", "b", "c", "d", "e"].map((suffix) =>
+          makeCustomer({ id: `cus_${suffix}`, nameKey: `tolu adeyemi ${suffix}` }),
+        ),
+      );
+
+    const result = await customerService.findByName("biz_1", "Tolu Adeyemi");
+
+    expect(result.similar).toHaveLength(5);
+  });
+
+  it("looks nothing up for a blank name", async () => {
+    expect(await customerService.findByName("biz_1", "   ")).toEqual({
+      exact: null,
+      similar: [],
+    });
+    expect(mockedDb.customer.findMany).not.toHaveBeenCalled();
+  });
+});
+
 describe("customerService.ownedBy", () => {
   it("returns a customer the business owns", async () => {
     const tx = makeTx();

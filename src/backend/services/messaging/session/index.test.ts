@@ -27,6 +27,15 @@ describe("chatSessionService", () => {
     ).toBeNull();
   });
 
+  it("reads what the business sells with the identity, for the menu", async () => {
+    mockedDb.chatIdentity.findUnique.mockResolvedValue(null);
+    await chatSessionService.findIdentity("WHATSAPP", "234800");
+    expect(mockedDb.chatIdentity.findUnique).toHaveBeenCalledWith({
+      where: { channel_externalId: { channel: "WHATSAPP", externalId: "234800" } },
+      include: { session: true, business: { select: { sells: true } } },
+    });
+  });
+
   it("creates a session when one does not exist", async () => {
     mockedDb.chatSession.findUnique.mockResolvedValue(null);
     mockedDb.chatSession.create.mockResolvedValue({

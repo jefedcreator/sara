@@ -35,6 +35,9 @@ export type CustomerListOptions = {
   size: number;
 };
 
+/** The most customers the chat offers when a typed name could mean several. */
+const SIMILAR_LIMIT = 5;
+
 export type UpdateCustomerInput = {
   name?: string;
   phone?: string | null;
@@ -207,6 +210,39 @@ class CustomerService {
       if (found) return found;
       throw error;
     }
+  }
+
+  /**
+   * The customers a typed name could mean, for the chat's "Customer's name?"
+   * step. `exact` is the one customer whose name equals it; `similar` are the
+   * customers whose name starts with it as whole words ("Tolu" finds "Tolu
+   * Adeyemi", not "Tolulope"), at most five. When two or more customers share
+   * the exact name, there is no `exact` and they lead `similar`, so the owner
+   * picks between them.
+   */
+  async findByName(
+    businessId: string,
+    name: string,
+  ): Promise<{ exact: Customer | null; similar: Customer[] }> {
+    const key = nameKey(name);
+    if (!key) return { exact: null, similar: [] };
+
+    const [named, longer] = await Promise.all([
+      db.customer.findMany({
+        where: { businessId, nameKey: key },
+        orderBy: { createdAt: "asc" },
+        take: SIMILAR_LIMIT,
+      }),
+      db.customer.findMany({
+        where: { businessId, nameKey: { startsWith: `${key} ` } },
+        orderBy: { nameKey: "asc" },
+        take: SIMILAR_LIMIT,
+      }),
+    ]);
+
+    if (named.length === 1) return { exact: named[0]!, similar: longer };
+
+    return { exact: null, similar: [...named, ...longer].slice(0, SIMILAR_LIMIT) };
   }
 
   /** A customer the business owns, or a 400 like the other document links. */
