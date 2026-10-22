@@ -4,6 +4,7 @@ export {
   getCustomerDetail,
   getCustomersPage,
   getInvoicesPage,
+  getOrdersPage,
   getReceiptsPage,
 } from "./lists";
 export { getBookingReceipt, getPublicService } from "./book";

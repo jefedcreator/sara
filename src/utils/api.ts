@@ -7,6 +7,7 @@ import type {
   CustomerListItem,
   DashboardData,
   InvoiceDto,
+  OrderDto,
   Page,
   ProductDto,
   ProductOptionDto,
@@ -109,6 +110,19 @@ export type InvoiceListParams = {
   unpaid?: boolean;
   page?: number;
 };
+
+/** OPEN is the to-send-out queue: new and ready orders together. */
+export type OrderStatusFilter = "OPEN" | "NEW" | "READY" | "COMPLETED" | "CANCELLED";
+
+export type OrderListParams = {
+  status?: OrderStatusFilter;
+  page?: number;
+};
+
+/** One change per call: a status step, or a switch between delivery and pickup. */
+export type OrderUpdateInput =
+  | { status: "READY" | "COMPLETED" | "CANCELLED" }
+  | { fulfilment: "DELIVERY" | "PICKUP"; deliveryAddress?: string | null };
 
 export type CustomerListParams = {
   query?: string;
@@ -421,6 +435,17 @@ export const api = {
       data<ReceiptDto & SharedLink>(http.post("/receipts", values)),
     update: (slug: string, values: ReceiptUpdateInput) =>
       data<ReceiptDto>(http.put(`/receipts/${encodeURIComponent(slug)}`, values)),
+  },
+
+  orders: {
+    list: ({ status, page: pageNumber = 1 }: OrderListParams) =>
+      page<OrderDto>(
+        http.get("/orders", { params: { status, page: pageNumber, size: PAGE_SIZE } }),
+      ),
+    get: (slug: string) =>
+      data<OrderDto>(http.get(`/orders/${encodeURIComponent(slug)}`)),
+    update: (slug: string, values: OrderUpdateInput) =>
+      data<OrderDto>(http.put(`/orders/${encodeURIComponent(slug)}`, values)),
   },
 
   customers: {

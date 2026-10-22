@@ -33,8 +33,11 @@ export type CheckoutInput = {
 /** The owner's list never sees an unpaid checkout. */
 export type OrderListStatus = Exclude<OrderStatus, "AWAITING_PAYMENT">;
 
+/** OPEN is the "to send out" queue: new and ready orders together. */
+export type OrderListFilter = OrderListStatus | "OPEN";
+
 export type OrderListOptions = {
-  status?: OrderListStatus;
+  status?: OrderListFilter;
   page: number;
   size: number;
 };
@@ -345,11 +348,14 @@ class OrderService {
     const skip = (page - 1) * size;
 
     if (options.status) {
-      const direction: Prisma.SortOrder =
-        options.status === "NEW" || options.status === "READY" ? "asc" : "desc";
+      const queue = ["NEW", "READY", "OPEN"].includes(options.status);
+      const direction: Prisma.SortOrder = queue ? "asc" : "desc";
       const where: Prisma.OrderWhereInput = {
         businessId,
-        status: options.status,
+        status:
+          options.status === "OPEN"
+            ? { in: ["NEW", "READY"] }
+            : options.status,
       };
       const [total, data] = await Promise.all([
         db.order.count({ where }),

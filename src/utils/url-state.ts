@@ -5,7 +5,7 @@ import {
   parseAsStringLiteral,
 } from "nuqs/server";
 
-import type { BookingListParams, InvoiceListParams } from "./api";
+import type { BookingListParams, InvoiceListParams, OrderListParams } from "./api";
 
 /*
  * List filters and pages live in the URL (shareable, survive a refresh). The
@@ -71,3 +71,24 @@ export const customersParams = {
   page: parseAsInteger.withDefault(1),
 };
 export const customersParamsCache = createSearchParamsCache(customersParams);
+
+export const ORDER_VIEWS = ["send", "done", "cancelled"] as const;
+export type OrderView = (typeof ORDER_VIEWS)[number];
+
+export const ordersParams = {
+  view: parseAsStringLiteral(ORDER_VIEWS).withDefault("send"),
+  page: parseAsInteger.withDefault(1),
+};
+export const ordersParamsCache = createSearchParamsCache(ordersParams);
+
+/** To send out is new and ready together, oldest first (the API orders it). */
+export function orderListParams(view: OrderView, page: number): OrderListParams {
+  switch (view) {
+    case "done":
+      return { status: "COMPLETED", page };
+    case "cancelled":
+      return { status: "CANCELLED", page };
+    default:
+      return { status: "OPEN", page };
+  }
+}

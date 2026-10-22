@@ -507,6 +507,22 @@ describe("orderService.list", () => {
     expect(result.total).toBe(3);
   });
 
+  it("lists the open queue (new and ready) oldest first", async () => {
+    mockedDb.order.count.mockResolvedValue(0);
+    mockedDb.order.findMany.mockResolvedValue([]);
+
+    await orderService.list("biz_1", { status: "OPEN", page: 1, size: 10 });
+
+    expect(mockedDb.order.count).toHaveBeenCalledWith({
+      where: { businessId: "biz_1", status: { in: ["NEW", "READY"] } },
+    });
+    expect(mockedDb.order.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      }),
+    );
+  });
+
   it("reads completed orders newest first", async () => {
     mockedDb.order.findMany.mockResolvedValue([]);
 
