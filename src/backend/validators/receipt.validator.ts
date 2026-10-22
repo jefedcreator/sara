@@ -40,7 +40,7 @@ export const receiptItemValidatorSchema = z
     total: decimalValidator("total"),
   })
   .strict()
-  .refine((line) => Boolean(line.serviceId || line.productOptionId || line.name), {
+  .refine((line) => [line.serviceId, line.productOptionId, line.name].some(Boolean), {
     message: "A line needs a service, a product option or a name",
     path: ["serviceId"],
   });

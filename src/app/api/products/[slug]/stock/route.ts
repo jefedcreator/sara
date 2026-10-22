@@ -47,7 +47,7 @@ export const POST = withMiddleware<StockAdjustValidatorSchema>(
 
       const { optionId, add, set } = request.validatedData!;
       const change: StockChange =
-        add !== undefined ? { add } : { set: set as number };
+        add !== undefined ? { add } : { set: set! };
 
       const option = await productService.adjustStock(
         business.id,

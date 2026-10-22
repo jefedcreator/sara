@@ -53,6 +53,8 @@ export function SellingSection({
   const [offersPickup, setOffersPickup] = useState(profile.offersPickup);
   const [dirty, setDirty] = useState(false);
 
+  // `||`: a blank address counts as none.
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   const address = profile.address?.trim() || null;
   const cleanedFee = deliveryFee.replace(/[,\s]/g, "");
   const feeIsValid = /^\d+(\.\d{1,2})?$/.test(cleanedFee);

@@ -39,7 +39,12 @@ export const GET = withMiddleware<unknown>(
         );
       }
 
-      const order = await orderService.getBySlug(business.id, params.slug);
+      const { slug } = params;
+      if (!slug) {
+        throw new NotFoundException("Order not found");
+      }
+
+      const order = await orderService.getBySlug(business.id, slug);
 
       const response: ApiResponse<OrderDto> = {
         status: 200,
@@ -84,15 +89,16 @@ export const PUT = withMiddleware<UpdateOrderValidatorSchema>(
         );
       }
 
+      const { slug } = params;
+      if (!slug) {
+        throw new NotFoundException("Order not found");
+      }
+
       const payload = request.validatedData!;
       const order =
         "status" in payload
-          ? await orderService.setStatus(
-              business.id,
-              params.slug,
-              payload.status,
-            )
-          : await orderService.setFulfilment(business.id, params.slug, payload);
+          ? await orderService.setStatus(business.id, slug, payload.status)
+          : await orderService.setFulfilment(business.id, slug, payload);
 
       const response: ApiResponse<OrderDto> = {
         status: 200,

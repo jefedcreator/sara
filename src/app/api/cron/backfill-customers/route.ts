@@ -2,6 +2,7 @@ import { withMiddleware } from "@/backend/middleware";
 import { customerBackfill } from "@/backend/services/customer/backfill";
 import { env } from "@/env";
 import {
+  HttpException,
   InternalServerErrorException,
   UnauthorizedException,
 } from "@/utils/exceptions";
@@ -38,10 +39,12 @@ export const GET = withMiddleware<unknown>(
       };
 
       return NextResponse.json(response);
-    } catch (error: any) {
-      if (error.statusCode) throw error;
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
       throw new InternalServerErrorException(
-        `An error occurred while backfilling customers: ${error.message}`,
+        `An error occurred while backfilling customers: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
       );
     }
   },

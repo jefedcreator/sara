@@ -8,13 +8,16 @@ import {
   type UseFormRegister,
 } from "react-hook-form";
 
-import type { ProductFormInput } from "@/backend/validators/product-form.validator";
+import type {
+  ProductFormInput,
+  ProductFormOutput,
+} from "@/backend/validators/product-form.validator";
 import { Button, Field, Input } from "@/primitives";
 
 const MAX_OPTIONS = 20;
 
 interface OptionsEditorProps {
-  control: Control<ProductFormInput>;
+  control: Control<ProductFormInput, unknown, ProductFormOutput>;
   register: UseFormRegister<ProductFormInput>;
   errors: FieldErrors<ProductFormInput>;
   tracksStock: boolean;

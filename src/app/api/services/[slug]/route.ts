@@ -173,8 +173,8 @@ export const DELETE = withMiddleware<unknown>(
           _count: {
             select: {
               bookings: true,
-              invoices: true,
-              receipts: true,
+              invoiceLines: true,
+              receiptLines: true,
             },
           },
         },
@@ -196,8 +196,8 @@ export const DELETE = withMiddleware<unknown>(
       // If linked to active/historical transactions, soft delete by deactivating
       if (
         service._count.bookings > 0 ||
-        service._count.invoices > 0 ||
-        service._count.receipts > 0
+        service._count.invoiceLines > 0 ||
+        service._count.receiptLines > 0
       ) {
         isSoftDelete = true;
         deletedOrDeactivated = await db.service.update({

@@ -117,7 +117,7 @@ export async function processOrderPayment(
   const stockLines = order.lines
     .filter((line) => Boolean(line.productOptionId))
     .map((line) => ({
-      productOptionId: line.productOptionId as string,
+      productOptionId: line.productOptionId!,
       quantity: line.quantity,
     }));
 

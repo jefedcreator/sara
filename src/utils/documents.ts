@@ -81,6 +81,8 @@ export function toSale(
 ): ReceiptSaleInput | undefined {
   if (!hasProductLine(values)) return undefined;
   if (!values.isDelivery) return { fulfilment: "PICKUP" };
+  // `||`: a blank address counts as none.
+  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
   return { fulfilment: "DELIVERY", deliveryAddress: values.deliveryAddress?.trim() || null };
 }
 

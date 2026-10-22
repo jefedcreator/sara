@@ -1,4 +1,4 @@
-import { Prisma, type Product, type ProductOption } from "@prisma/client";
+import type { Prisma, Product, ProductOption } from "@prisma/client";
 import slugify from "slugify";
 
 import { db } from "@/server/db";
@@ -173,6 +173,8 @@ class ProductService {
         businessId,
         slug,
         name,
+        // `||`: a blank description counts as none.
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
         description: input.description?.trim() || null,
         price: input.price,
         photos,
@@ -213,6 +215,8 @@ class ProductService {
 
     if (patch.name !== undefined) data.name = validateName(patch.name);
     if (patch.description !== undefined) {
+      // `||`: a blank description clears it.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       data.description = patch.description?.trim() || null;
     }
     if (patch.price !== undefined) {

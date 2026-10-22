@@ -10,6 +10,7 @@ const BASE_INVOICE: InvoiceDto = {
   slug: "inv-1",
   publicId: "pub_inv_1",
   businessId: "biz_1",
+  customerId: null,
   bookingId: null,
   invoiceNumber: "INV-1001",
   status: "DRAFT",

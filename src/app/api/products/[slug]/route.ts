@@ -44,7 +44,12 @@ export const GET = withMiddleware<unknown>(
         );
       }
 
-      const product = await productService.getBySlug(business.id, params.slug);
+      const { slug } = params;
+      if (!slug) {
+        throw new NotFoundException("Product not found");
+      }
+
+      const product = await productService.getBySlug(business.id, slug);
 
       const response: ApiResponse<ProductDto> = {
         status: 200,
@@ -91,6 +96,11 @@ export const PUT = withMiddleware<UpdateProductValidatorSchema>(
         );
       }
 
+      const { slug } = params;
+      if (!slug) {
+        throw new NotFoundException("Product not found");
+      }
+
       const parsed = updateProductValidatorSchema.safeParse(
         request.parsedBody ?? {},
       );
@@ -114,11 +124,7 @@ export const PUT = withMiddleware<UpdateProductValidatorSchema>(
         patch.photos = [...(keepPhotos ?? []), ...newPhotoUrls];
       }
 
-      const product = await productService.update(
-        business.id,
-        params.slug,
-        patch,
-      );
+      const product = await productService.update(business.id, slug, patch);
 
       const response: ApiResponse<ProductDto> = {
         status: 200,

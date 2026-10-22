@@ -242,8 +242,7 @@ export const PUT = withMiddleware<UpdateBusinessValidatorSchema>(
       // out keep their saved values.
       const nextOffersPickup =
         payload.offersPickup ?? user.business.offersPickup;
-      const nextAddress =
-        payload.address !== undefined ? payload.address : user.business.address;
+      const nextAddress = payload.address ?? user.business.address;
       if (nextOffersPickup && !nextAddress?.trim()) {
         throw new BadRequestException("Add your business address for pickup");
       }
