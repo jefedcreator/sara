@@ -49,6 +49,10 @@ export const env = createEnv({
     WHATSAPP_VERIFY_TOKEN: z.string().trim().optional(),
     WHATSAPP_PHONE_NUMBER_ID: z.string().trim().optional(),
     WHATSAPP_TOKEN: z.string().trim().optional(),
+    // Approved utility template (one body parameter) for owner alerts once the
+    // 24-hour window is closed; without it those alerts are dropped.
+    WHATSAPP_ALERT_TEMPLATE: z.string().trim().optional(),
+    WHATSAPP_ALERT_TEMPLATE_LANGUAGE: z.string().trim().default("en"),
     META_APP_SECRET: z.string().trim().optional(),
     INSTAGRAM_VERIFY_TOKEN: z.string().trim().optional(),
     INSTAGRAM_IG_ID: z.string().trim().optional(),
@@ -125,6 +129,9 @@ export const env = createEnv({
     WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN,
     WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
     WHATSAPP_TOKEN: process.env.WHATSAPP_TOKEN,
+    WHATSAPP_ALERT_TEMPLATE: process.env.WHATSAPP_ALERT_TEMPLATE,
+    WHATSAPP_ALERT_TEMPLATE_LANGUAGE:
+      process.env.WHATSAPP_ALERT_TEMPLATE_LANGUAGE,
     META_APP_SECRET: process.env.META_APP_SECRET,
     INSTAGRAM_VERIFY_TOKEN: process.env.INSTAGRAM_VERIFY_TOKEN,
     INSTAGRAM_IG_ID: process.env.INSTAGRAM_IG_ID,
