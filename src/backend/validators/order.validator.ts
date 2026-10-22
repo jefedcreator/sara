@@ -3,14 +3,16 @@ import { z } from "zod";
 import { baseQueryValidatorSchema } from "./index.validator";
 
 /**
- * The owner's list filter. AWAITING_PAYMENT is deliberately absent: unpaid
- * checkouts are never part of order management.
+ * The owner's list filter. OPEN means NEW and READY together (the orders still
+ * to send out). AWAITING_PAYMENT is deliberately absent: unpaid checkouts are
+ * never part of order management.
  */
 export const orderQueryValidatorSchema = z
   .object({
     status: z
-      .enum(["NEW", "READY", "COMPLETED", "CANCELLED"], {
-        message: "status must be one of: NEW, READY, COMPLETED, CANCELLED",
+      .enum(["OPEN", "NEW", "READY", "COMPLETED", "CANCELLED"], {
+        message:
+          "status must be one of: OPEN, NEW, READY, COMPLETED, CANCELLED",
       })
       .optional(),
     page: baseQueryValidatorSchema.shape.page,

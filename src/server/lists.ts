@@ -5,6 +5,7 @@ import type {
   CustomerDetail,
   CustomerListItem,
   InvoiceDto,
+  OrderDto,
   Page,
   ReceiptDto,
 } from "types";
@@ -16,11 +17,13 @@ import {
 } from "@/backend/selects";
 import { UNPAID_STATUSES } from "@/backend/services/dashboard";
 import { customerService } from "@/backend/services/customer";
+import { orderService } from "@/backend/services/order";
 import { db } from "@/server/db";
 import type {
   BookingListParams,
   CustomerListParams,
   InvoiceListParams,
+  OrderListParams,
 } from "@/utils/api";
 
 /*
@@ -121,4 +124,16 @@ export const getCustomersPage = cache(
 export const getCustomerDetail = cache(
   async (businessId: string, id: string): Promise<CustomerDetail> =>
     customerService.detail(businessId, id),
+);
+
+export const getOrdersPage = cache(
+  async (businessId: string, params: OrderListParams): Promise<Page<OrderDto>> => {
+    const page = params.page ?? 1;
+    const { data, total } = await orderService.list(businessId, {
+      status: params.status,
+      page,
+      size: PAGE_SIZE,
+    });
+    return toPage(data, total, page);
+  },
 );
