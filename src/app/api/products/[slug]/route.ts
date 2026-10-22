@@ -1,11 +1,17 @@
 import {
   authMiddleware,
+  bodyValidatorMiddleware,
   withMiddleware,
 } from "@/backend/middleware";
 import {
   productService,
   type ProductUpdateInput,
 } from "@/backend/services/product";
+import {
+  assertPhotoCount,
+  photosFrom,
+  uploadPhotos,
+} from "@/backend/services/product/photos";
 import {
   updateProductValidatorSchema,
   type UpdateProductValidatorSchema,
@@ -15,12 +21,9 @@ import {
   HttpException,
   InternalServerErrorException,
   NotFoundException,
-  UnprocessableEntityException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import type { ApiResponse, ProductDto } from "types";
-
-import { photosFrom, uploadPhotos } from "../photos";
 
 /**
  * @pathParams slug
@@ -101,27 +104,26 @@ export const PUT = withMiddleware<UpdateProductValidatorSchema>(
         throw new NotFoundException("Product not found");
       }
 
-      const parsed = updateProductValidatorSchema.safeParse(
-        request.parsedBody ?? {},
-      );
-      if (!parsed.success) {
-        const issue = parsed.error.issues[0];
-        throw new UnprocessableEntityException(
-          issue?.path.length
-            ? `${issue.path.join(".")}: ${issue.message}`
-            : (issue?.message ?? "Validation failed"),
-        );
-      }
+      // The middleware kept one photo; the whole list comes from the form.
+      const { keepPhotos, ...rest } = request.validatedData!;
+      delete rest.photos;
+      const fields: Omit<typeof rest, "photos"> = rest;
+      const newPhotos = photosFrom(request);
 
-      const { keepPhotos, ...fields } = parsed.data;
-      const newPhotoUrls = await uploadPhotos(
-        business.id,
-        photosFrom(request),
-      );
+      // Without keepPhotos the product keeps the photos it has, and new ones
+      // go after them. Count before uploading anything.
+      const kept =
+        keepPhotos ??
+        (newPhotos.length > 0
+          ? (await productService.getBySlug(business.id, slug)).photos
+          : undefined);
+      assertPhotoCount((kept?.length ?? 0) + newPhotos.length);
+
+      const newPhotoUrls = await uploadPhotos(business.id, newPhotos);
 
       const patch: ProductUpdateInput = { ...fields };
-      if (keepPhotos !== undefined || newPhotoUrls.length > 0) {
-        patch.photos = [...(keepPhotos ?? []), ...newPhotoUrls];
+      if (kept !== undefined || newPhotoUrls.length > 0) {
+        patch.photos = [...(kept ?? []), ...newPhotoUrls];
       }
 
       const product = await productService.update(business.id, slug, patch);
@@ -142,5 +144,5 @@ export const PUT = withMiddleware<UpdateProductValidatorSchema>(
       );
     }
   },
-  [authMiddleware],
+  [authMiddleware, bodyValidatorMiddleware(updateProductValidatorSchema)],
 );

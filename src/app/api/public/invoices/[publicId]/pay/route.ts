@@ -1,45 +1,41 @@
+import { withMiddleware } from "@/backend/middleware";
 import { invoicePayments } from "@/backend/services/invoice/payment";
-import { HttpException } from "@/utils/exceptions";
+import {
+  HttpException,
+  InternalServerErrorException,
+  NotFoundException,
+} from "@/utils/exceptions";
 import { NextResponse } from "next/server";
+import type { ApiResponse } from "types";
 
 export const runtime = "nodejs";
 
 /**
+ * @pathParams publicId
  * @description Public (unauthenticated) payment start for an invoice, from the
  *              Pay button on the customer's invoice page. Charges the whole
  *              remaining balance through Paystack.
- * @returns { data: { paymentUrl } }
  */
-export async function POST(
-  _request: Request,
-  context: { params: Promise<{ publicId: string }> },
-) {
-  try {
-    const { publicId } = await context.params;
-    const result = await invoicePayments.start(publicId);
+export const POST = withMiddleware<unknown>(
+  async (_request, { params }) => {
+    try {
+      const { publicId } = params;
+      if (!publicId) throw new NotFoundException("Invoice not found");
 
-    return NextResponse.json(
-      {
+      const result = await invoicePayments.start(publicId);
+
+      const response: ApiResponse<{ paymentUrl: string }> = {
         status: 200,
         message: "Complete payment to settle this invoice.",
         data: { paymentUrl: result.paymentUrl },
-      },
-      { status: 200 },
-    );
-  } catch (error) {
-    if (error instanceof HttpException) {
-      return NextResponse.json(
-        { status: error.statusCode, message: error.message },
-        { status: error.statusCode },
-      );
+      };
+
+      return NextResponse.json(response);
+    } catch (error) {
+      if (error instanceof HttpException) throw error;
+      // A public route: never show a customer what broke inside.
+      throw new InternalServerErrorException("Internal server error");
     }
-    console.error(
-      "[Public Invoice Pay] Error:",
-      error instanceof Error ? error.message : error,
-    );
-    return NextResponse.json(
-      { status: 500, message: "Internal server error" },
-      { status: 500 },
-    );
-  }
-}
+  },
+  [],
+);

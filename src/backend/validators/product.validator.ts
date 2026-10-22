@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { withoutDefaults } from "./index.validator";
 
-const MAX_PHOTOS = 5;
+export const MAX_PHOTOS = 5;
 const MAX_OPTIONS = 20;
 const MAX_NAME_LENGTH = 255;
 
@@ -86,6 +86,12 @@ const productBaseSchema = z.object({
     .min(0, "price cannot be negative"),
   tracksStock: booleanFromFormSchema.default(true),
   options: optionsFromFormSchema,
+  /*
+   * bodyValidatorMiddleware merges one file per key into the body, so the last
+   * `photos` file lands here. The route reads the whole list from the form
+   * (photosFrom); this field only lets the strict schema accept the key.
+   */
+  photos: z.instanceof(File).optional(),
 });
 
 /** Parses the multipart fields of POST /api/products. Photos are handled by the route. */

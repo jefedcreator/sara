@@ -1,4 +1,4 @@
-import { optionLabel } from "@/backend/services/product/labels";
+import { optionLabel } from "@/utils/labels";
 import type { Prisma } from "@prisma/client";
 
 import { BadRequestException } from "@/utils/exceptions";

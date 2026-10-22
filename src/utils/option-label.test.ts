@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { optionLabel } from "./labels";
+import { optionLabel } from "@/utils/labels";
 
 describe("optionLabel", () => {
   it("joins the product and option names with an em dash", () => {

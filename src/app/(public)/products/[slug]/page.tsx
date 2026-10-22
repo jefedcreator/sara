@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { PublicError } from "@/components/public-error";
 import { ProductProfile } from "@/components/public/product-profile";
-import { getProductPageDetail } from "@/server/product-page";
+import { getProductPageDetail } from "@/server";
 import { productPath } from "@/utils/public-links";
 import { productMetadata } from "@/utils/product-page";
 

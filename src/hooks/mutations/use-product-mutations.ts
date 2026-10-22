@@ -1,21 +1,29 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { dashboardKeys } from "@/hooks/queries/use-dashboard";
 import { productKeys } from "@/hooks/queries/use-products";
 import { api, type ProductInput, type StockAdjustInput } from "@/utils/api";
 
-export function useCreateProductMutation() {
+/** A product's stock and whether it's live feed Today's "Running low" as well as the list. */
+function useInvalidateProducts() {
   const queryClient = useQueryClient();
+  return () => {
+    void queryClient.invalidateQueries({ queryKey: productKeys.all });
+    void queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
+  };
+}
+
+export function useCreateProductMutation() {
+  const invalidate = useInvalidateProducts();
   return useMutation({
     mutationFn: ({ values, photos }: { values: ProductInput; photos: File[] }) =>
       api.products.create(values, photos),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: productKeys.all });
-    },
+    onSuccess: invalidate,
   });
 }
 
 export function useUpdateProductMutation() {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateProducts();
   return useMutation({
     mutationFn: ({
       slug,
@@ -28,14 +36,12 @@ export function useUpdateProductMutation() {
       photos?: File[];
       keepPhotos?: string[];
     }) => api.products.update(slug, values, photos, keepPhotos),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: productKeys.all });
-    },
+    onSuccess: invalidate,
   });
 }
 
 export function useAdjustStockMutation() {
-  const queryClient = useQueryClient();
+  const invalidate = useInvalidateProducts();
   return useMutation({
     mutationFn: ({
       slug,
@@ -44,8 +50,6 @@ export function useAdjustStockMutation() {
       slug: string;
       input: StockAdjustInput;
     }) => api.products.adjustStock(slug, input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: productKeys.all });
-    },
+    onSuccess: invalidate,
   });
 }

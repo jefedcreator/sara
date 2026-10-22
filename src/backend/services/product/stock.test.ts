@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { mockShelf } from "@/backend/test-utils/shelf";
+
 import {
   activeHoldsWhere,
   availableStock,
@@ -13,7 +15,7 @@ let tx: any;
 
 beforeEach(() => {
   tx = {
-    productOption: { findMany: vi.fn(), update: vi.fn() },
+    productOption: { findMany: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     orderLine: { groupBy: vi.fn().mockResolvedValue([]) },
   };
 });
@@ -94,24 +96,43 @@ describe("availableStock", () => {
 });
 
 describe("takeStock", () => {
-  it("takes stock down to zero and reports a shortfall", async () => {
-    tx.productOption.findMany.mockResolvedValue([
-      { id: "opt_1", stock: 1, product: { tracksStock: true } },
+  it("takes the quantity off the shelf", async () => {
+    const shelf = mockShelf(tx.productOption, [
+      { id: "opt_1", stock: 10, product: { tracksStock: true } },
     ]);
 
-    const result = await takeStock(tx, [
-      { productOptionId: "opt_1", quantity: 2 },
+    const result = await takeStock(tx, [{ productOptionId: "opt_1", quantity: 2 }]);
+
+    expect(result).toEqual({ short: false });
+    expect(shelf.stockOf("opt_1")).toBe(8);
+  });
+
+  it("decrements only when enough is left, so a racing sale can't overwrite it", async () => {
+    mockShelf(tx.productOption, [
+      { id: "opt_1", stock: 10, product: { tracksStock: true } },
     ]);
 
-    expect(result).toEqual({ short: true });
-    expect(tx.productOption.update).toHaveBeenCalledWith({
-      where: { id: "opt_1" },
-      data: { stock: 0 },
+    await takeStock(tx, [{ productOptionId: "opt_1", quantity: 2 }]);
+
+    expect(tx.productOption.updateMany).toHaveBeenCalledWith({
+      where: { id: "opt_1", stock: { gte: 2 } },
+      data: { stock: { decrement: 2 } },
     });
   });
 
+  it("takes stock down to zero and reports a shortfall", async () => {
+    const shelf = mockShelf(tx.productOption, [
+      { id: "opt_1", stock: 1, product: { tracksStock: true } },
+    ]);
+
+    const result = await takeStock(tx, [{ productOptionId: "opt_1", quantity: 2 }]);
+
+    expect(result).toEqual({ short: true });
+    expect(shelf.stockOf("opt_1")).toBe(0);
+  });
+
   it("combines duplicate lines for the same option", async () => {
-    tx.productOption.findMany.mockResolvedValue([
+    const shelf = mockShelf(tx.productOption, [
       { id: "opt_1", stock: 3, product: { tracksStock: true } },
     ]);
 
@@ -121,23 +142,20 @@ describe("takeStock", () => {
     ]);
 
     expect(result).toEqual({ short: false });
-    expect(tx.productOption.update).toHaveBeenCalledWith({
-      where: { id: "opt_1" },
-      data: { stock: 1 },
-    });
+    expect(shelf.stockOf("opt_1")).toBe(1);
+    expect(tx.productOption.updateMany).toHaveBeenCalledTimes(1);
   });
 
   it("takes nothing from untracked options", async () => {
-    tx.productOption.findMany.mockResolvedValue([
+    const shelf = mockShelf(tx.productOption, [
       { id: "opt_free", stock: 5, product: { tracksStock: false } },
     ]);
 
-    const result = await takeStock(tx, [
-      { productOptionId: "opt_free", quantity: 2 },
-    ]);
+    const result = await takeStock(tx, [{ productOptionId: "opt_free", quantity: 2 }]);
 
     expect(result).toEqual({ short: false });
-    expect(tx.productOption.update).not.toHaveBeenCalled();
+    expect(shelf.stockOf("opt_free")).toBe(5);
+    expect(tx.productOption.updateMany).not.toHaveBeenCalled();
   });
 });
 

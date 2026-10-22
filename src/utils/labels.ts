@@ -77,3 +77,14 @@ export function formatDate(iso: string) {
     .format(new Date(iso))
     .replace("Sept", "Sep"); // as utils/format.ts does: some ICU versions write "Sept"
 }
+
+/**
+ * The name a product option is shown under on orders and receipts: the product
+ * name, then the option name after an em dash. A product whose only option is
+ * unnamed shows just the product name. Client-safe, so the composer, the
+ * checkout sheet and the backend all write the same label.
+ */
+export function optionLabel(productName: string, optionName: string): string {
+  const option = optionName.trim();
+  return option ? `${productName} — ${option}` : productName;
+}

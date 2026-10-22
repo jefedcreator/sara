@@ -47,6 +47,52 @@ export const updateOrderValidatorSchema = z.union([
     .strict(),
 ]);
 
+/** POST /api/public/orders: a customer's checkout from a product page. */
+export const publicOrderValidatorSchema = z
+  .object({
+    productSlug: z.string().min(1, "productSlug is required"),
+    optionId: z.string().min(1, "optionId is required"),
+    quantity: z.number().int().min(1, "quantity must be a whole number from 1"),
+    fulfilment: z.enum(["DELIVERY", "PICKUP"]),
+    deliveryAddress: z.string().max(500).nullable().optional(),
+    clientName: z.string().min(1, "clientName is required").max(255),
+    clientPhone: z.string().min(7, "clientPhone is required").max(20),
+    clientEmail: z
+      .string()
+      .email("clientEmail must be a valid email")
+      .nullable()
+      .optional(),
+  })
+  .strict();
+
+/**
+ * The checkout sheet's fields as the customer types them. Kept apart from the
+ * API schema above: this one speaks to the customer, and the address is only
+ * required when they chose delivery.
+ */
+export const checkoutFormSchema = z
+  .object({
+    fulfilment: z.enum(["DELIVERY", "PICKUP"]),
+    deliveryAddress: z.string().trim().max(500, "Keep the address under 500 characters"),
+    clientName: z.string().trim().min(1, "Enter your name").max(255, "Keep your name under 255 characters"),
+    clientPhone: z
+      .string()
+      .trim()
+      .min(1, "Enter your phone number")
+      .refine((value) => value.replace(/\D/g, "").length >= 7, "Enter a full phone number")
+      .refine((value) => value.length <= 20, "Enter a shorter phone number"),
+    clientEmail: z.union([z.literal(""), z.string().trim().email("Enter a valid email, or leave it empty")]),
+  })
+  .strict()
+  .superRefine((value, ctx) => {
+    if (value.fulfilment === "DELIVERY" && !value.deliveryAddress) {
+      ctx.addIssue({ code: "custom", path: ["deliveryAddress"], message: "Enter a delivery address" });
+    }
+  });
+
+export type PublicOrderValidatorSchema = z.infer<typeof publicOrderValidatorSchema>;
+export type CheckoutFormSchema = z.input<typeof checkoutFormSchema>;
+
 export type OrderQueryValidatorSchema = z.infer<
   typeof orderQueryValidatorSchema
 >;

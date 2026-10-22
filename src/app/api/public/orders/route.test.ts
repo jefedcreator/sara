@@ -49,7 +49,7 @@ beforeEach(() => {
 
 describe("POST /api/public/orders", () => {
   it("starts a checkout and returns the payment url", async () => {
-    const response = await POST(post(BODY));
+    const response = await POST(post(BODY), { params: Promise.resolve({}) });
 
     expect(response.status).toBe(201);
     const json = await response.json();
@@ -66,7 +66,7 @@ describe("POST /api/public/orders", () => {
     delete body.deliveryAddress;
     delete body.clientEmail;
 
-    const response = await POST(post(body));
+    const response = await POST(post(body), { params: Promise.resolve({}) });
 
     expect(response.status).toBe(201);
     expect(mockedOrder.startCheckout).toHaveBeenCalledWith(
@@ -82,22 +82,22 @@ describe("POST /api/public/orders", () => {
     const body = { ...BODY } as Record<string, unknown>;
     delete body.clientPhone;
 
-    const response = await POST(post(body));
+    const response = await POST(post(body), { params: Promise.resolve({}) });
 
     expect(response.status).toBe(422);
     expect(mockedOrder.startCheckout).not.toHaveBeenCalled();
   });
 
   it("returns 422 for a bad quantity or fulfilment", async () => {
-    expect((await POST(post({ ...BODY, quantity: 0 }))).status).toBe(422);
+    expect((await POST(post({ ...BODY, quantity: 0 }), { params: Promise.resolve({}) })).status).toBe(422);
     expect(
-      (await POST(post({ ...BODY, fulfilment: "COURIER" }))).status,
+      (await POST(post({ ...BODY, fulfilment: "COURIER" }), { params: Promise.resolve({}) })).status,
     ).toBe(422);
     expect(mockedOrder.startCheckout).not.toHaveBeenCalled();
   });
 
   it("returns 422 for an unknown field", async () => {
-    const response = await POST(post({ ...BODY, surprise: true }));
+    const response = await POST(post({ ...BODY, surprise: true }), { params: Promise.resolve({}) });
 
     expect(response.status).toBe(422);
     expect(mockedOrder.startCheckout).not.toHaveBeenCalled();
@@ -108,7 +108,7 @@ describe("POST /api/public/orders", () => {
       new ConflictException("Only 4 left"),
     );
 
-    const response = await POST(post(BODY));
+    const response = await POST(post(BODY), { params: Promise.resolve({}) });
 
     expect(response.status).toBe(409);
     const json = await response.json();

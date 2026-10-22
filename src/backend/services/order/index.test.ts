@@ -3,10 +3,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/server/db", () => {
   const db: any = {
     product: { findFirst: vi.fn() },
-    productOption: { findMany: vi.fn(), update: vi.fn() },
+    productOption: { findMany: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
     order: {
       findFirst: vi.fn(),
       findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+      updateMany: vi.fn(),
       findMany: vi.fn(),
       count: vi.fn(),
       create: vi.fn(),
@@ -44,6 +46,7 @@ vi.mock("@/backend/services/email", () => ({
 import { customerService } from "@/backend/services/customer";
 import { emailService } from "@/backend/services/email";
 import { paystackService } from "@/backend/services/paystack";
+import { mockShelf } from "@/backend/test-utils/shelf";
 import { db } from "@/server/db";
 import {
   BadRequestException,
@@ -60,6 +63,8 @@ import {
 const mockedDb = db as any;
 const mockedCustomer = customerService as any;
 const mockedEmail = emailService as any;
+
+let shelf: ReturnType<typeof mockShelf>;
 
 const BUSINESS = {
   id: "biz_1",
@@ -176,10 +181,19 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockedCustomer.resolve.mockResolvedValue({ id: "cus_1" });
   mockedDb.product.findFirst.mockResolvedValue(PRODUCT);
-  mockedDb.productOption.findMany.mockResolvedValue([
+  shelf = mockShelf(mockedDb.productOption, [
     { id: "opt_1", stock: 10, product: { tracksStock: true } },
   ]);
-  mockedDb.productOption.update.mockResolvedValue({});
+  // A status change moves the order from where it was read, then reads it back.
+  let moved: Record<string, unknown> = {};
+  mockedDb.order.updateMany.mockImplementation(async ({ data }: any) => {
+    moved = data;
+    return { count: 1 };
+  });
+  mockedDb.order.findUniqueOrThrow.mockImplementation(async () => ({
+    ...makeOrder(),
+    ...moved,
+  }));
   mockedDb.orderLine.groupBy.mockResolvedValue([]);
   mockedDb.business.findUnique.mockResolvedValue({ slug: "tobi-hair" });
   mockedDb.payment.create.mockResolvedValue({ id: "pay_1" });
@@ -579,10 +593,6 @@ describe("orderService.setStatus", () => {
     ["READY", "CANCELLED"],
   ] as const)("allows %s → %s", async (from, to) => {
     mockedDb.order.findFirst.mockResolvedValue(makeOrder({ status: from }));
-    mockedDb.order.update.mockImplementation(async ({ data }: any) => ({
-      ...makeOrder({ status: from }),
-      ...data,
-    }));
 
     const result = await orderService.setStatus(
       "biz_1",
@@ -591,12 +601,25 @@ describe("orderService.setStatus", () => {
     );
 
     expect(result.status).toBe(to);
-    expect(mockedDb.order.update).toHaveBeenCalledWith(
+    expect(mockedDb.order.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "ord_1" },
+        where: { id: "ord_1", status: from },
         data: expect.objectContaining({ status: to }),
       }),
     );
+  });
+
+  it("refuses when the order moved on before the change landed, and returns no stock", async () => {
+    mockedDb.order.findFirst.mockResolvedValue(makeOrder({ status: "READY" }));
+    // Another tab cancelled it between the read and the write.
+    mockedDb.order.updateMany.mockResolvedValue({ count: 0 });
+
+    await expect(
+      orderService.setStatus("biz_1", "tobi-hair-abc", "CANCELLED"),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(shelf.stockOf("opt_1")).toBe(10);
+    expect(mockedEmail.sendOrderEmail).not.toHaveBeenCalled();
   });
 
   it.each([
@@ -614,7 +637,7 @@ describe("orderService.setStatus", () => {
       ),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    expect(mockedDb.order.update).not.toHaveBeenCalled();
+    expect(mockedDb.order.updateMany).not.toHaveBeenCalled();
     expect(mockedDb.$transaction).not.toHaveBeenCalled();
     expect(mockedEmail.sendOrderEmail).not.toHaveBeenCalled();
   });
@@ -623,21 +646,21 @@ describe("orderService.setStatus", () => {
     mockedDb.order.findFirst.mockResolvedValue(makeOrder());
 
     await orderService.setStatus("biz_1", "tobi-hair-abc", "READY");
-    expect(mockedDb.order.update.mock.calls[0][0].data).toMatchObject({
+    expect(mockedDb.order.updateMany.mock.calls[0][0].data).toMatchObject({
       status: "READY",
       readyAt: expect.any(Date),
     });
 
     mockedDb.order.findFirst.mockResolvedValue(makeOrder({ status: "READY" }));
     await orderService.setStatus("biz_1", "tobi-hair-abc", "COMPLETED");
-    expect(mockedDb.order.update.mock.calls[1][0].data).toMatchObject({
+    expect(mockedDb.order.updateMany.mock.calls[1][0].data).toMatchObject({
       status: "COMPLETED",
       completedAt: expect.any(Date),
     });
 
     mockedDb.order.findFirst.mockResolvedValue(makeOrder());
     await orderService.setStatus("biz_1", "tobi-hair-abc", "CANCELLED");
-    expect(mockedDb.order.update.mock.calls[2][0].data).toMatchObject({
+    expect(mockedDb.order.updateMany.mock.calls[2][0].data).toMatchObject({
       status: "CANCELLED",
       cancelledAt: expect.any(Date),
     });
@@ -648,11 +671,7 @@ describe("orderService.setStatus", () => {
 
     await orderService.setStatus("biz_1", "tobi-hair-abc", "CANCELLED");
 
-    expect(mockedDb.productOption.update).toHaveBeenCalledTimes(1);
-    expect(mockedDb.productOption.update).toHaveBeenCalledWith({
-      where: { id: "opt_1" },
-      data: { stock: { increment: 2 } },
-    });
+    expect(shelf.stockOf("opt_1")).toBe(12);
   });
 
   it("only returns stock once, because a cancelled order can't be cancelled again", async () => {
@@ -664,7 +683,7 @@ describe("orderService.setStatus", () => {
       orderService.setStatus("biz_1", "tobi-hair-abc", "CANCELLED"),
     ).rejects.toBeInstanceOf(BadRequestException);
 
-    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+    expect(shelf.stockOf("opt_1")).toBe(10);
   });
 
   it.each([
@@ -711,15 +730,19 @@ describe("orderService.setStatus", () => {
 });
 
 describe("orderService.setFulfilment", () => {
-  it("switches to delivery at the business's fee and charges it", async () => {
-    mockedDb.order.findFirst.mockResolvedValue(
-      makeOrder({
-        fulfilment: "PICKUP",
-        deliveryAddress: null,
-        deliveryFee: 0,
-        total: 90000,
-      }),
-    );
+  const invoiceOrder = (patch: Record<string, unknown> = {}) =>
+    makeOrder({
+      source: "INVOICE",
+      status: "NEW",
+      fulfilment: "PICKUP",
+      deliveryAddress: null,
+      deliveryFee: 0,
+      total: 90000,
+      ...patch,
+    });
+
+  it("switches an invoice order to delivery without touching the money already paid", async () => {
+    mockedDb.order.findFirst.mockResolvedValue(invoiceOrder());
 
     await orderService.setFulfilment("biz_1", "tobi-hair-abc", {
       fulfilment: "DELIVERY",
@@ -732,16 +755,14 @@ describe("orderService.setFulfilment", () => {
         data: {
           fulfilment: "DELIVERY",
           deliveryAddress: "4 Ozumba Mbadiwe Avenue",
-          deliveryFee: 3000,
-          total: 93000,
         },
       }),
     );
   });
 
-  it("clears the address and the fee on pickup", async () => {
+  it("clears the address on pickup", async () => {
     mockedDb.order.findFirst.mockResolvedValue(
-      makeOrder({ deliveryAddress: "12 Admiralty Way" }),
+      invoiceOrder({ fulfilment: "DELIVERY", deliveryAddress: "12 Admiralty Way" }),
     );
 
     await orderService.setFulfilment("biz_1", "tobi-hair-abc", {
@@ -751,18 +772,38 @@ describe("orderService.setFulfilment", () => {
 
     expect(mockedDb.order.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: {
-          fulfilment: "PICKUP",
-          deliveryAddress: null,
-          deliveryFee: 0,
-          total: 90000,
-        },
+        data: { fulfilment: "PICKUP", deliveryAddress: null },
       }),
     );
   });
 
+  it("refuses an online order, which keeps what the customer paid for", async () => {
+    mockedDb.order.findFirst.mockResolvedValue(invoiceOrder({ source: "ONLINE" }));
+
+    await expect(
+      orderService.setFulfilment("biz_1", "tobi-hair-abc", {
+        fulfilment: "PICKUP",
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(mockedDb.order.update).not.toHaveBeenCalled();
+  });
+
+  it.each(["COMPLETED", "CANCELLED"])("refuses a %s order", async (status) => {
+    mockedDb.order.findFirst.mockResolvedValue(invoiceOrder({ status }));
+
+    await expect(
+      orderService.setFulfilment("biz_1", "tobi-hair-abc", {
+        fulfilment: "DELIVERY",
+        deliveryAddress: "4 Ozumba Mbadiwe Avenue",
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    expect(mockedDb.order.update).not.toHaveBeenCalled();
+  });
+
   it("refuses delivery without an address", async () => {
-    mockedDb.order.findFirst.mockResolvedValue(makeOrder());
+    mockedDb.order.findFirst.mockResolvedValue(invoiceOrder());
 
     await expect(
       orderService.setFulfilment("biz_1", "tobi-hair-abc", {
@@ -775,13 +816,13 @@ describe("orderService.setFulfilment", () => {
   });
 
   it("does not take stock", async () => {
-    mockedDb.order.findFirst.mockResolvedValue(makeOrder());
+    mockedDb.order.findFirst.mockResolvedValue(invoiceOrder());
 
     await orderService.setFulfilment("biz_1", "tobi-hair-abc", {
       fulfilment: "PICKUP",
     });
 
-    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+    expect(shelf.stockOf("opt_1")).toBe(10);
   });
 });
 
@@ -855,10 +896,7 @@ describe("orderService.createFromReceipt", () => {
         total: 90000,
       },
     ]);
-    expect(mockedDb.productOption.update).toHaveBeenCalledWith({
-      where: { id: "opt_1" },
-      data: { stock: 8 },
-    });
+    expect(shelf.stockOf("opt_1")).toBe(8);
     expect(mockedDb.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({
         businessId: "biz_1",
@@ -909,7 +947,7 @@ describe("orderService.createFromReceipt", () => {
     ).rejects.toThrow("Enter a delivery address");
 
     expect(mockedDb.order.create).not.toHaveBeenCalled();
-    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+    expect(shelf.stockOf("opt_1")).toBe(10);
   });
 
   it("returns null and writes nothing when the receipt has only service lines", async () => {
@@ -922,11 +960,11 @@ describe("orderService.createFromReceipt", () => {
     expect(order).toBeNull();
     expect(mockedDb.order.create).not.toHaveBeenCalled();
     expect(mockedDb.payment.create).not.toHaveBeenCalled();
-    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+    expect(shelf.stockOf("opt_1")).toBe(10);
   });
 
   it("marks the order oversold when the shelf had fewer than were sold", async () => {
-    mockedDb.productOption.findMany.mockResolvedValue([
+    shelf = mockShelf(mockedDb.productOption, [
       { id: "opt_1", stock: 1, product: { tracksStock: true } },
     ]);
 
@@ -935,10 +973,7 @@ describe("orderService.createFromReceipt", () => {
     });
 
     expect(mockedDb.order.create.mock.calls[0][0].data.oversold).toBe(true);
-    expect(mockedDb.productOption.update).toHaveBeenCalledWith({
-      where: { id: "opt_1" },
-      data: { stock: 0 },
-    });
+    expect(shelf.stockOf("opt_1")).toBe(0);
   });
 });
 
@@ -979,7 +1014,7 @@ describe("orderService.createFromInvoice", () => {
       total: 90000,
     });
     expect(data.lines.create).toHaveLength(1);
-    expect(mockedDb.productOption.update).toHaveBeenCalledTimes(1);
+    expect(shelf.stockOf("opt_1")).toBe(8);
   });
 
   it("is idempotent on the invoice: an existing order is returned untouched", async () => {
@@ -991,7 +1026,7 @@ describe("orderService.createFromInvoice", () => {
     expect(order).toBe(existing);
     expect(mockedDb.invoice.findUnique).not.toHaveBeenCalled();
     expect(mockedDb.order.create).not.toHaveBeenCalled();
-    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+    expect(shelf.stockOf("opt_1")).toBe(10);
   });
 
   it("takes stock once across two part payments", async () => {
@@ -1005,7 +1040,7 @@ describe("orderService.createFromInvoice", () => {
 
     expect(second).toBe(first);
     expect(mockedDb.order.create).toHaveBeenCalledTimes(1);
-    expect(mockedDb.productOption.update).toHaveBeenCalledTimes(1);
+    expect(shelf.stockOf("opt_1")).toBe(8);
   });
 
   it("returns null when the invoice lists only services", async () => {
