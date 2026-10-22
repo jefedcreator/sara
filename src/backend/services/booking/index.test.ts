@@ -16,7 +16,14 @@ vi.mock("@/backend/services/paystack", () => ({
     }),
   },
 }));
+vi.mock("@/backend/services/customer", () => ({
+  customerService: {
+    resolve: vi.fn(),
+    ownedBy: vi.fn(),
+  },
+}));
 
+import { customerService } from "@/backend/services/customer";
 import { paystackService } from "@/backend/services/paystack";
 import { db } from "@/server/db";
 import { BadRequestException, ConflictException } from "@/utils/exceptions";
@@ -24,6 +31,7 @@ import { addDays, todayIso } from "@/utils/format";
 import { bookingService } from "./index";
 
 const mockedDb = db as any;
+const mockedCustomer = customerService as any;
 const SERVICE = {
   id: "svc_1", name: "Haircut", duration: 60, isActive: true, price: 5000,
   businessId: "biz_1",
@@ -35,6 +43,7 @@ const END = new Date(START.getTime() + 60 * 60 * 1000);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedCustomer.resolve.mockResolvedValue({ id: "cus_1" });
   mockedDb.service.findUnique.mockResolvedValue(SERVICE);
   mockedDb.service.findFirst.mockResolvedValue(SERVICE);
   mockedDb.booking.findFirst.mockResolvedValue(null);
@@ -53,6 +62,24 @@ describe("bookingService.createWithPayment", () => {
     expect(result.paymentUrl).toBe("https://paystack.test/pay");
     expect(result.paymentReference).toBe("ref_123");
     expect(paystackService.initializeTransaction).toHaveBeenCalled();
+  });
+
+  it("creates the booking with the resolved customerId", async () => {
+    await bookingService.createWithPayment({
+      serviceSlug: "haircut",
+      startTime: START,
+      endTime: END,
+      clientName: "Ada",
+      clientPhone: "08035550142",
+    });
+
+    expect(mockedCustomer.resolve).toHaveBeenCalledWith(mockedDb, {
+      businessId: "biz_1",
+      name: "Ada",
+      phone: "08035550142",
+      email: undefined,
+    });
+    expect(mockedDb.booking.create.mock.calls[0][0].data.customerId).toBe("cus_1");
   });
 
   it("rejects an overlapping slot", async () => {

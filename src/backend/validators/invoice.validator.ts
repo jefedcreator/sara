@@ -17,7 +17,14 @@ export const invoiceStatusValidatorSchema = z.enum(
 
 export const invoiceItemValidatorSchema = z
   .object({
-    serviceId: cuidValidator,
+    serviceId: cuidValidator.nullable().optional(),
+    productOptionId: cuidValidator.nullable().optional(),
+    name: z
+      .string()
+      .trim()
+      .min(1, "name cannot be empty")
+      .max(255, "name cannot exceed 255 characters")
+      .optional(),
     description: z
       .string()
       .min(1, "description cannot be empty")
@@ -32,7 +39,11 @@ export const invoiceItemValidatorSchema = z
     unitPrice: decimalValidator("unitPrice"),
     total: decimalValidator("total"),
   })
-  .strict();
+  .strict()
+  .refine((line) => Boolean(line.serviceId || line.productOptionId || line.name), {
+    message: "A line needs a service, a product option or a name",
+    path: ["serviceId"],
+  });
 
 export const invoiceValidatorSchema = z.object({
   // businessId: cuidValidator,
@@ -52,6 +63,7 @@ export const invoiceValidatorSchema = z.object({
     .nullable()
     .optional(),
   bookingId: optionalCuidValidator,
+  customerId: optionalCuidValidator,
   // invoiceNumber: z
   //     .string()
   //     .max(255, "invoiceNumber cannot exceed 255 characters")
@@ -75,7 +87,7 @@ export const invoiceValidatorSchema = z.object({
     .max(2000, "notes cannot exceed 2000 characters")
     .nullable()
     .optional(),
-  services: z.array(invoiceItemValidatorSchema).optional(),
+  lines: z.array(invoiceItemValidatorSchema).optional(),
 });
 
 export const updateInvoiceValidatorSchema = z

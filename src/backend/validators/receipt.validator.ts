@@ -17,7 +17,14 @@ export const paymentMethodValidatorSchema = z.enum(
 
 export const receiptItemValidatorSchema = z
   .object({
-    serviceId: cuidValidator,
+    serviceId: cuidValidator.nullable().optional(),
+    productOptionId: cuidValidator.nullable().optional(),
+    name: z
+      .string()
+      .trim()
+      .min(1, "name cannot be empty")
+      .max(255, "name cannot exceed 255 characters")
+      .optional(),
     description: z
       .string()
       .min(1, "description cannot be empty")
@@ -32,11 +39,16 @@ export const receiptItemValidatorSchema = z
     unitPrice: decimalValidator("unitPrice"),
     total: decimalValidator("total"),
   })
-  .strict();
+  .strict()
+  .refine((line) => Boolean(line.serviceId || line.productOptionId || line.name), {
+    message: "A line needs a service, a product option or a name",
+    path: ["serviceId"],
+  });
 
 export const receiptValidatorSchema = z
   .object({
     paymentId: cuidValidator.optional(),
+    customerId: cuidValidator.nullable().optional(),
     // receiptNumber: z
     //     .string()
     //     .min(1, "receiptNumber cannot be empty")
@@ -69,7 +81,7 @@ export const receiptValidatorSchema = z
       .max(2000, "notes cannot exceed 2000 characters")
       .nullable()
       .optional(),
-    services: z.array(receiptItemValidatorSchema).optional(),
+    lines: z.array(receiptItemValidatorSchema).optional(),
   })
   .strict();
 

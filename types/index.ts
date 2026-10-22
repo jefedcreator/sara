@@ -6,11 +6,16 @@ import type {
   BusinessHours,
   Payment,
   Prisma,
+  Product,
+  ProductOption,
   Receipt,
-  InvoiceService,
-  ReceiptService,
+  InvoiceLine,
+  ReceiptLine,
   Booking,
   BookingMode,
+  Order,
+  OrderLine,
+  Customer,
 } from "@prisma/client";
 
 /**
@@ -65,7 +70,7 @@ export type PublicBusiness = Pick<
 >;
 
 export type InvoiceListItem = Invoice & {
-  services: (InvoiceService & { service: Service })[];
+  lines: (InvoiceLine & { service: Service | null })[];
   business: PublicBusiness;
   booking: {
     id: string;
@@ -81,7 +86,7 @@ export type InvoiceListItem = Invoice & {
 
 export type CreatedInvoice = Invoice & {
   business: Business;
-  services: (InvoiceService & { service: Service })[];
+  lines: (InvoiceLine & { service: Service | null })[];
 };
 
 export type ReceiptListItem = Receipt & {
@@ -95,7 +100,7 @@ export type ReceiptListItem = Receipt & {
   })
   | null;
   business: PublicBusiness;
-  services: (ReceiptService & { service: Service })[];
+  lines: (ReceiptLine & { service: Service | null })[];
 };
 
 export type ServiceListItem = Service;
@@ -124,6 +129,13 @@ export type IBooking = Booking & {
 // --- Client DTOs (JSON wire shapes) ---
 
 export type ServiceDto = Serialized<Service>;
+
+export type ProductOptionDto = Serialized<ProductOption>;
+
+/** A product and its active options, ordered as the owner arranged them. */
+export type ProductDto = Serialized<Product> & {
+  options: ProductOptionDto[];
+};
 
 export type BusinessHoursDto = Serialized<BusinessHours>;
 
@@ -174,6 +186,26 @@ export type PublicBookingDto = Serialized<Booking> & {
   paymentReference: string;
 };
 
+/** POST /api/public/orders body. */
+export interface PublicOrderInput {
+  productSlug: string;
+  optionId: string;
+  quantity: number;
+  fulfilment: "DELIVERY" | "PICKUP";
+  deliveryAddress?: string | null;
+  clientName: string;
+  clientPhone: string;
+  clientEmail?: string | null;
+}
+
+export type PublicOrderDto = Serialized<Order> & {
+  paymentUrl: string;
+  paymentReference: string;
+};
+
+/** What the business sells. */
+export type Sells = "SERVICES" | "PRODUCTS" | "BOTH";
+
 /**
  * The owner's business with everything secret stripped: bank numbers,
  * Paystack codes and Google tokens never reach the client. Flags say whether
@@ -190,6 +222,10 @@ export interface BusinessProfileDto {
   city: string | null;
   state: string | null;
   currency: string;
+  sells: Sells;
+  offersDelivery: boolean;
+  deliveryFee: number | null;
+  offersPickup: boolean;
   settlementAccountName: string | null;
   isPaymentReady: boolean;
   calendarConnectedAt: string | null;
@@ -251,5 +287,59 @@ export type InvoiceDto = Serialized<InvoiceListItem>;
 
 export type ReceiptDto = Serialized<ReceiptListItem>;
 
+/** GET /api/orders row and GET /api/orders/[slug]. */
+export type OrderDto = Serialized<Order> & {
+  lines: Serialized<OrderLine>[];
+  customer: {
+    id: string;
+    name: string;
+    phone: string | null;
+    email: string | null;
+  } | null;
+  invoice: {
+    id: string;
+    publicId: string;
+    invoiceNumber: string;
+  } | null;
+  receipt: {
+    id: string;
+    publicId: string;
+    receiptNumber: string;
+  } | null;
+};
+
 /** GET /api/services/[slug]?date= — the owner's view of a day's slots. */
 export type ServiceSlotsDto = Serialized<ServiceDetail>;
+
+/** A saved customer, as the edit and merge endpoints return one. */
+export type CustomerDto = Serialized<Customer>;
+
+/** GET /api/customers row. */
+export type CustomerListItem = {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  spent: number;
+  owes: number;
+  lastActivityAt: string | null;
+};
+
+/** One row on a customer's page. */
+export type TimelineEntry = {
+  kind: "booking" | "invoice" | "receipt" | "order";
+  id: string;
+  label: string;
+  amount: number;
+  status: string;
+  at: string;
+  href: string | null;
+};
+
+/** GET /api/customers/[id]. */
+export type CustomerDetail = CustomerListItem & {
+  address: string | null;
+  notes: string | null;
+  createdAt: string;
+  timeline: TimelineEntry[];
+};

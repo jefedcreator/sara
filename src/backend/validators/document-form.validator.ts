@@ -13,14 +13,31 @@ export function parseMoney(value: string) {
 const money = (message: string) =>
   z.string().trim().refine((v) => !Number.isNaN(parseMoney(v)), { message });
 
-export const lineItemFormSchema = z.object({
-  serviceId: z.string().min(1, "Pick a service"),
-  quantity: z
-    .string()
-    .trim()
-    .refine((v) => /^\d+$/.test(v) && Number(v) >= 1, { message: "At least 1" }),
-  unitPrice: money("Enter a price, like 25000"),
-});
+export const lineItemFormSchema = z
+  .object({
+    serviceId: z.string().optional(),
+    productOptionId: z.string().optional(),
+    name: z
+      .string()
+      .trim()
+      .max(255, "Keep the name under 255 characters")
+      .optional(),
+    quantity: z
+      .string()
+      .trim()
+      .refine((v) => /^\d+$/.test(v) && Number(v) >= 1, { message: "At least 1" }),
+    unitPrice: money("Enter a price, like 25000"),
+  })
+  .strict()
+  .superRefine((item, ctx) => {
+    if (!item.serviceId && !item.productOptionId && !item.name) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["serviceId"],
+        message: "Pick a service or a product",
+      });
+    }
+  });
 
 export const documentFormSchema = z
   .object({
@@ -63,7 +80,8 @@ export const documentFormSchema = z
     }
     const seen = new Set<string>();
     values.items.forEach((item, index) => {
-      if (item.serviceId && seen.has(item.serviceId)) {
+      if (!item.serviceId) return;
+      if (seen.has(item.serviceId)) {
         ctx.addIssue({
           code: "custom",
           path: ["items", index, "serviceId"],

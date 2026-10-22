@@ -402,7 +402,7 @@ class ConversationEngine {
       }
     }
 
-    const servicesPayload = draft.selectedItems && draft.selectedItems.length > 0
+    const linesPayload = draft.selectedItems && draft.selectedItems.length > 0
       ? draft.selectedItems.map((it) => ({
           serviceId: it.serviceId,
           quantity: it.quantity,
@@ -416,8 +416,8 @@ class ConversationEngine {
       amount: draft.amount,
       description: draft.description,
     };
-    if (servicesPayload) {
-      writeDraft.services = servicesPayload;
+    if (linesPayload) {
+      writeDraft.lines = linesPayload;
     }
     try {
       if (kind === "INVOICE") {

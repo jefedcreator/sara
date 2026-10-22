@@ -7,7 +7,7 @@ import { NotFoundException } from "@/utils/exceptions";
 import { serviceLabel, todayEventLabel, unitCount } from "@/utils/format";
 import { formatMoney } from "../engine/amount";
 
-export type WriteServiceDraft = {
+export type WriteLineDraft = {
   serviceId: string;
   quantity: number;
   unitPrice: number;
@@ -19,7 +19,7 @@ export type WriteDraft = {
   customerName: string;
   amount: number;
   description?: string;
-  services?: WriteServiceDraft[];
+  lines?: WriteLineDraft[];
 };
 export type WriteResult = { number: string; link: string };
 export type ServiceOption = { slug: string; label: string };
@@ -56,7 +56,7 @@ class IntentDispatcher {
       amountPaid: 0,
       sentAt: new Date(),
       notes: draft.description ?? null,
-      services: draft.services,
+      lines: draft.lines,
     });
     return {
       number: invoice.invoiceNumber,
@@ -76,7 +76,7 @@ class IntentDispatcher {
       total: draft.amount,
       amountPaid: draft.amount,
       notes: draft.description ?? null,
-      services: draft.services,
+      lines: draft.lines,
     });
     return {
       number: receipt.receiptNumber,

@@ -8,6 +8,7 @@ import {
   type UpdateReceiptValidatorSchema,
 } from "@/backend/validators/receipt.validator";
 import { publicBusinessSelect } from "@/backend/selects";
+import { customerService } from "@/backend/services/customer";
 import { db } from "@/server/db";
 import { type ApiResponse, type ReceiptListItem } from "types";
 import {
@@ -21,6 +22,7 @@ import { NextResponse } from "next/server";
 import { cloudinaryService } from "@/backend/services/cloudinary";
 import { generateReceiptPdf } from "@/backend/services/pdf";
 import { emailReceipt } from "@/backend/services/email/documents";
+import { resolveDocumentLines } from "@/backend/services/lines";
 
 const receiptInclude: Prisma.ReceiptInclude = {
   payment: {
@@ -35,7 +37,7 @@ const receiptInclude: Prisma.ReceiptInclude = {
     },
   },
   business: { select: publicBusinessSelect },
-  services: { include: { service: true } },
+  lines: { include: { service: true }, orderBy: { position: "asc" } },
 };
 
 /**
@@ -95,23 +97,38 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
         data.payment = { disconnect: true };
       }
 
-      if (payload.services) {
-        data.services = {
+      if (payload.customerId !== undefined) {
+        if (payload.customerId) {
+          await customerService.ownedBy(
+            db,
+            existingReceipt.businessId,
+            payload.customerId,
+          );
+          data.customer = { connect: { id: payload.customerId } };
+        } else {
+          data.customer = { disconnect: true };
+        }
+      }
+
+      if (payload.lines) {
+        const resolvedLines = await resolveDocumentLines(
+          db,
+          existingReceipt.businessId,
+          payload.lines,
+        );
+        data.lines = {
           deleteMany: {},
-          create: payload.services.map((item) => ({
-            serviceId: item.serviceId,
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total,
-          })),
+          create: resolvedLines,
         };
       }
 
       const receipt = await db.receipt.update({
         where: { id: existingReceipt.id },
         data,
-        include: { business: true, services: { include: { service: true } } },
+        include: {
+          business: true,
+          lines: { include: { service: true }, orderBy: { position: "asc" } },
+        },
       });
 
       let pdfUrl: string | null = null;
@@ -142,8 +159,8 @@ export const PUT = withMiddleware<UpdateReceiptValidatorSchema>(
             email: receipt.email,
             phone: receipt.phone,
           },
-          items: receipt.services.map((item) => ({
-            description: item.description || item.service.name,
+          items: receipt.lines.map((item) => ({
+            description: item.description || item.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice.toString(),
             total: item.total.toString(),

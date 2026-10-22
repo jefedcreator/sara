@@ -4,7 +4,7 @@ import {
 } from "@/backend/validators/document-form.validator";
 import type { InvoiceDto, ReceiptDto } from "types";
 
-import type { LineItemInput } from "./api";
+import type { DocumentLineInput } from "./api";
 
 type Money = {
   subtotal: number;
@@ -19,13 +19,26 @@ function round(value: number) {
 }
 
 /** The form's line items as the API wants them. Unparseable rows are skipped. */
-export function toLineItems(values: Pick<DocumentFormSchema, "mode" | "items">): LineItemInput[] {
+export function toLineItems(
+  values: Pick<DocumentFormSchema, "mode" | "items">,
+): DocumentLineInput[] {
   if (values.mode !== "services") return [];
   return values.items.flatMap((item) => {
     const quantity = Number(item.quantity);
     const unitPrice = parseMoney(item.unitPrice);
-    if (!item.serviceId || !(quantity >= 1) || Number.isNaN(unitPrice)) return [];
-    return [{ serviceId: item.serviceId, quantity, unitPrice, total: round(quantity * unitPrice) }];
+    if ((!item.serviceId && !item.productOptionId && !item.name) || !(quantity >= 1) || Number.isNaN(unitPrice)) {
+      return [];
+    }
+    return [
+      {
+        ...(item.serviceId ? { serviceId: item.serviceId } : {}),
+        ...(item.productOptionId ? { productOptionId: item.productOptionId } : {}),
+        ...(item.name ? { name: item.name } : {}),
+        quantity,
+        unitPrice,
+        total: round(quantity * unitPrice),
+      },
+    ];
   });
 }
 
@@ -53,7 +66,7 @@ export function computeTotals(
 
 /** Customer, money and items: the part invoices and receipts share. */
 export function toDocumentPayload(values: DocumentFormSchema, currency: string) {
-  const services = toLineItems(values);
+  const lines = toLineItems(values);
   return {
     name: values.name,
     email: values.email || undefined,
@@ -61,7 +74,7 @@ export function toDocumentPayload(values: DocumentFormSchema, currency: string) 
     currency,
     ...computeTotals(values),
     notes: values.description || undefined,
-    services: services.length > 0 ? services : undefined,
+    lines: lines.length > 0 ? lines : undefined,
   };
 }
 
@@ -77,18 +90,19 @@ export function documentToFormValues(
   const email = isInvoice ? (inv!.clientEmail ?? "") : (rcp!.email ?? "");
   const phone = isInvoice ? (inv!.clientPhone ?? "") : (rcp!.phone ?? "");
 
-  const hasServices = doc.services && doc.services.length > 0;
-  const mode = hasServices ? "services" : "amount";
+  const hasLines = doc.lines && doc.lines.length > 0;
+  const mode = hasLines ? "services" : "amount";
 
-  const items = hasServices
-    ? doc.services.map((item) => ({
-        serviceId: item.serviceId,
+  const items = hasLines
+    ? doc.lines.map((item) => ({
+        serviceId: item.serviceId ?? "",
+        ...(item.serviceId ? {} : { name: item.name }),
         quantity: String(item.quantity),
         unitPrice: String(Number(item.unitPrice)),
       }))
     : [];
 
-  const amount = !hasServices ? String(Number(doc.subtotal)) : "";
+  const amount = !hasLines ? String(Number(doc.subtotal)) : "";
   const description = doc.notes ?? "";
 
   const taxAmount = Number(doc.taxAmount) > 0 ? String(Number(doc.taxAmount)) : "";

@@ -27,9 +27,9 @@ const INVOICE_ROW = {
   notes: null,
   url: "https://cdn.test/INV-1012.pdf",
   business: { name: "Acme Salon" },
-  services: [
-    { description: "", quantity: 1, unitPrice: 53000, total: 53000, service: { name: "Knotless braids" } },
-    { description: "Hair extensions, colour 1B", quantity: 3, unitPrice: 3000, total: 9000, service: { name: "Extensions" } },
+  lines: [
+    { name: "Knotless braids", description: "", quantity: 1, unitPrice: 53000, total: 53000 },
+    { name: "Extensions", description: "Hair extensions, colour 1B", quantity: 3, unitPrice: 3000, total: 9000 },
   ],
 };
 
@@ -47,7 +47,7 @@ const RECEIPT_ROW = {
   notes: null,
   url: null,
   business: { name: "Acme Salon" },
-  services: [],
+  lines: [],
 };
 
 const selectOf = (mock: any) => mock.mock.calls[0][0].select;

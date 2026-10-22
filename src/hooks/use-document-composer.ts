@@ -4,7 +4,9 @@ import type { InvoiceDto, ReceiptDto } from "types";
 import type { DocumentFormSchema } from "@/backend/validators/document-form.validator";
 import type {
   CreatedDocument,
+  CustomerPrefill,
   DocumentKind,
+  DocumentSubmitOptions,
 } from "@/components/documents/document-modal";
 import {
   useCreateInvoiceMutation,
@@ -33,6 +35,7 @@ export function useDocumentComposer(kind: DocumentKind, currency: string) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<InvoiceDto | ReceiptDto | null>(null);
   const [created, setCreated] = useState<CreatedDocument | null>(null);
+  const [customer, setCustomer] = useState<CustomerPrefill | null>(null);
 
   const createInvoice = useCreateInvoiceMutation();
   const createReceipt = useCreateReceiptMutation();
@@ -47,21 +50,26 @@ export function useDocumentComposer(kind: DocumentKind, currency: string) {
       ? createInvoice
       : createReceipt;
 
-  function start(doc?: InvoiceDto | ReceiptDto): void;
+  function start(doc?: InvoiceDto | ReceiptDto, customer?: CustomerPrefill | null): void;
   function start(event: unknown): void;
-  function start(doc?: unknown) {
+  function start(doc?: unknown, customer?: CustomerPrefill | null) {
     createInvoice.reset();
     createReceipt.reset();
     updateInvoice.reset();
     updateReceipt.reset();
     setCreated(null);
-    setEditing(isDocument(doc) ? doc : null);
+    const editingDoc = isDocument(doc) ? doc : null;
+    setEditing(editingDoc);
+    setCustomer(editingDoc ? null : (customer ?? null));
     setSession((n) => n + 1);
     setOpen(true);
   }
 
-  function submit(values: DocumentFormSchema, { draft }: { draft: boolean }) {
-    const base = toDocumentPayload(values, currency);
+  function submit(values: DocumentFormSchema, { draft, customerId }: DocumentSubmitOptions) {
+    const base = {
+      ...toDocumentPayload(values, currency),
+      ...(customerId ? { customerId } : {}),
+    };
 
     if (editing) {
       if (kind === "invoice") {
@@ -150,6 +158,7 @@ export function useDocumentComposer(kind: DocumentKind, currency: string) {
       onOpenChange: setOpen,
       currency,
       editing,
+      customer,
       onSubmit: submit,
       isPending: activeMutation.isPending,
       error: activeMutation.isError ? errorMessage(activeMutation.error) : null,

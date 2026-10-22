@@ -28,14 +28,18 @@ const BASE_INVOICE: InvoiceDto = {
   url: "https://cdn.test/inv.pdf",
   createdAt: "2026-10-01T00:00:00.000Z",
   updatedAt: "2026-10-01T00:00:00.000Z",
-  services: [
+  lines: [
     {
+      id: "line_1",
       invoiceId: "inv_1",
       serviceId: "srv_1",
+      productOptionId: null,
+      name: "Braids",
       description: "Braids",
       quantity: 1,
       unitPrice: "25000",
       total: "25000",
+      position: 0,
       service: { id: "srv_1", name: "Braids" } as any,
     },
   ],

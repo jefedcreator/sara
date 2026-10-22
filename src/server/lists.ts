@@ -1,6 +1,13 @@
 import type { Prisma } from "@prisma/client";
 import { cache } from "react";
-import type { BookingDto, InvoiceDto, Page, ReceiptDto } from "types";
+import type {
+  BookingDto,
+  CustomerDetail,
+  CustomerListItem,
+  InvoiceDto,
+  Page,
+  ReceiptDto,
+} from "types";
 
 import {
   bookingListInclude,
@@ -8,8 +15,13 @@ import {
   receiptListInclude,
 } from "@/backend/selects";
 import { UNPAID_STATUSES } from "@/backend/services/dashboard";
+import { customerService } from "@/backend/services/customer";
 import { db } from "@/server/db";
-import type { BookingListParams, InvoiceListParams } from "@/utils/api";
+import type {
+  BookingListParams,
+  CustomerListParams,
+  InvoiceListParams,
+} from "@/utils/api";
 
 /*
  * First pages for the list screens, in the same shape the API returns (same
@@ -83,4 +95,30 @@ export const getReceiptsPage = cache(
     ]);
     return toPage(rows, total, page);
   },
+);
+
+export const getCustomersPage = cache(
+  async (
+    businessId: string,
+    params: CustomerListParams,
+  ): Promise<Page<CustomerListItem>> => {
+    const page = params.page ?? 1;
+    const { data, total } = await customerService.list(businessId, {
+      query: params.query,
+      page,
+      size: PAGE_SIZE,
+    });
+    return {
+      data,
+      total,
+      page,
+      size: PAGE_SIZE,
+      totalPages: Math.ceil(total / PAGE_SIZE),
+    };
+  },
+);
+
+export const getCustomerDetail = cache(
+  async (businessId: string, id: string): Promise<CustomerDetail> =>
+    customerService.detail(businessId, id),
 );

@@ -18,23 +18,34 @@ vi.mock("@/backend/services/cloudinary", () => ({
     uploadImage: vi.fn().mockResolvedValue({ secure_url: "https://cdn.test/RCP-1001.pdf" }),
   },
 }));
+vi.mock("@/backend/services/customer", () => ({
+  customerService: {
+    resolve: vi.fn(),
+    ownedBy: vi.fn(),
+  },
+}));
 
+import { customerService } from "@/backend/services/customer";
 import { db } from "@/server/db";
+import { BadRequestException } from "@/utils/exceptions";
 import { receiptService } from "./index";
 
 const mockedDb = db as any;
+const mockedCustomer = customerService as any;
 const BUSINESS = { id: "biz_1", name: "Acme Salon", email: null, phone: null, city: null, state: null, country: null, logoUrl: null };
 
 let txMock: any;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedCustomer.resolve.mockResolvedValue({ id: "cus_1" });
+  mockedCustomer.ownedBy.mockResolvedValue({ id: "cus_2" });
   mockedDb.business.findUnique.mockResolvedValue(BUSINESS);
   mockedDb.receipt.findFirst.mockResolvedValue(null);
   mockedDb.service.findMany.mockResolvedValue([]);
   mockedDb.receipt.create.mockResolvedValue({
     id: "rcp_1", slug: "acme-salon-rcp-1001", receiptNumber: "RCP-1001",
-    business: BUSINESS, services: [], currency: "NGN", subtotal: 5000, taxAmount: 0,
+    business: BUSINESS, lines: [], currency: "NGN", subtotal: 5000, taxAmount: 0,
     discount: 0, total: 5000, amountPaid: 5000, paymentMethod: null, notes: "gele",
     name: "Ada", email: null, phone: null, createdAt: new Date(),
   });
@@ -51,7 +62,7 @@ beforeEach(() => {
       findFirst: vi.fn().mockResolvedValue(null),
       create: vi.fn().mockResolvedValue({
         id: "rcp_1", slug: "acme-salon-rcp-1001", receiptNumber: "RCP-1001",
-        business: BUSINESS, services: [], currency: "NGN", subtotal: 5000, taxAmount: 0,
+        business: BUSINESS, lines: [], currency: "NGN", subtotal: 5000, taxAmount: 0,
         discount: 0, total: 5000, amountPaid: 5000, paymentMethod: null, notes: "gele",
         name: "Ada", email: null, phone: null, createdAt: new Date(),
       }),
@@ -91,5 +102,45 @@ describe("receiptService.create", () => {
     expect(txMock.receipt.create).toHaveBeenCalled();
     expect(result.id).toBe("rcp_1");
     expect(result.receiptNumber).toBe("RCP-1001");
+  });
+
+  it("links the receipt to the resolved customer", async () => {
+    await receiptService.create({
+      businessId: "biz_1", name: "Ada", phone: "08035550142", currency: "NGN",
+      subtotal: 5000, taxAmount: 0, discount: 0, total: 5000, amountPaid: 5000,
+    });
+
+    expect(mockedCustomer.resolve).toHaveBeenCalledWith(txMock, {
+      businessId: "biz_1",
+      name: "Ada",
+      phone: "08035550142",
+      email: undefined,
+    });
+    expect(txMock.receipt.create.mock.calls[0]![0].data.customerId).toBe("cus_1");
+  });
+
+  it("uses an explicit customerId owned by the business", async () => {
+    await receiptService.create({
+      businessId: "biz_1", name: "Ada", customerId: "cus_2", currency: "NGN",
+      subtotal: 5000, taxAmount: 0, discount: 0, total: 5000, amountPaid: 5000,
+    });
+
+    expect(mockedCustomer.ownedBy).toHaveBeenCalledWith(txMock, "biz_1", "cus_2");
+    expect(mockedCustomer.resolve).not.toHaveBeenCalled();
+    expect(txMock.receipt.create.mock.calls[0]![0].data.customerId).toBe("cus_2");
+  });
+
+  it("rejects a customerId from another business", async () => {
+    mockedCustomer.ownedBy.mockRejectedValue(
+      new BadRequestException("Customer not found for this business"),
+    );
+
+    await expect(
+      receiptService.create({
+        businessId: "biz_1", name: "Ada", customerId: "cus_other", currency: "NGN",
+        subtotal: 5000, taxAmount: 0, discount: 0, total: 5000, amountPaid: 5000,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(txMock.receipt.create).not.toHaveBeenCalled();
   });
 });

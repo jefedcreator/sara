@@ -39,6 +39,31 @@ enum PaymentMethod {
   BANK_TRANSFER
 }
 
+enum BusinessSells {
+  SERVICES
+  PRODUCTS
+  BOTH
+}
+
+enum OrderStatus {
+  AWAITING_PAYMENT
+  NEW
+  READY
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderSource {
+  ONLINE
+  RECEIPT
+  INVOICE
+}
+
+enum Fulfilment {
+  DELIVERY
+  PICKUP
+}
+
 enum Provider {
   google
   facebook
@@ -83,12 +108,18 @@ model Business {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // What the business sells and how it fulfils product orders
+  sells          BusinessSells @default(SERVICES)
+  offersDelivery Boolean       @default(false)
+  deliveryFee    Decimal?      @db.Decimal(10, 2)
+  offersPickup   Boolean       @default(false)
+
   // Payment Settlement (Mono + Paystack)
-  settlementBank         String?  // Bank code (e.g. "044" for Access Bank)
-  settlementAccount      String?  // NUBAN account number
-  settlementAccountName  String?  // Verified account holder name
-  paystackSubaccountCode String?  @unique // Paystack subaccount code (e.g. "ACCT_xxxxx")
-  monoAccountId          String?  // Mono linked account ID
+  settlementBank         String? // Bank code (e.g. "044" for Access Bank)
+  settlementAccount      String? // NUBAN account number
+  settlementAccountName  String? // Verified account holder name
+  paystackSubaccountCode String? @unique // Paystack subaccount code (e.g. "ACCT_xxxxx")
+  monoAccountId          String? // Mono linked account ID
 
   // Google Calendar Sync
   googleCalendarId           String? // Calendar to sync to; defaults to "primary" when connected
@@ -99,10 +130,13 @@ model Business {
 
   owner            User              @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   services         Service[]
+  products         Product[]
+  customers        Customer[]
   bookings         Booking[]
   invoices         Invoice[]
   payments         Payment[]
   receipts         Receipt[]
+  orders           Order[]
   gallery          GalleryItem[]
   businessHours    BusinessHours[]
   businessClosures BusinessClosure[]
@@ -144,32 +178,97 @@ model BusinessClosure {
 // --- Business Entities ---
 
 model Service {
+  id            String      @id @default(cuid())
+  slug          String      @unique
+  businessId    String
+  name          String
+  description   String?
+  image         String?
+  price         Decimal     @db.Decimal(10, 2)
+  duration      Int // Duration in minutes
+  availableFrom String      @default("08:00") // Start of availability window (24hr, e.g. "08:00")
+  availableTo   String      @default("17:00") // End of availability window (24hr, e.g. "17:00")
+  isActive      Boolean     @default(true)
+  bookingMode   BookingMode @default(SLOT)
+  checkInTime   String? // NIGHTLY only, "HH:mm"
+  checkOutTime  String? // NIGHTLY only, "HH:mm"; never later than checkInTime
+  minUnits      Int         @default(1) // min nights (NIGHTLY) or days (DAILY); ignored for SLOT
+  maxUnits      Int         @default(30) // max nights or days, at most 90; ignored for SLOT
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  bookings     Booking[]
+  invoiceLines InvoiceLine[]
+  receiptLines ReceiptLine[]
+
+  @@index([businessId])
+  @@index([slug])
+}
+
+// --- Products ---
+
+model Product {
   id          String   @id @default(cuid())
   slug        String   @unique
   businessId  String
   name        String
   description String?
-  image String?
   price       Decimal  @db.Decimal(10, 2)
-  duration    Int // Duration in minutes
-  availableFrom String @default("08:00") // Start of availability window (24hr, e.g. "08:00")
-  availableTo   String @default("17:00") // End of availability window (24hr, e.g. "17:00")
+  photos      String[] @default([])
+  tracksStock Boolean  @default(true)
   isActive    Boolean  @default(true)
-  bookingMode  BookingMode @default(SLOT)
-  checkInTime  String? // NIGHTLY only, "HH:mm"
-  checkOutTime String? // NIGHTLY only, "HH:mm"; never later than checkInTime
-  minUnits     Int         @default(1) // min nights (NIGHTLY) or days (DAILY); ignored for SLOT
-  maxUnits     Int         @default(30) // max nights or days, at most 90; ignored for SLOT
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  business     Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  bookings     Booking[]
-  invoices     InvoiceService[]
-  receipts     ReceiptService[]
+  business Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  options  ProductOption[]
 
   @@index([businessId])
   @@index([slug])
+}
+
+model ProductOption {
+  id        String   @id @default(cuid())
+  productId String
+  name      String   @default("")
+  price     Decimal? @db.Decimal(10, 2)
+  stock     Int      @default(0)
+  position  Int      @default(0)
+  isActive  Boolean  @default(true)
+
+  product      Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  invoiceLines InvoiceLine[]
+  receiptLines ReceiptLine[]
+  orderLines   OrderLine[]
+
+  @@index([productId])
+}
+
+// --- Customers ---
+
+model Customer {
+  id         String   @id @default(cuid())
+  businessId String
+  name       String
+  nameKey    String
+  phone      String?
+  email      String?
+  address    String?
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  bookings Booking[]
+  invoices Invoice[]
+  receipts Receipt[]
+  payments Payment[]
+  orders   Order[]
+
+  @@unique([businessId, phone])
+  @@unique([businessId, email])
+  @@index([businessId, nameKey])
 }
 
 // --- Transactions ---
@@ -180,6 +279,7 @@ model Booking {
   publicId   String        @unique @default(nanoid(16)) // the customer's link: /bookings/<publicId>
   businessId String
   serviceId  String
+  customerId String?
   startTime  DateTime
   endTime    DateTime
   status     BookingStatus @default(PENDING)
@@ -208,13 +308,15 @@ model Booking {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  service  Service  @relation(fields: [serviceId], references: [id])
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  service  Service   @relation(fields: [serviceId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   invoice  Invoice?
   payments Payment[]
 
   @@index([businessId])
   @@index([serviceId])
+  @@index([customerId])
   @@index([slug])
   @@index([serviceId, startTime, endTime])
 }
@@ -224,6 +326,7 @@ model Invoice {
   slug          String        @unique
   publicId      String        @unique @default(nanoid(16)) // the customer's link: /invoices/<publicId>
   businessId    String
+  customerId    String?
   bookingId     String?       @unique
   invoiceNumber String // e.g., INV-1001
   status        InvoiceStatus @default(DRAFT)
@@ -249,13 +352,16 @@ model Invoice {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
-  services InvoiceService[]
+  business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  booking  Booking?      @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  order    Order?
+  lines    InvoiceLine[]
   payments Payment[]
 
   @@unique([businessId, invoiceNumber])
   @@index([businessId])
+  @@index([customerId])
   @@index([bookingId])
   @@index([slug])
 }
@@ -265,6 +371,7 @@ model Receipt {
   slug          String  @unique
   publicId      String  @unique @default(nanoid(16)) // the customer's link: /receipts/<publicId>
   businessId    String
+  customerId    String?
   paymentId     String? @unique
   receiptNumber String // e.g., RCP-1001
 
@@ -288,46 +395,59 @@ model Receipt {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  payment  Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
-  services ReceiptService[]
+  business Business      @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  payment  Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  order    Order?
+  lines    ReceiptLine[]
 
   @@unique([businessId, receiptNumber])
   @@index([businessId])
+  @@index([customerId])
   @@index([paymentId])
   @@index([slug])
 }
 
-model InvoiceService {
-  invoiceId   String
-  serviceId   String
-  description String?
-  quantity    Int      @default(1)
-  unitPrice   Decimal  @db.Decimal(10, 2)
-  total       Decimal  @db.Decimal(10, 2)
+model InvoiceLine {
+  id              String  @id @default(cuid())
+  invoiceId       String
+  serviceId       String?
+  productOptionId String?
+  name            String
+  description     String?
+  quantity        Int     @default(1)
+  unitPrice       Decimal @db.Decimal(10, 2)
+  total           Decimal @db.Decimal(10, 2)
+  position        Int     @default(0)
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  invoice       Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  service       Service?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  productOption ProductOption? @relation(fields: [productOptionId], references: [id], onDelete: SetNull)
 
-  @@id([invoiceId, serviceId])
   @@index([invoiceId])
   @@index([serviceId])
+  @@index([productOptionId])
 }
 
-model ReceiptService {
-  receiptId   String
-  serviceId   String
-  description String?
-  quantity    Int      @default(1)
-  unitPrice   Decimal  @db.Decimal(10, 2)
-  total       Decimal  @db.Decimal(10, 2)
+model ReceiptLine {
+  id              String  @id @default(cuid())
+  receiptId       String
+  serviceId       String?
+  productOptionId String?
+  name            String
+  description     String?
+  quantity        Int     @default(1)
+  unitPrice       Decimal @db.Decimal(10, 2)
+  total           Decimal @db.Decimal(10, 2)
+  position        Int     @default(0)
 
-  receipt Receipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
-  service Service @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  receipt       Receipt        @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  service       Service?       @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  productOption ProductOption? @relation(fields: [productOptionId], references: [id], onDelete: SetNull)
 
-  @@id([receiptId, serviceId])
   @@index([receiptId])
   @@index([serviceId])
+  @@index([productOptionId])
 }
 
 model Payment {
@@ -335,6 +455,8 @@ model Payment {
   businessId String
   invoiceId  String?
   bookingId  String? // set by the Paystack webhook, so a booking can find its receipt
+  orderId    String?
+  customerId String?
   amount     Decimal       @db.Decimal(10, 2)
   method     PaymentMethod
   reference  String?       @unique // External transaction ID
@@ -345,20 +467,87 @@ model Payment {
   clientPhone String?
 
   createdAt DateTime @default(now())
-updatedAt DateTime @updatedAt
+  updatedAt DateTime @updatedAt
 
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  invoice  Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  booking  Booking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  invoice  Invoice?  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  booking  Booking?  @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  order    Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
   receipt  Receipt?
 
   @@index([businessId])
   @@index([invoiceId])
   @@index([bookingId])
+  @@index([orderId])
+  @@index([customerId])
 }
 
+model Order {
+  id              String      @id @default(cuid())
+  slug            String      @unique
+  publicId        String      @unique @default(nanoid(16)) // the customer's link: /orders/<publicId>
+  businessId      String
+  customerId      String?
+  orderNumber     String? // assigned when the order is paid: ORD-1001
+  status          OrderStatus @default(AWAITING_PAYMENT)
+  source          OrderSource
+  fulfilment      Fulfilment
+  deliveryAddress String?
 
+  deliveryFee Decimal @default(0) @db.Decimal(10, 2)
+  subtotal    Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
+  currency    String
 
+  holdExpiresAt DateTime? // an unpaid checkout stops holding stock after this
+  oversold      Boolean   @default(false) // paid after the hold expired and the stock ran out
+
+  invoiceId String? @unique
+  receiptId String? @unique
+
+  // Client Details (Snapshot)
+  clientName  String
+  clientPhone String?
+  clientEmail String?
+
+  notes       String?
+  paidAt      DateTime?
+  readyAt     DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  business Business    @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  invoice  Invoice?    @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  receipt  Receipt?    @relation(fields: [receiptId], references: [id], onDelete: SetNull)
+  lines    OrderLine[]
+  payments Payment[]
+
+  @@unique([businessId, orderNumber])
+  @@index([businessId])
+  @@index([customerId])
+  @@index([status])
+  @@index([holdExpiresAt])
+}
+
+model OrderLine {
+  id              String  @id @default(cuid())
+  orderId         String
+  productOptionId String?
+  name            String
+  quantity        Int
+  unitPrice       Decimal @db.Decimal(10, 2)
+  total           Decimal @db.Decimal(10, 2)
+
+  order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productOption ProductOption? @relation(fields: [productOptionId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productOptionId])
+}
 
 model GalleryItem {
   id         String   @id @default(cuid())

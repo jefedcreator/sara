@@ -1,4 +1,9 @@
 import { cloudinaryService } from "@/backend/services/cloudinary";
+import { customerService } from "@/backend/services/customer";
+import {
+  resolveDocumentLines,
+  type DocumentLineInput,
+} from "@/backend/services/lines";
 import { generateReceiptPdf } from "@/backend/services/pdf";
 import { db } from "@/server/db";
 import {
@@ -24,13 +29,8 @@ export type CreateReceiptInput = {
   paymentMethod?: PaymentMethod | null;
   notes?: string | null;
   paymentId?: string | null;
-  services?: Array<{
-    serviceId: string;
-    description?: string | null;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-  }>;
+  customerId?: string | null;
+  lines?: DocumentLineInput[];
 };
 
 class ReceiptService {
@@ -41,43 +41,49 @@ class ReceiptService {
       });
       if (!business) throw new NotFoundException("Business not found");
 
-      let servicesToCreate = input.services ?? [];
+      let linesToCreate = input.lines ?? [];
 
       if (input.paymentId) {
         const payment = await tx.payment.findFirst({
           where: { id: input.paymentId, businessId: business.id },
           include: {
             receipt: { select: { id: true } },
-            invoice: { include: { services: true } },
+            invoice: {
+              include: { lines: { orderBy: { position: "asc" } } },
+            },
           },
         });
         if (!payment) throw new BadRequestException("Payment not found for this business");
         if (payment.receipt) {
           throw new ConflictException("A receipt already exists for this payment");
         }
-        if (servicesToCreate.length === 0 && payment.invoice?.services) {
-          servicesToCreate = payment.invoice.services.map((s) => ({
-            serviceId: s.serviceId,
-            description: s.description ?? undefined,
-            quantity: s.quantity,
-            unitPrice: Number(s.unitPrice),
-            total: Number(s.total),
+        if (linesToCreate.length === 0 && payment.invoice?.lines) {
+          linesToCreate = payment.invoice.lines.map((line) => ({
+            serviceId: line.serviceId,
+            productOptionId: line.productOptionId,
+            name: line.name,
+            description: line.description,
+            quantity: line.quantity,
+            unitPrice: Number(line.unitPrice),
+            total: Number(line.total),
           }));
         }
       }
 
-      if (servicesToCreate.length > 0) {
-        const serviceIds = Array.from(new Set(servicesToCreate.map((s) => s.serviceId)));
-        const services = await tx.service.findMany({
-          where: { id: { in: serviceIds }, businessId: business.id },
-          select: { id: true },
-        });
-        if (services.length !== serviceIds.length) {
-          throw new BadRequestException(
-            "One or more services do not belong to this business",
-          );
-        }
-      }
+      const resolvedLines = await resolveDocumentLines(
+        tx,
+        business.id,
+        linesToCreate,
+      );
+
+      const customer = input.customerId
+        ? await customerService.ownedBy(tx, business.id, input.customerId)
+        : await customerService.resolve(tx, {
+            businessId: business.id,
+            name: input.name,
+            phone: input.phone,
+            email: input.email,
+          });
 
       const lastReceipt = await tx.receipt.findFirst({
         where: { businessId: business.id },
@@ -90,8 +96,9 @@ class ReceiptService {
         receiptNumber = `RCP-${isNaN(n) ? 1001 : n + 1}`;
       }
 
-      const createData: Prisma.ReceiptCreateInput = {
-        business: { connect: { id: business.id } },
+      const createData: Prisma.ReceiptUncheckedCreateInput = {
+        businessId: business.id,
+        customerId: customer?.id ?? null,
         slug: slugify(`${business.name}-${receiptNumber}`, { lower: true, strict: true }),
         receiptNumber,
         name: input.name ?? null,
@@ -105,23 +112,18 @@ class ReceiptService {
         amountPaid: input.amountPaid,
         paymentMethod: input.paymentMethod ?? null,
         notes: input.notes ?? null,
+        paymentId: input.paymentId ?? null,
       };
-      if (input.paymentId) createData.payment = { connect: { id: input.paymentId } };
-      if (servicesToCreate.length > 0) {
-        createData.services = {
-          create: servicesToCreate.map((item) => ({
-            serviceId: item.serviceId,
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total,
-          })),
-        };
+      if (resolvedLines.length > 0) {
+        createData.lines = { create: resolvedLines };
       }
 
       const receipt = await tx.receipt.create({
         data: createData,
-        include: { business: true, services: { include: { service: true } } },
+        include: {
+          business: true,
+          lines: { include: { service: true }, orderBy: { position: "asc" } },
+        },
       });
       if (!receipt.business) {
         throw new InternalServerErrorException(
@@ -159,8 +161,8 @@ class ReceiptService {
           email: receipt.email,
           phone: receipt.phone,
         },
-        items: receipt.services.map((item) => ({
-          description: item.description || item.service.name,
+        items: receipt.lines.map((item) => ({
+          description: item.description || item.name,
           quantity: item.quantity,
           unitPrice: item.unitPrice.toString(),
           total: item.total.toString(),

@@ -27,7 +27,7 @@ const BASE_RECEIPT: ReceiptDto = {
   updatedAt: "2026-10-05T00:00:00.000Z",
   business: { id: "biz_1", name: "Sara Salon" } as any,
   payment: null,
-  services: [],
+  lines: [],
 };
 
 describe("ReceiptRow component", () => {

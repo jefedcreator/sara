@@ -8,10 +8,12 @@ import {
   type UpdateInvoiceValidatorSchema,
 } from "@/backend/validators/invoice.validator";
 import { publicBusinessSelect } from "@/backend/selects";
+import { customerService } from "@/backend/services/customer";
 import { db } from "@/server/db";
 import { generateInvoicePdf } from "@/backend/services/pdf";
 import { cloudinaryService } from "@/backend/services/cloudinary";
 import { emailInvoice } from "@/backend/services/email/documents";
+import { resolveDocumentLines } from "@/backend/services/lines";
 import { type ApiResponse, type InvoiceListItem } from "types";
 import {
   BadRequestException,
@@ -95,16 +97,28 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
           : { disconnect: true };
       }
 
-      if (payload.services) {
-        data.services = {
+      if (payload.customerId !== undefined) {
+        if (payload.customerId) {
+          await customerService.ownedBy(
+            db,
+            invoice.businessId,
+            payload.customerId,
+          );
+          data.customer = { connect: { id: payload.customerId } };
+        } else {
+          data.customer = { disconnect: true };
+        }
+      }
+
+      if (payload.lines) {
+        const resolvedLines = await resolveDocumentLines(
+          db,
+          invoice.businessId,
+          payload.lines,
+        );
+        data.lines = {
           deleteMany: {},
-          create: payload.services.map((item) => ({
-            serviceId: item.serviceId,
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total,
-          })),
+          create: resolvedLines,
         };
       }
 
@@ -113,7 +127,7 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
         data,
         include: {
           business: true,
-          services: { include: { service: true } },
+          lines: { include: { service: true }, orderBy: { position: "asc" } },
         },
       });
 
@@ -152,8 +166,8 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
             email: invoiceRecord.clientEmail,
             phone: invoiceRecord.clientPhone,
           },
-          items: invoiceRecord.services.map((item) => ({
-            description: item.description || item.service.name,
+          items: invoiceRecord.lines.map((item) => ({
+            description: item.description || item.name,
             quantity: item.quantity,
             unitPrice: item.unitPrice.toString(),
             total: item.total.toString(),
@@ -269,7 +283,7 @@ export const GET = withMiddleware<unknown>(
       const invoice = await db.invoice.findUnique({
         where: { slug },
         include: {
-          services: { include: { service: true } },
+          lines: { include: { service: true }, orderBy: { position: "asc" } },
           business: { select: publicBusinessSelect },
           booking: {
             select: {

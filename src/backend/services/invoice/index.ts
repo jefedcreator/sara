@@ -1,4 +1,9 @@
 import { cloudinaryService } from "@/backend/services/cloudinary";
+import { customerService } from "@/backend/services/customer";
+import {
+  resolveDocumentLines,
+  type DocumentLineInput,
+} from "@/backend/services/lines";
 import { generateInvoicePdf } from "@/backend/services/pdf";
 import { db } from "@/server/db";
 import {
@@ -27,13 +32,8 @@ export type CreateInvoiceInput = {
   paidAt?: Date | null;
   notes?: string | null;
   bookingId?: string | null;
-  services?: Array<{
-    serviceId: string;
-    description?: string | null;
-    quantity: number;
-    unitPrice: number;
-    total: number;
-  }>;
+  customerId?: string | null;
+  lines?: DocumentLineInput[];
 };
 
 class InvoiceService {
@@ -76,26 +76,24 @@ class InvoiceService {
         );
       }
 
-      const lineItems = input.services ?? [];
-      const serviceIds = Array.from(
-        new Set(
-          lineItems.map((i) => i.serviceId).filter((id): id is string => Boolean(id)),
-        ),
+      const resolvedLines = await resolveDocumentLines(
+        tx,
+        business.id,
+        input.lines ?? [],
       );
-      if (serviceIds.length > 0) {
-        const services = await tx.service.findMany({
-          where: { id: { in: serviceIds }, businessId: business.id },
-          select: { id: true },
-        });
-        if (services.length !== serviceIds.length) {
-          throw new BadRequestException(
-            "One or more invoice item services do not belong to this business",
-          );
-        }
-      }
 
-      const createData: Prisma.InvoiceCreateInput = {
-        business: { connect: { id: business.id } },
+      const customer = input.customerId
+        ? await customerService.ownedBy(tx, business.id, input.customerId)
+        : await customerService.resolve(tx, {
+            businessId: business.id,
+            name: input.name,
+            phone: input.phone,
+            email: input.email,
+          });
+
+      const createData: Prisma.InvoiceUncheckedCreateInput = {
+        businessId: business.id,
+        customerId: customer?.id ?? null,
         slug: slugify(`${business.name}-${invoiceNumber}`, { lower: true, strict: true }),
         clientName: input.name,
         clientEmail: input.email ?? null,
@@ -112,23 +110,18 @@ class InvoiceService {
         sentAt: input.sentAt ?? null,
         paidAt: input.paidAt ?? null,
         notes: input.notes ?? null,
+        bookingId: input.bookingId ?? null,
       };
-      if (input.bookingId) createData.booking = { connect: { id: input.bookingId } };
-      if (lineItems.length > 0) {
-        createData.services = {
-          create: lineItems.map((item) => ({
-            serviceId: item.serviceId,
-            description: item.description,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            total: item.total,
-          })),
-        };
+      if (resolvedLines.length > 0) {
+        createData.lines = { create: resolvedLines };
       }
 
       const invoice = await tx.invoice.create({
         data: createData,
-        include: { business: true, services: { include: { service: true } } },
+        include: {
+          business: true,
+          lines: { include: { service: true }, orderBy: { position: "asc" } },
+        },
       });
       if (!invoice.business) {
         throw new InternalServerErrorException(
@@ -168,8 +161,8 @@ class InvoiceService {
           email: invoice.clientEmail,
           phone: invoice.clientPhone,
         },
-        items: invoice.services.map((item) => ({
-          description: item.description || item.service.name,
+        items: invoice.lines.map((item) => ({
+          description: item.description || item.name,
           quantity: item.quantity,
           unitPrice: item.unitPrice.toString(),
           total: item.total.toString(),

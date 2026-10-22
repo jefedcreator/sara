@@ -26,7 +26,7 @@ export type DocumentPreview = {
 export const PREVIEW_ITEMS = 4;
 
 type Business = InvoiceDto["business"];
-type Line = InvoiceDto["services"][number] | ReceiptDto["services"][number];
+type Line = InvoiceDto["lines"][number] | ReceiptDto["lines"][number];
 
 const present = (values: (string | null | undefined)[]) =>
   values.map((value) => value?.trim()).filter((value): value is string => Boolean(value));
@@ -45,9 +45,9 @@ function businessOf(business: Business) {
 
 function itemsOf(lines: Line[]) {
   return lines.slice(0, PREVIEW_ITEMS).map((line) => ({
-    // `||`: an empty description falls back to the service's name, as on the PDF.
+    // `||`: an empty description falls back to the line's name, as on the PDF.
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    description: line.description || line.service.name,
+    description: line.description || line.name,
     quantity: line.quantity,
     unitPrice: String(line.unitPrice),
     total: String(line.total),
@@ -69,7 +69,7 @@ export function invoicePreview(invoice: InvoiceDto): DocumentPreview {
     pill: INVOICE_STATUS[invoice.status] ?? { label: invoice.status, tone: "muted" },
     meta,
     currency: invoice.currency,
-    items: itemsOf(invoice.services),
+    items: itemsOf(invoice.lines),
   };
 }
 
@@ -91,6 +91,6 @@ export function receiptPreview(receipt: ReceiptDto): DocumentPreview {
     pill: { label: "Paid", tone: "accent" },
     meta,
     currency: receipt.currency,
-    items: itemsOf(receipt.services),
+    items: itemsOf(receipt.lines),
   };
 }
