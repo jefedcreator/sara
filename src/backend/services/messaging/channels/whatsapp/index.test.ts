@@ -93,4 +93,43 @@ describe("send", () => {
       fetchMock.mock.invocationCallOrder[0]!,
     );
   });
+
+  it("returns Meta's error code when a send fails", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: 131047 } }), { status: 400 }),
+    );
+    await expect(
+      whatsAppAdapter.send("234800", { text: "hello" }),
+    ).resolves.toEqual({ ok: false, code: 131047 });
+  });
+
+  it("resolves ok when Meta accepts the message", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValue(new Response("{}", { status: 200 }));
+    await expect(
+      whatsAppAdapter.send("234800", { text: "hello" }),
+    ).resolves.toEqual({ ok: true });
+  });
+});
+
+describe("sendTemplate", () => {
+  it("posts a template with the body parameters", async () => {
+    const fetchMock = vi.spyOn(global, "fetch").mockResolvedValue(new Response("{}", { status: 200 }));
+    const result = await whatsAppAdapter.sendTemplate("234800", {
+      name: "sara_alert",
+      language: "en",
+      bodyParams: ["a\nb"],
+    });
+    expect(result).toEqual({ ok: true });
+    const body = JSON.parse((fetchMock.mock.calls[0]![1] as any).body);
+    expect(body).toEqual({
+      messaging_product: "whatsapp",
+      to: "234800",
+      type: "template",
+      template: {
+        name: "sara_alert",
+        language: { code: "en" },
+        components: [{ type: "body", parameters: [{ type: "text", text: "a · b" }] }],
+      },
+    });
+  });
 });

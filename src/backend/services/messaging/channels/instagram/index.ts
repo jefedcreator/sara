@@ -1,9 +1,23 @@
 import { env } from "@/env";
 import type { ChatChannel } from "@prisma/client";
 import crypto from "node:crypto";
-import type { ChannelAdapter, InboundMessage, OutboundMessage } from "../types";
+import type {
+  ChannelAdapter,
+  InboundMessage,
+  OutboundMessage,
+  SendResult,
+} from "../types";
 
 const GRAPH = "https://graph.facebook.com/v21.0";
+
+function errorCode(raw: string): number | null {
+  try {
+    const code = (JSON.parse(raw) as { error?: { code?: unknown } })?.error?.code;
+    return typeof code === "number" ? code : null;
+  } catch {
+    return null;
+  }
+}
 
 class InstagramAdapter implements ChannelAdapter {
   channel: ChatChannel = "INSTAGRAM";
@@ -48,7 +62,7 @@ class InstagramAdapter implements ChannelAdapter {
     return out;
   }
 
-  async send(externalId: string, message: OutboundMessage): Promise<void> {
+  async send(externalId: string, message: OutboundMessage): Promise<SendResult> {
     const res = await fetch(`${GRAPH}/${env.INSTAGRAM_IG_ID}/messages`, {
       method: "POST",
       headers: {
@@ -61,8 +75,11 @@ class InstagramAdapter implements ChannelAdapter {
       }),
     });
     if (!res.ok) {
-      console.error(`[Instagram] send failed: ${res.status} ${await res.text()}`);
+      const raw = await res.text();
+      console.error(`[Instagram] send failed: ${res.status} ${raw}`);
+      return { ok: false, code: errorCode(raw) };
     }
+    return { ok: true };
   }
 }
 
