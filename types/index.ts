@@ -271,13 +271,28 @@ export interface DashboardData {
     currency: string;
     url: string | null;
   }[];
-  revenueByService: {
-    serviceId: string;
-    serviceName: string;
-    serviceSlug: string;
-    totalRevenue: number;
-    totalBookings: number;
+  revenueByItem: ItemRevenue[];
+  /** New and Ready orders, oldest first. */
+  ordersToSendOut: {
+    slug: string;
+    orderNumber: string;
+    clientName: string;
+    status: "NEW" | "READY";
+    fulfilment: "DELIVERY" | "PICKUP";
+    total: number;
   }[];
+  /** Product options with three or fewer left. */
+  runningLow: { productSlug: string; label: string; stock: number }[];
+}
+
+/** What one service or product has earned. `count` is bookings or units sold. */
+export interface ItemRevenue {
+  kind: "SERVICE" | "PRODUCT";
+  id: string;
+  name: string;
+  slug: string;
+  totalRevenue: number;
+  count: number;
 }
 
 /** A page of a list endpoint, envelope removed. */

@@ -1,10 +1,11 @@
 import type { InvoiceStatus, Prisma } from "@prisma/client";
 
-import type { DashboardData } from "types";
+import type { DashboardData, ItemRevenue } from "types";
 
 import { activeBookingWhere } from "@/backend/services/booking/conflicts";
 import { db } from "@/server/db";
 import type { TodayEventKind } from "@/utils/format";
+import { LOW_STOCK } from "@/utils/stock";
 
 /*
  * The owner's day at a glance. One source for both the chat menu (items 4-6)
@@ -65,6 +66,16 @@ export type ServiceRevenue = {
   totalRevenue: number;
   totalBookings: number;
 };
+
+export type OrderToSend = DashboardData["ordersToSendOut"][number];
+export type RunningLow = DashboardData["runningLow"][number];
+
+/** Orders that have been paid for and not yet handed over. */
+const TO_SEND_STATUSES = ["NEW", "READY"] as const;
+/** Orders that count as sales. */
+const SOLD_STATUSES = ["NEW", "READY", "COMPLETED"] as const;
+const ORDERS_TO_SEND_LIMIT = 10;
+const RUNNING_LOW_LIMIT = 10;
 
 export type RevenueOverview = {
   services: ServiceRevenue[];
@@ -234,15 +245,140 @@ class DashboardService {
     };
   }
 
+  /**
+   * Services and products together, highest earner first. Services earn from
+   * confirmed bookings at the service's current price; products from the
+   * lines of New, Ready and Completed orders (count is units sold).
+   */
+  async revenueByItem(businessId: string): Promise<ItemRevenue[]> {
+    const [bookings, lines] = await Promise.all([
+      db.booking.findMany({
+        where: { businessId, status: "CONFIRMED" },
+        select: {
+          serviceId: true,
+          service: { select: { name: true, slug: true, price: true } },
+        },
+      }),
+      db.orderLine.findMany({
+        where: {
+          order: { businessId, status: { in: [...SOLD_STATUSES] } },
+          productOptionId: { not: null },
+        },
+        select: {
+          quantity: true,
+          total: true,
+          productOption: {
+            select: { product: { select: { id: true, name: true, slug: true } } },
+          },
+        },
+      }),
+    ]);
+
+    const rows = new Map<string, ItemRevenue>();
+    for (const booking of bookings) {
+      const key = `SERVICE:${booking.serviceId}`;
+      const row = rows.get(key) ?? {
+        kind: "SERVICE" as const,
+        id: booking.serviceId,
+        name: booking.service.name,
+        slug: booking.service.slug,
+        totalRevenue: 0,
+        count: 0,
+      };
+      row.totalRevenue += Number(booking.service.price);
+      row.count += 1;
+      rows.set(key, row);
+    }
+    for (const line of lines) {
+      const product = line.productOption?.product;
+      if (!product) continue;
+      const key = `PRODUCT:${product.id}`;
+      const row = rows.get(key) ?? {
+        kind: "PRODUCT" as const,
+        id: product.id,
+        name: product.name,
+        slug: product.slug,
+        totalRevenue: 0,
+        count: 0,
+      };
+      row.totalRevenue += Number(line.total);
+      row.count += line.quantity;
+      rows.set(key, row);
+    }
+
+    return [...rows.values()]
+      .map((row) => ({ ...row, totalRevenue: Math.round(row.totalRevenue * 100) / 100 }))
+      .sort((a, b) => b.totalRevenue - a.totalRevenue);
+  }
+
+  /** Paid orders still to hand over (New and Ready), oldest first. */
+  async ordersToSendOut(businessId: string): Promise<OrderToSend[]> {
+    const orders = await db.order.findMany({
+      where: { businessId, status: { in: [...TO_SEND_STATUSES] } },
+      orderBy: { createdAt: "asc" },
+      take: ORDERS_TO_SEND_LIMIT,
+      select: {
+        slug: true,
+        orderNumber: true,
+        clientName: true,
+        status: true,
+        fulfilment: true,
+        total: true,
+      },
+    });
+    return orders.map((order) => ({
+      slug: order.slug,
+      orderNumber: order.orderNumber ?? order.slug,
+      clientName: order.clientName,
+      status: order.status as OrderToSend["status"],
+      fulfilment: order.fulfilment,
+      total: Number(order.total),
+    }));
+  }
+
+  /**
+   * Options of live, stock-tracked products with three or fewer left, fewest
+   * first. Untracked ("made to order") and paused products never run low.
+   */
+  async runningLow(businessId: string): Promise<RunningLow[]> {
+    const products = await db.product.findMany({
+      where: { businessId, isActive: true, tracksStock: true },
+      select: {
+        slug: true,
+        name: true,
+        options: {
+          where: { isActive: true },
+          orderBy: { position: "asc" },
+          select: { name: true, stock: true },
+        },
+      },
+    });
+
+    const low: RunningLow[] = [];
+    for (const product of products) {
+      for (const option of product.options) {
+        if (option.stock > LOW_STOCK) continue;
+        low.push({
+          productSlug: product.slug,
+          label: option.name ? `${product.name} — ${option.name}` : product.name,
+          stock: option.stock,
+        });
+      }
+    }
+    return low.sort((a, b) => a.stock - b.stock).slice(0, RUNNING_LOW_LIMIT);
+  }
+
   /** Everything the dashboard shows, in one call, JSON-ready. */
   async load(businessId: string, currency: string): Promise<DashboardData> {
-    const [summary, unpaidTotal, todayBookings, unpaidInvoices, revenue] =
+    const [summary, unpaidTotal, todayBookings, unpaidInvoices, revenueByItem, ordersToSendOut, runningLow] =
       await Promise.all([
         this.summary(businessId),
         this.unpaidTotal(businessId),
         this.todayBookings(businessId),
         this.unpaidInvoices(businessId, 5),
-        this.revenueByService(businessId),
+        this.revenueByItem(businessId),
+        this.ordersToSendOut(businessId),
+        this.runningLow(businessId),
       ]);
 
     return {
@@ -255,7 +391,9 @@ class DashboardService {
         endTime: b.endTime.toISOString(),
       })),
       unpaidInvoices,
-      revenueByService: revenue.services,
+      revenueByItem,
+      ordersToSendOut,
+      runningLow,
     };
   }
 }
