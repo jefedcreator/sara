@@ -3,7 +3,7 @@ import type { InvoiceDto, ReceiptDto } from "types";
 
 import type { DocumentFormSchema } from "@/backend/validators/document-form.validator";
 
-import { computeTotals, documentToFormValues, toDocumentPayload } from "./documents";
+import { computeTotals, documentToFormValues, toDocumentPayload, toSale } from "./documents";
 
 const base: DocumentFormSchema = {
   name: "Ada",
@@ -240,5 +240,68 @@ describe("documentToFormValues", () => {
     );
     expect(values.dueAt).toBe("2026-11-01");
   });
+
+  it("round-trips a product line through documentToFormValues", () => {
+    const values = documentToFormValues(
+      {
+        ...MOCK_INVOICE,
+        lines: [
+          {
+            ...MOCK_INVOICE.lines[0]!,
+            serviceId: null,
+            service: null,
+            productOptionId: "opt_1",
+            name: 'Frontal wig — 20"',
+            quantity: 2,
+            unitPrice: "45000",
+            total: "90000",
+          },
+        ],
+      },
+      "invoice",
+    );
+    expect(values.items).toEqual([
+      {
+        serviceId: "",
+        productOptionId: "opt_1",
+        name: 'Frontal wig — 20"',
+        quantity: "2",
+        unitPrice: "45000",
+      },
+    ]);
+    expect(toDocumentPayload(values, "NGN").lines).toEqual([
+      {
+        productOptionId: "opt_1",
+        name: 'Frontal wig — 20"',
+        quantity: 2,
+        unitPrice: 45000,
+        total: 90000,
+      },
+    ]);
+  });
 });
 
+describe("toSale", () => {
+  const product = [{ productOptionId: "opt_1", quantity: "1", unitPrice: "45000" }];
+
+  it("sends nothing when no line is a product", () => {
+    expect(
+      toSale({
+        ...base,
+        isDelivery: true,
+        deliveryAddress: "12 Adeola Odeku St",
+        items: [{ serviceId: "s1", quantity: "1", unitPrice: "25000" }],
+      }),
+    ).toBeUndefined();
+  });
+
+  it("is a pickup unless the receipt is marked as a delivery", () => {
+    expect(toSale({ ...base, items: product })).toEqual({ fulfilment: "PICKUP" });
+  });
+
+  it("carries the trimmed delivery address", () => {
+    expect(
+      toSale({ ...base, items: product, isDelivery: true, deliveryAddress: "  12 Adeola Odeku St " }),
+    ).toEqual({ fulfilment: "DELIVERY", deliveryAddress: "12 Adeola Odeku St" });
+  });
+});

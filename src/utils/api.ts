@@ -193,10 +193,17 @@ export type InvoiceUpdateInput = Partial<DocumentMoney> & {
   customerId?: string;
 };
 
+/** How a receipt's products reach the customer; sent only when it has a product line. */
+export type ReceiptSaleInput = {
+  fulfilment: "DELIVERY" | "PICKUP";
+  deliveryAddress?: string | null;
+};
+
 export type ReceiptCreateInput = DocumentMoney & {
   amountPaid: number;
   paymentMethod?: "CASH" | "BANK_TRANSFER" | "PAYSTACK";
   customerId?: string;
+  sale?: ReceiptSaleInput;
 };
 
 export type ReceiptUpdateInput = Partial<DocumentMoney> & {
