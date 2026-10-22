@@ -46,6 +46,11 @@ export const env = createEnv({
     // "Sara <hello@your-domain>", on a domain verified in Resend.
     EMAIL_FROM: z.string().trim().optional(),
     CRON_SECRET: z.string().trim().optional(),
+    // Bearer token for /api/admin. Unset means the admin API is off and every
+    // /api/admin request answers 404. At least 32 characters.
+    ADMIN_API_TOKEN: z.string().min(32).optional(),
+    // The admin dashboard's origin, which /api/admin allows through CORS.
+    ADMIN_ORIGIN: z.string().url().optional(),
     WHATSAPP_VERIFY_TOKEN: z.string().trim().optional(),
     WHATSAPP_PHONE_NUMBER_ID: z.string().trim().optional(),
     WHATSAPP_TOKEN: z.string().trim().optional(),
@@ -126,6 +131,8 @@ export const env = createEnv({
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     EMAIL_FROM: process.env.EMAIL_FROM,
     CRON_SECRET: process.env.CRON_SECRET,
+    ADMIN_API_TOKEN: process.env.ADMIN_API_TOKEN,
+    ADMIN_ORIGIN: process.env.ADMIN_ORIGIN,
     WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN,
     WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
     WHATSAPP_TOKEN: process.env.WHATSAPP_TOKEN,

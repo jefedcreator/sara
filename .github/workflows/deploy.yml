@@ -125,6 +125,8 @@ jobs:
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
           CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          ADMIN_API_TOKEN: ${{ secrets.ADMIN_API_TOKEN }}
+          ADMIN_ORIGIN: ${{ secrets.ADMIN_ORIGIN }}
           WHATSAPP_VERIFY_TOKEN: ${{ secrets.WHATSAPP_VERIFY_TOKEN }}
           WHATSAPP_PHONE_NUMBER_ID: ${{ secrets.WHATSAPP_PHONE_NUMBER_ID }}
           WHATSAPP_TOKEN: ${{ secrets.WHATSAPP_TOKEN }}
@@ -168,6 +170,8 @@ jobs:
             RESEND_API_KEY: process.env.RESEND_API_KEY,
             EMAIL_FROM: process.env.EMAIL_FROM,
             CRON_SECRET: process.env.CRON_SECRET,
+            ADMIN_API_TOKEN: process.env.ADMIN_API_TOKEN,
+            ADMIN_ORIGIN: process.env.ADMIN_ORIGIN,
             WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN,
             WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
             WHATSAPP_TOKEN: process.env.WHATSAPP_TOKEN,
