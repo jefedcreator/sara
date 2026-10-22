@@ -4,7 +4,7 @@ import {
 } from "@/backend/validators/document-form.validator";
 import type { InvoiceDto, ReceiptDto } from "types";
 
-import type { DocumentLineInput } from "./api";
+import type { DocumentLineInput, ReceiptSaleInput } from "./api";
 
 type Money = {
   subtotal: number;
@@ -64,6 +64,26 @@ export function computeTotals(
   };
 }
 
+/** Whether the form has a product line (a row picked from the Products group). */
+export function hasProductLine(values: {
+  mode: DocumentFormSchema["mode"];
+  items: { productOptionId?: string }[];
+}) {
+  return values.mode === "services" && values.items.some((item) => item.productOptionId);
+}
+
+/**
+ * How a receipt's products are handed over. Only receipts with a product line
+ * have one; otherwise there is nothing to deliver and nothing is sent.
+ */
+export function toSale(
+  values: Pick<DocumentFormSchema, "mode" | "items" | "isDelivery" | "deliveryAddress">,
+): ReceiptSaleInput | undefined {
+  if (!hasProductLine(values)) return undefined;
+  if (!values.isDelivery) return { fulfilment: "PICKUP" };
+  return { fulfilment: "DELIVERY", deliveryAddress: values.deliveryAddress?.trim() || null };
+}
+
 /** Customer, money and items: the part invoices and receipts share. */
 export function toDocumentPayload(values: DocumentFormSchema, currency: string) {
   const lines = toLineItems(values);
@@ -96,6 +116,7 @@ export function documentToFormValues(
   const items = hasLines
     ? doc.lines.map((item) => ({
         serviceId: item.serviceId ?? "",
+        ...(item.productOptionId ? { productOptionId: item.productOptionId } : {}),
         ...(item.serviceId ? {} : { name: item.name }),
         quantity: String(item.quantity),
         unitPrice: String(Number(item.unitPrice)),

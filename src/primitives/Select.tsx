@@ -113,10 +113,13 @@ const scrollButtonClasses =
 function SelectItem({
   value,
   disabled,
+  meta,
   children,
 }: {
   value: string;
   disabled?: boolean;
+  /** A quieter second line (price, stock). Not shown in the closed trigger. */
+  meta?: ReactNode;
   children: ReactNode;
 }) {
   return (
@@ -124,12 +127,16 @@ function SelectItem({
       value={value}
       disabled={disabled}
       className={cn(
-        "rounded-chip text-ink relative flex h-10 cursor-pointer items-center gap-2 pr-9 pl-3 text-[15px] outline-none select-none",
+        "rounded-chip text-ink relative flex cursor-pointer items-center gap-2 pr-9 pl-3 text-[15px] outline-none select-none",
+        meta ? "min-h-12 py-1.5" : "h-10",
         "data-highlighted:bg-surface data-[state=checked]:text-accent-ink data-[state=checked]:font-semibold",
         "data-disabled:text-faint data-disabled:cursor-not-allowed",
       )}
     >
-      <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
+      <span className="grid min-w-0">
+        <RadixSelect.ItemText>{children}</RadixSelect.ItemText>
+        {meta ? <span className="text-muted text-[13px]">{meta}</span> : null}
+      </span>
       <RadixSelect.ItemIndicator className="absolute right-3 inline-flex">
         <Check weight="bold" className="text-accent-ink size-4" />
       </RadixSelect.ItemIndicator>
@@ -137,4 +144,25 @@ function SelectItem({
   );
 }
 
-export const Select = Object.assign(SelectRoot, { Item: SelectItem });
+/** A titled run of items, e.g. "Products" after the services. */
+function SelectGroup({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <RadixSelect.Group className="border-line mt-1 border-t pt-1 first:mt-0 first:border-t-0 first:pt-0">
+      <RadixSelect.Label className="text-muted px-3 pt-2 pb-1 text-[13px] font-semibold">
+        {label}
+      </RadixSelect.Label>
+      {children}
+    </RadixSelect.Group>
+  );
+}
+
+export const Select = Object.assign(SelectRoot, {
+  Item: SelectItem,
+  Group: SelectGroup,
+});

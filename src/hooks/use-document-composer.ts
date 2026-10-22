@@ -1,5 +1,7 @@
 import { useState } from "react";
-import type { InvoiceDto, ReceiptDto } from "types";
+import type { InvoiceDto, ProductDto, ReceiptDto } from "types";
+
+import { optionLabel } from "@/backend/services/product/labels";
 
 import type { DocumentFormSchema } from "@/backend/validators/document-form.validator";
 import type {
@@ -15,7 +17,7 @@ import {
   useUpdateReceiptMutation,
 } from "@/hooks/mutations/use-document-mutations";
 import { errorMessage } from "@/utils/axios";
-import { toDocumentPayload } from "@/utils/documents";
+import { toDocumentPayload, toSale } from "@/utils/documents";
 
 function isDocument(doc: unknown): doc is InvoiceDto | ReceiptDto {
   return (
@@ -23,6 +25,40 @@ function isDocument(doc: unknown): doc is InvoiceDto | ReceiptDto {
     doc !== null &&
     ("invoiceNumber" in doc || "receiptNumber" in doc)
   );
+}
+
+type StockLine = { productOptionId?: string; quantity: string };
+
+/**
+ * The warning for a receipt that sells more of a product option than is in
+ * stock, e.g. "Only 9 Shea butter 250ml in stock", or null when it all fits.
+ * Lines for the same option add up. Made-to-order products never warn. It only
+ * warns: the owner can still save (the shop may be behind on its counts).
+ */
+export function stockWarning(lines: StockLine[], products: ProductDto[]): string | null {
+  const wanted = new Map<string, number>();
+  for (const line of lines) {
+    if (!line.productOptionId) continue;
+    const quantity = Number(line.quantity);
+    if (!(quantity >= 1)) continue;
+    wanted.set(line.productOptionId, (wanted.get(line.productOptionId) ?? 0) + quantity);
+  }
+
+  for (const product of products) {
+    if (!product.tracksStock) continue;
+    for (const option of product.options) {
+      const quantity = wanted.get(option.id);
+      if (quantity === undefined || quantity <= option.stock) continue;
+      const label = optionLabel(product.name, option.name);
+      return option.stock <= 0 ? `${label} is sold out` : `Only ${option.stock} ${label} in stock`;
+    }
+  }
+  return null;
+}
+
+/** The same warning for one row, so the form can show it under that row. */
+export function lineStockWarning(line: StockLine, products: ProductDto[]): string | null {
+  return stockWarning([line], products);
 }
 
 /**
@@ -134,8 +170,14 @@ export function useDocumentComposer(kind: DocumentKind, currency: string) {
       return;
     }
 
+    const sale = toSale(values);
     createReceipt.mutate(
-      { ...base, amountPaid: base.total, paymentMethod: values.paymentMethod },
+      {
+        ...base,
+        amountPaid: base.total,
+        paymentMethod: values.paymentMethod,
+        ...(sale ? { sale } : {}),
+      },
       {
         onSuccess: (receipt) =>
           setCreated({

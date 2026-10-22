@@ -66,6 +66,13 @@ export const documentFormSchema = z
     discount: money("Enter a discount in naira, like 2000"),
     dueAt: z.string(),
     paymentMethod: z.enum(["CASH", "BANK_TRANSFER"]),
+    // Receipts only, and only when a line is a product: "This is a delivery".
+    isDelivery: z.boolean().optional(),
+    deliveryAddress: z
+      .string()
+      .trim()
+      .max(500, "Keep the address under 500 characters")
+      .optional(),
   })
   .strict()
   .superRefine((values, ctx) => {
@@ -76,20 +83,36 @@ export const documentFormSchema = z
       return;
     }
     if (values.items.length === 0) {
-      ctx.addIssue({ code: "custom", path: ["items"], message: "Add at least one service" });
+      ctx.addIssue({ code: "custom", path: ["items"], message: "Add at least one service or product" });
     }
     const seen = new Set<string>();
     values.items.forEach((item, index) => {
-      if (!item.serviceId) return;
-      if (seen.has(item.serviceId)) {
+      const key = item.serviceId
+        ? `service:${item.serviceId}`
+        : item.productOptionId
+          ? `product:${item.productOptionId}`
+          : "";
+      if (!key) return;
+      if (seen.has(key)) {
         ctx.addIssue({
           code: "custom",
           path: ["items", index, "serviceId"],
           message: "Already on this invoice; change the quantity instead",
         });
       }
-      seen.add(item.serviceId);
+      seen.add(key);
     });
+    if (
+      values.isDelivery &&
+      values.items.some((item) => item.productOptionId) &&
+      !values.deliveryAddress?.trim()
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["deliveryAddress"],
+        message: "Enter where it's being delivered",
+      });
+    }
   });
 
 export type DocumentFormSchema = z.infer<typeof documentFormSchema>;
