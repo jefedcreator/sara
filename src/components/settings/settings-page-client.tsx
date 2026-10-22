@@ -22,6 +22,7 @@ import { ClosuresSection } from "./closures-section";
 import { HoursSection } from "./hours-section";
 import { ProfileSection } from "./profile-section";
 import { Section } from "./section";
+import { SellingSection } from "./selling-section";
 
 interface SettingsPageClientProps {
   profile: BusinessProfileDto;
@@ -42,6 +43,7 @@ export function SettingsPageClient({
   const { data: closures = initialClosures } = useClosuresQuery(initialClosures);
 
   const updateBusiness = useUpdateBusinessMutation();
+  const updateSelling = useUpdateBusinessMutation();
   const saveHours = useSaveHoursMutation();
   const addClosure = useAddClosureMutation();
   const removeClosure = useRemoveClosureMutation();
@@ -78,6 +80,23 @@ export function SettingsPageClient({
             isPending={updateBusiness.isPending}
             error={updateBusiness.isError ? errorMessage(updateBusiness.error) : null}
             saved={updateBusiness.isSuccess}
+          />
+          <SellingSection
+            profile={profile}
+            onSave={(values, onSaved) =>
+              updateSelling.mutate(values, {
+                onSuccess: () => {
+                  onSaved();
+                  // The top bar's tabs follow what the business sells.
+                  router.refresh();
+                },
+              })
+            }
+            isPending={updateSelling.isPending}
+            error={
+              updateSelling.isError ? errorMessage(updateSelling.error) : null
+            }
+            saved={updateSelling.isSuccess}
           />
           <Section
             id="payouts-h"

@@ -56,6 +56,8 @@ export interface AuthRequest<
   query?: Q;
   params?: Record<string, string>;
   files?: Record<string, File>;
+  /** The parsed multipart body, kept whole so routes can read repeated fields. */
+  rawFormData?: FormData;
   validatedData?: B;
   user: AuthenticatedUser | null;
 }

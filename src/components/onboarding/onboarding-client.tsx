@@ -5,6 +5,7 @@ import { isAxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import type { Sells } from "types";
 
 import {
   businessSetupFormSchema,
@@ -12,8 +13,21 @@ import {
 } from "@/backend/validators/business.validator";
 import { SetupShell } from "@/components/setup-shell";
 import { useCreateBusinessMutation } from "@/hooks/mutations/use-business-mutations";
-import { ArrowDisc, Button, Field, Input, Notice } from "@/primitives";
+import {
+  ArrowDisc,
+  Button,
+  Field,
+  Input,
+  Notice,
+  Segmented,
+} from "@/primitives";
 import { useMonoConnect } from "@/utils/hooks/useMonoConnect";
+
+const SELLING_OPTIONS = [
+  { value: "SERVICES", label: "Services" },
+  { value: "PRODUCTS", label: "Products" },
+  { value: "BOTH", label: "Both" },
+] as const satisfies readonly { value: Sells; label: string }[];
 
 interface OnboardingClientProps {
   next: string;
@@ -36,6 +50,7 @@ function compact(values: BusinessSetupFormSchema) {
 export function OnboardingClient({ next, defaultEmail, monoPublicKey }: OnboardingClientProps) {
   const router = useRouter();
   const [details, setDetails] = useState<BusinessSetupFormSchema | null>(null);
+  const [sells, setSells] = useState<Sells>("SERVICES");
   const create = useCreateBusinessMutation();
 
   const {
@@ -62,6 +77,7 @@ export function OnboardingClient({ next, defaultEmail, monoPublicKey }: Onboardi
       create.mutate(
         {
           ...compact(details),
+          sells,
           monoCode: code,
           // Sara settles through Paystack in naira.
           currency: "NGN",
@@ -105,6 +121,20 @@ export function OnboardingClient({ next, defaultEmail, monoPublicKey }: Onboardi
           <Field id="name" label="Business name" error={errors.name?.message}>
             <Input autoComplete="organization" {...register("name")} />
           </Field>
+          <div className="grid gap-1.5">
+            <p className="text-ink-2 text-sm leading-[1.3] font-semibold">
+              What do you sell?
+            </p>
+            <Segmented
+              label="What do you sell?"
+              value={sells}
+              options={SELLING_OPTIONS}
+              onChange={setSells}
+            />
+            <p className="text-muted text-[13px] leading-snug">
+              You can change this later in Settings.
+            </p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field id="phone" label="Phone (optional)" error={errors.phone?.message}>
               <Input type="tel" inputMode="tel" {...register("phone")} />

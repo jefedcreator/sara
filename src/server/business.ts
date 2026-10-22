@@ -4,6 +4,7 @@ import type {
   BusinessClosureDto,
   BusinessHoursDto,
   BusinessProfileDto,
+  ProductDto,
   ServiceDto,
 } from "types";
 
@@ -30,6 +31,11 @@ export function toBusinessProfile(business: Business): BusinessProfileDto {
     city: business.city,
     state: business.state,
     currency: business.currency,
+    sells: business.sells,
+    offersDelivery: business.offersDelivery,
+    deliveryFee:
+      business.deliveryFee === null ? null : Number(business.deliveryFee),
+    offersPickup: business.offersPickup,
     settlementAccountName: business.settlementAccountName,
     isPaymentReady: Boolean(business.paystackSubaccountCode),
     calendarConnectedAt:
@@ -45,6 +51,20 @@ export const getServices = cache(async (businessId: string) => {
     orderBy: { createdAt: "desc" },
   });
   return serialize(services) as ServiceDto[];
+});
+
+export const getProducts = cache(async (businessId: string) => {
+  const products = await db.product.findMany({
+    where: { businessId },
+    orderBy: { createdAt: "desc" },
+    include: {
+      options: {
+        where: { isActive: true },
+        orderBy: { position: "asc" },
+      },
+    },
+  });
+  return serialize(products) as ProductDto[];
 });
 
 export const getBusinessHours = cache(async (businessId: string) => {

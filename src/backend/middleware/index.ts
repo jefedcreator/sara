@@ -67,9 +67,11 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
         if (body) {
           request.parsedBody = body;
           request.files = {};
+          request.rawFormData = undefined;
         }
       } else if (contentType.includes("multipart/form-data")) {
         const formData = await request.formData();
+        request.rawFormData = formData;
         const parsedBody: Record<string, unknown> = {};
         const files: Record<string, File> = {};
 
