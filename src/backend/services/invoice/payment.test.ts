@@ -255,6 +255,9 @@ describe("invoicePayments.process", () => {
     await invoicePayments.process(paymentFor({ amount: 1_000_000 }));
 
     expect(mockedOrders.createFromInvoice).toHaveBeenCalledTimes(1);
+    // Handed the transaction client (the $transaction mock passes the db mock),
+    // so the stock and the order commit or roll back together.
+    expect(mockedDb.$transaction).toHaveBeenCalledTimes(2);
     expect(mockedOrders.createFromInvoice).toHaveBeenCalledWith(
       mockedDb,
       "inv_1",
