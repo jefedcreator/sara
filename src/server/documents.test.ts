@@ -26,7 +26,7 @@ const INVOICE_ROW = {
   dueAt: new Date("2026-10-12T00:00:00.000Z"),
   notes: null,
   url: "https://cdn.test/INV-1012.pdf",
-  business: { name: "Acme Salon" },
+  business: { name: "Acme Salon", paystackSubaccountCode: "ACCT_1" },
   lines: [
     { name: "Knotless braids", description: "", quantity: 1, unitPrice: 53000, total: 53000 },
     { name: "Extensions", description: "Hair extensions, colour 1B", quantity: 3, unitPrice: 3000, total: 9000 },
@@ -84,7 +84,46 @@ describe("getSharedInvoice", () => {
     const select = selectOf(mockedDb.invoice.findUnique);
     expect(select).not.toHaveProperty("clientEmail");
     expect(select).not.toHaveProperty("clientPhone");
-    expect(select.business.select).toEqual({ name: true });
+    // Only the name and whether payments are set up; the code itself is never returned.
+    expect(select.business.select).toEqual({
+      name: true,
+      paystackSubaccountCode: true,
+    });
+  });
+});
+
+describe("getSharedInvoice payable", () => {
+  it("offers the whole remaining balance on a part-paid invoice", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(INVOICE_ROW);
+    const doc = await getSharedInvoice("x");
+    expect(doc?.payable).toEqual({ amount: 42000, currency: "NGN" });
+    expect(JSON.stringify(doc)).not.toContain("ACCT_1");
+  });
+
+  it.each([
+    ["PAID", 62000],
+    ["VOID", 20000],
+    ["DRAFT", 0],
+  ])("payable is null for a %s invoice", async (status, amountPaid) => {
+    mockedDb.invoice.findUnique.mockResolvedValue({
+      ...INVOICE_ROW,
+      status,
+      amountPaid,
+    });
+    expect((await getSharedInvoice("x"))?.payable).toBeNull();
+  });
+
+  it("payable is null when the business can't take payments", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue({
+      ...INVOICE_ROW,
+      business: { name: "Acme Salon", paystackSubaccountCode: null },
+    });
+    expect((await getSharedInvoice("x"))?.payable).toBeNull();
+  });
+
+  it("a receipt is never payable", async () => {
+    mockedDb.receipt.findUnique.mockResolvedValue(RECEIPT_ROW);
+    expect((await getSharedReceipt("x"))?.payable).toBeNull();
   });
 });
 

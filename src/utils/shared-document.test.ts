@@ -31,6 +31,7 @@ const INVOICE: SharedDocument = {
   paymentMethod: null,
   notes: "gele",
   pdfUrl: "https://cdn.test/INV-1012.pdf",
+  payable: null,
 };
 
 const PATH = "/invoices/Xk39fjQ2aB7mN0pR";

@@ -1,5 +1,6 @@
 import { Fragment, type ReactNode } from "react";
 
+import { PayInvoiceButton } from "@/components/documents/pay-invoice-button";
 import { PublicPage } from "@/components/public/public-page";
 import { Button, StatusPill } from "@/primitives";
 import { cn } from "@/utils/cn";
@@ -40,11 +41,19 @@ function Row({
  * customer came for (what's owed, or what was paid), and the PDF. Laid out
  * like the booking page, whose customers these are too.
  */
-export function SharedDocumentPage({ doc }: { doc: SharedDocument }) {
+export function SharedDocumentPage({
+  doc,
+  publicId,
+}: {
+  doc: SharedDocument;
+  /** The invoice's public id, which the Pay button needs. */
+  publicId?: string;
+}) {
   const noun = doc.kind === "invoice" ? "Invoice" : "Receipt";
   const money = (amount: number) => formatMoney(amount, doc.currency);
   const lines = documentLines(doc);
   const lead = documentLead(doc);
+  const payable = doc.payable && publicId ? doc.payable : null;
   const adjusted = doc.taxAmount > 0 || doc.discount > 0;
 
   const when =
@@ -56,7 +65,12 @@ export function SharedDocumentPage({ doc }: { doc: SharedDocument }) {
       : [`Paid ${formatDate(doc.issuedAt)}`, doc.paymentMethod];
 
   return (
-    <PublicPage businessName={doc.businessName} credit={`${noun}s`}>
+    <PublicPage
+      businessName={doc.businessName}
+      credit={`${noun}s`}
+      // Room for the phone bar the Pay button pins to the bottom edge.
+      className={cn(payable && "pb-32 lg:pb-16")}
+    >
       <section
         aria-labelledby="document-h"
         className="animate-rise pt-4 lg:pt-12"
@@ -139,11 +153,24 @@ export function SharedDocumentPage({ doc }: { doc: SharedDocument }) {
         ) : null}
       </section>
 
+      {payable && publicId ? (
+        <PayInvoiceButton
+          publicId={publicId}
+          amount={payable.amount}
+          currency={payable.currency}
+        />
+      ) : null}
+
       {doc.pdfUrl ? (
         <Button
           asChild
           size="lg"
-          className="animate-rise-3 mt-8 w-full sm:w-auto"
+          // The Pay button is the one primary action while there is a balance to pay.
+          variant={payable ? "secondary" : "primary"}
+          className={cn(
+            "animate-rise-3 mt-8 w-full sm:w-auto",
+            payable && "lg:mt-3",
+          )}
         >
           <a href={doc.pdfUrl} target="_blank" rel="noopener">
             Download PDF

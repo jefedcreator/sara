@@ -37,5 +37,5 @@ export default async function SharedInvoicePage({ params }: Params) {
 
   if (!doc) notFound();
 
-  return <SharedDocumentPage doc={doc} />;
+  return <SharedDocumentPage doc={doc} publicId={publicId} />;
 }

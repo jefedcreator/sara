@@ -17,6 +17,7 @@ import type {
   PaginatedApiResponse,
   PublicBookingDto,
   PublicBookingInput,
+  PublicInvoicePaymentDto,
   PublicOrderDto,
   PublicOrderInput,
   PublicServiceDto,
@@ -284,6 +285,10 @@ export const api = {
       data<PublicBookingDto>(http.post("/public/bookings", input)),
     order: (input: PublicOrderInput) =>
       data<PublicOrderDto>(http.post("/public/orders", input)),
+    payInvoice: (publicId: string) =>
+      data<PublicInvoicePaymentDto>(
+        http.post(`/public/invoices/${encodeURIComponent(publicId)}/pay`),
+      ),
   },
 
   services: {

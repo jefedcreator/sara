@@ -4,6 +4,9 @@ import { db } from "@/server/db";
 import { INVOICE_STATUS, PAYMENT_METHOD } from "@/utils/labels";
 import type { SharedDocument } from "@/utils/shared-document";
 
+/** An invoice the customer can still pay: sent, and not settled or voided. */
+const PAYABLE_STATUSES = ["SENT", "PARTIALLY_PAID", "OVERDUE"];
+
 const lineSelect = {
   name: true,
   description: true,
@@ -51,11 +54,25 @@ export const getSharedInvoice = cache(
         dueAt: true,
         notes: true,
         url: true,
-        business: { select: { name: true } },
+        business: { select: { name: true, paystackSubaccountCode: true } },
         lines: { select: lineSelect, orderBy: { position: "asc" } },
       },
     });
     if (!invoice) return null;
+    const balance =
+      invoice.status === "VOID"
+        ? 0
+        : Math.max(
+            0,
+            Math.round((Number(invoice.total) - Number(invoice.amountPaid)) * 100) /
+              100,
+          );
+    const payable =
+      PAYABLE_STATUSES.includes(invoice.status) &&
+      balance > 0 &&
+      Boolean(invoice.business.paystackSubaccountCode)
+        ? { amount: balance, currency: invoice.currency }
+        : null;
     return {
       kind: "invoice",
       number: invoice.invoiceNumber,
@@ -73,20 +90,13 @@ export const getSharedInvoice = cache(
       discount: Number(invoice.discount),
       total: Number(invoice.total),
       amountPaid: Number(invoice.amountPaid),
-      balance:
-        invoice.status === "VOID"
-          ? 0
-          : Math.max(
-              0,
-              Math.round(
-                (Number(invoice.total) - Number(invoice.amountPaid)) * 100,
-              ) / 100,
-            ),
+      balance,
       issuedAt: (invoice.sentAt ?? invoice.createdAt).toISOString(),
       dueAt: invoice.dueAt?.toISOString() ?? null,
       paymentMethod: null,
       notes: invoice.notes,
       pdfUrl: invoice.url,
+      payable,
     };
   },
 );
@@ -136,6 +146,7 @@ export const getSharedReceipt = cache(
         : null,
       notes: receipt.notes,
       pdfUrl: receipt.url,
+      payable: null,
     };
   },
 );
