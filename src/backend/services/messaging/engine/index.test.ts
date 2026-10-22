@@ -20,30 +20,65 @@ vi.mock("../dispatch", () => ({
     createInvoice: vi.fn(),
     createReceipt: vi.fn(),
     listServiceOptions: vi.fn(),
-    listFullServiceOptions: vi.fn(),
+    listItemOptions: vi.fn(),
+    listShareOptions: vi.fn(),
     bookingLinkText: vi.fn(),
+    productLinkText: vi.fn(),
     listUnpaidInvoices: vi.fn(),
     listTodayBookings: vi.fn(),
     businessSummary: vi.fn(),
+    ordersToSendOutText: vi.fn(),
   },
 }));
+vi.mock("@/backend/services/customer", () => ({
+  customerService: { findByName: vi.fn() },
+}));
 
+import type { Customer } from "@prisma/client";
+import { customerService } from "@/backend/services/customer";
 import type { InboundMessage } from "../channels/types";
-import { intentDispatcher, type FullServiceOption } from "../dispatch";
+import { intentDispatcher, type ItemOption } from "../dispatch";
 import { linkingService } from "../linking";
 import { chatSessionService } from "../session";
-import { conversationEngine } from "./index";
+import { conversationEngine, mainMenuText } from "./index";
 
 const mockedSession = chatSessionService as any;
 const mockedDispatch = intentDispatcher as any;
+const mockedCustomers = customerService as any;
 
 function inbound(text: string, messageId = "m1"): InboundMessage {
   return { channel: "WHATSAPP", externalId: "234800", text, messageId };
 }
 const IDENTITY = {
   id: "id_1", businessId: "biz_1",
+  business: { sells: "SERVICES" },
   session: { id: "sess_1", state: "MAIN_MENU", context: null, lastProcessedMsgId: null, lastActiveAt: new Date() },
 };
+
+function identityFor(sells: "SERVICES" | "PRODUCTS" | "BOTH") {
+  return { ...IDENTITY, business: { sells } };
+}
+
+function makeCustomer(overrides: Partial<Customer> = {}): Customer {
+  return {
+    id: "cus_1",
+    businessId: "biz_1",
+    name: "Tolu Adeyemi",
+    nameKey: "tolu adeyemi",
+    phone: null,
+    email: null,
+    address: null,
+    notes: null,
+    createdAt: new Date("2026-10-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-10-01T00:00:00.000Z"),
+    ...overrides,
+  };
+}
+
+/** The context the engine saved on its last turn. */
+function lastSavedContext() {
+  return mockedSession.save.mock.calls.at(-1)?.[1]?.context;
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -51,7 +86,8 @@ beforeEach(() => {
   mockedSession.findIdentity.mockResolvedValue(IDENTITY);
   mockedSession.getOrCreateSession.mockResolvedValue(IDENTITY.session);
   mockedSession.claimMessage.mockResolvedValue(true);
-  mockedDispatch.listFullServiceOptions.mockResolvedValue([]);
+  mockedDispatch.listItemOptions.mockResolvedValue([]);
+  mockedCustomers.findByName.mockResolvedValue({ exact: null, similar: [] });
 });
 
 describe("linking", () => {
@@ -77,6 +113,211 @@ describe("main menu", () => {
     const reply = await conversationEngine.handle(inbound("hello"));
     expect(reply?.text).toContain("New invoice");
     expect(reply?.text).toContain("Share a service");
+  });
+
+  it("keeps the services-only menu exactly as it is today", () =>
+    expect(mainMenuText("SERVICES")).toBe("Sara 👋  Reply with a number:\n1️⃣ New invoice\n2️⃣ New receipt\n3️⃣ Share a service (booking link)\n4️⃣ Unpaid invoices\n5️⃣ Today's bookings\n6️⃣ Business summary"));
+
+  it("gives a products business orders to send out at 5", async () => {
+    const menu = mainMenuText("PRODUCTS");
+    expect(menu).toContain("3️⃣ Share a link");
+    expect(menu).toContain("5️⃣ Orders to send out");
+    expect(menu).toContain("6️⃣ Business summary");
+    expect(menu).not.toContain("Today's bookings");
+
+    mockedSession.findIdentity.mockResolvedValue(identityFor("PRODUCTS"));
+    mockedDispatch.ordersToSendOutText.mockResolvedValue(
+      "📦 Orders to send out:\n1. ORD-1022 · Tolu Adeyemi · Delivery · New",
+    );
+    const reply = await conversationEngine.handle(inbound("5"));
+    expect(mockedDispatch.ordersToSendOutText).toHaveBeenCalledWith("biz_1");
+    expect(mockedDispatch.listTodayBookings).not.toHaveBeenCalled();
+    expect(reply?.text).toContain("1. ORD-1022 · Tolu Adeyemi · Delivery · New");
+    expect(mockedSession.save).toHaveBeenCalledWith("sess_1", expect.objectContaining({ state: "MAIN_MENU" }));
+  });
+
+  it("gives a business that does both seven items", async () => {
+    const menu = mainMenuText("BOTH");
+    expect(menu.split("\n")).toHaveLength(8);
+    expect(menu).toContain("3️⃣ Share a link");
+    expect(menu).toContain("5️⃣ Today's bookings");
+    expect(menu).toContain("7️⃣ Orders to send out");
+
+    mockedSession.findIdentity.mockResolvedValue(identityFor("BOTH"));
+    mockedDispatch.listTodayBookings.mockResolvedValue("📅 No bookings today.");
+    mockedDispatch.ordersToSendOutText.mockResolvedValue("✅ Nothing to send out.");
+    expect((await conversationEngine.handle(inbound("5", "b5")))?.text).toBe("📅 No bookings today.");
+    expect((await conversationEngine.handle(inbound("7", "b7")))?.text).toBe("✅ Nothing to send out.");
+  });
+
+  it("shows a merchant their own menu for unknown input and on cancel", async () => {
+    mockedSession.findIdentity.mockResolvedValue(identityFor("PRODUCTS"));
+    expect((await conversationEngine.handle(inbound("hello", "h1")))?.text).toBe(mainMenuText("PRODUCTS"));
+    expect((await conversationEngine.handle(inbound("cancel", "h2")))?.text).toBe(
+      `Cancelled.\n\n${mainMenuText("PRODUCTS")}`,
+    );
+  });
+});
+
+describe("share-a-link flow for merchants", () => {
+  const SHARE_OPTIONS = [
+    { kind: "SERVICE", slug: "acme-haircut", label: "Haircut — NGN 5,000 (1 hr)" },
+    { kind: "PRODUCT", slug: "frontal-wig", label: "Frontal wig — NGN 45,000 (11 in stock)" },
+  ];
+
+  it("lists services and products, then returns a product link", async () => {
+    mockedSession.findIdentity.mockResolvedValue(identityFor("BOTH"));
+    mockedDispatch.listShareOptions.mockResolvedValue(SHARE_OPTIONS);
+    let reply = await conversationEngine.handle(inbound("3", "a"));
+    expect(mockedDispatch.listServiceOptions).not.toHaveBeenCalled();
+    expect(reply?.text).toBe(
+      "Which one? Reply with a number:\n1. Haircut — NGN 5,000 (1 hr)\n2. Frontal wig — NGN 45,000 (11 in stock)",
+    );
+    expect(mockedSession.save).toHaveBeenCalledWith("sess_1", expect.objectContaining({
+      state: "SHARE_SERVICE_SELECT",
+      context: { services: SHARE_OPTIONS },
+    }));
+
+    mockedDispatch.productLinkText.mockReturnValue(
+      "Share this product link with your customer:\nhttps://app.sara.ng/products/frontal-wig",
+    );
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session, state: "SHARE_SERVICE_SELECT", context: { services: SHARE_OPTIONS },
+    });
+    reply = await conversationEngine.handle(inbound("2", "b"));
+    expect(mockedDispatch.productLinkText).toHaveBeenCalledWith("frontal-wig");
+    expect(mockedDispatch.bookingLinkText).not.toHaveBeenCalled();
+    expect(reply?.text).toContain("https://app.sara.ng/products/frontal-wig");
+  });
+
+  it("still gives a booking link for a service in the list", async () => {
+    mockedSession.findIdentity.mockResolvedValue(identityFor("BOTH"));
+    mockedDispatch.bookingLinkText.mockReturnValue("Share this booking link:\nhttps://app.sara.ng/services/acme-haircut");
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session, state: "SHARE_SERVICE_SELECT", context: { services: SHARE_OPTIONS },
+    });
+    const reply = await conversationEngine.handle(inbound("1", "c"));
+    expect(mockedDispatch.bookingLinkText).toHaveBeenCalledWith(SHARE_OPTIONS[0]);
+    expect(mockedDispatch.productLinkText).not.toHaveBeenCalled();
+    expect(reply?.text).toContain("https://app.sara.ng/services/acme-haircut");
+  });
+
+  it("asks a shop which product when it only has products", async () => {
+    mockedSession.findIdentity.mockResolvedValue(identityFor("PRODUCTS"));
+    mockedDispatch.listShareOptions.mockResolvedValue([SHARE_OPTIONS[1]]);
+    const reply = await conversationEngine.handle(inbound("3", "d"));
+    expect(reply?.text).toBe("Which product? Reply with a number:\n1. Frontal wig — NGN 45,000 (11 in stock)");
+  });
+
+  it("tells a shop when it has nothing to share", async () => {
+    mockedSession.findIdentity.mockResolvedValue(identityFor("PRODUCTS"));
+    mockedDispatch.listShareOptions.mockResolvedValue([]);
+    const reply = await conversationEngine.handle(inbound("3", "e"));
+    expect(reply?.text).toBe(`You have no active products to share.\n\n${mainMenuText("PRODUCTS")}`);
+  });
+});
+
+describe("customer matching", () => {
+  const CHOICES = [
+    { id: "cus_1", name: "Tolu Adeyemi", label: "Tolu Adeyemi · +2348035550142" },
+    { id: "cus_2", name: "Tolu Bakare", label: "Tolu Bakare" },
+  ];
+
+  it("links the one exact name match without asking", async () => {
+    mockedCustomers.findByName.mockResolvedValue({
+      exact: makeCustomer({ id: "cus_1", name: "Tolu Adeyemi" }),
+      similar: [makeCustomer({ id: "cus_9", name: "Tolu Adeyemi Jr", nameKey: "tolu adeyemi jr" })],
+    });
+    mockedSession.getOrCreateSession.mockResolvedValue({ ...IDENTITY.session, state: "INVOICE_CUSTOMER", context: {} });
+    const reply = await conversationEngine.handle(inbound("tolu adeyemi", "n1"));
+    expect(mockedCustomers.findByName).toHaveBeenCalledWith("biz_1", "tolu adeyemi");
+    expect(reply?.text).toBe("Amount? e.g. 5000");
+    expect(mockedSession.save).toHaveBeenCalledWith("sess_1", expect.objectContaining({
+      state: "INVOICE_AMOUNT",
+      context: expect.objectContaining({ customerName: "Tolu Adeyemi", customerId: "cus_1" }),
+    }));
+
+    // The invoice is then created for that customer.
+    mockedDispatch.createInvoice.mockResolvedValue({ number: "INV-1020", link: "https://app.sara.ng/invoices/x" });
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "INVOICE_CONFIRM",
+      context: { customerName: "Tolu Adeyemi", customerId: "cus_1", amount: 15000 },
+    });
+    await conversationEngine.handle(inbound("yes", "n2"));
+    expect(mockedDispatch.createInvoice).toHaveBeenCalledWith("biz_1", {
+      customerName: "Tolu Adeyemi",
+      customerId: "cus_1",
+      amount: 15000,
+      description: undefined,
+    });
+  });
+
+  it("asks which customer when names are similar", async () => {
+    mockedCustomers.findByName.mockResolvedValue({
+      exact: null,
+      similar: [
+        makeCustomer({ id: "cus_1", name: "Tolu Adeyemi", phone: "+2348035550142" }),
+        makeCustomer({ id: "cus_2", name: "Tolu Bakare", nameKey: "tolu bakare" }),
+      ],
+    });
+    mockedSession.getOrCreateSession.mockResolvedValue({ ...IDENTITY.session, state: "INVOICE_CUSTOMER", context: {} });
+    const reply = await conversationEngine.handle(inbound("Tolu", "p1"));
+    expect(reply?.text).toBe("Which customer?\n1. Tolu Adeyemi · +2348035550142\n2. Tolu Bakare\n3. New customer");
+    expect(mockedDispatch.listItemOptions).not.toHaveBeenCalled();
+    expect(mockedSession.save).toHaveBeenCalledWith("sess_1", expect.objectContaining({
+      state: "INVOICE_CUSTOMER_PICK",
+      context: { customerName: "Tolu", customerChoices: CHOICES },
+    }));
+  });
+
+  it("links the customer the owner picks", async () => {
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "RECEIPT_CUSTOMER_PICK",
+      context: { customerName: "Tolu", customerChoices: CHOICES },
+    });
+    const reply = await conversationEngine.handle(inbound("2", "p2"));
+    expect(reply?.text).toBe("Amount paid? e.g. 5000");
+    expect(mockedSession.save).toHaveBeenCalledWith("sess_1", expect.objectContaining({ state: "RECEIPT_AMOUNT" }));
+    expect(lastSavedContext()).toMatchObject({ customerName: "Tolu Bakare", customerId: "cus_2" });
+    expect(lastSavedContext().customerChoices).toBeUndefined();
+  });
+
+  it("carries on with the typed name when the owner picks New customer", async () => {
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "INVOICE_CUSTOMER_PICK",
+      context: { customerName: "Tolu", customerChoices: CHOICES },
+    });
+    await conversationEngine.handle(inbound("3", "p3"));
+    expect(mockedSession.save).toHaveBeenCalledWith("sess_1", expect.objectContaining({ state: "INVOICE_AMOUNT" }));
+    expect(lastSavedContext()).toMatchObject({ customerName: "Tolu" });
+    expect(lastSavedContext().customerId).toBeUndefined();
+  });
+
+  it("asks again when the pick is not on the list", async () => {
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "INVOICE_CUSTOMER_PICK",
+      context: { customerName: "Tolu", customerChoices: CHOICES },
+    });
+    const reply = await conversationEngine.handle(inbound("9", "p4"));
+    expect(reply?.text).toBe(
+      "Please reply with a number from the list:\n1. Tolu Adeyemi · +2348035550142\n2. Tolu Bakare\n3. New customer",
+    );
+    expect(mockedSession.save).toHaveBeenCalledWith("sess_1", expect.objectContaining({
+      state: "INVOICE_CUSTOMER_PICK",
+      context: { customerName: "Tolu", customerChoices: CHOICES },
+    }));
+  });
+
+  it("carries on with a new name when nobody matches", async () => {
+    mockedSession.getOrCreateSession.mockResolvedValue({ ...IDENTITY.session, state: "RECEIPT_CUSTOMER", context: {} });
+    const reply = await conversationEngine.handle(inbound("Kemi", "p5"));
+    expect(reply?.text).toBe("Amount paid? e.g. 5000");
+    expect(lastSavedContext()).toMatchObject({ customerName: "Kemi" });
+    expect(lastSavedContext().customerId).toBeUndefined();
   });
 });
 
@@ -136,8 +377,9 @@ describe("invoice write flow", () => {
 });
 
 describe("service item selection with quantities", () => {
-  const MOCK_SERVICES: FullServiceOption[] = [
+  const MOCK_SERVICES: ItemOption[] = [
     {
+      kind: "SERVICE",
       id: "srv_1",
       slug: "box-braids",
       name: "Box Braids",
@@ -146,6 +388,7 @@ describe("service item selection with quantities", () => {
       label: "Box Braids — NGN 15,000 (2 hr)",
     },
     {
+      kind: "SERVICE",
       id: "srv_2",
       slug: "wash-blow-dry",
       name: "Wash & Blow Dry",
@@ -156,7 +399,7 @@ describe("service item selection with quantities", () => {
   ];
 
   it("handles service selection with count and creates invoice with line items", async () => {
-    mockedDispatch.listFullServiceOptions.mockResolvedValue(MOCK_SERVICES);
+    mockedDispatch.listItemOptions.mockResolvedValue(MOCK_SERVICES);
     mockedDispatch.createInvoice.mockResolvedValue({ number: "INV-1013", link: "https://cdn.test/INV-1013.pdf" });
 
     // 1. Enter customer name at INVOICE_CUSTOMER
@@ -377,7 +620,7 @@ describe("service item selection with quantities", () => {
   });
 
   it("skips service prompt when business has no active services", async () => {
-    mockedDispatch.listFullServiceOptions.mockResolvedValue([]);
+    mockedDispatch.listItemOptions.mockResolvedValue([]);
     mockedSession.getOrCreateSession.mockResolvedValue({
       ...IDENTITY.session,
       state: "INVOICE_CUSTOMER",
@@ -392,7 +635,7 @@ describe("service item selection with quantities", () => {
   });
 
   it("skips service prompt for receipt when business has no active services", async () => {
-    mockedDispatch.listFullServiceOptions.mockResolvedValue([]);
+    mockedDispatch.listItemOptions.mockResolvedValue([]);
     mockedSession.getOrCreateSession.mockResolvedValue({
       ...IDENTITY.session,
       state: "RECEIPT_CUSTOMER",
@@ -482,6 +725,102 @@ describe("service item selection with quantities", () => {
     expect(mockedSession.save).toHaveBeenCalledWith("sess_1", expect.objectContaining({
       state: "MAIN_MENU",
     }));
+  });
+});
+
+describe("product item selection", () => {
+  const ITEMS: ItemOption[] = [
+    {
+      kind: "SERVICE",
+      id: "srv_1",
+      slug: "box-braids",
+      name: "Box Braids",
+      price: 15000,
+      currency: "NGN",
+      label: "Box Braids — NGN 15,000 (2 hr)",
+    },
+    {
+      kind: "PRODUCT",
+      id: "opt_20",
+      productOptionId: "opt_20",
+      slug: "frontal-wig",
+      name: 'Frontal wig — 20"',
+      price: 45000,
+      currency: "NGN",
+      label: 'Frontal wig — 20" — NGN 45,000 (11 in stock)',
+    },
+  ];
+  const WIG_LINE = { productOptionId: "opt_20", name: 'Frontal wig — 20"', quantity: 2, unitPrice: 45000, total: 90000 };
+
+  it("offers product options in the invoice item list", async () => {
+    mockedSession.findIdentity.mockResolvedValue(identityFor("BOTH"));
+    mockedDispatch.listItemOptions.mockResolvedValue(ITEMS);
+    mockedSession.getOrCreateSession.mockResolvedValue({ ...IDENTITY.session, state: "INVOICE_CUSTOMER", context: {} });
+    let reply = await conversationEngine.handle(inbound("Ada", "w1"));
+    expect(reply?.text).toBe(
+      "Add an item, or enter a custom amount:\n" +
+        "1. Box Braids — NGN 15,000 (2 hr)\n" +
+        '2. Frontal wig — 20" — NGN 45,000 (11 in stock)\n\n' +
+        "Reply with an item number, or enter an amount (e.g. 5000)",
+    );
+
+    // Pick the wig.
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "INVOICE_ITEM_OR_AMOUNT",
+      context: { customerName: "Ada", availableServices: ITEMS, selectedItems: [] },
+    });
+    reply = await conversationEngine.handle(inbound("2", "w2"));
+    expect(reply?.text).toBe('How many Frontal wig — 20"? (e.g. 1 or 2)');
+    expect(mockedSession.save).toHaveBeenCalledWith("sess_1", expect.objectContaining({
+      state: "INVOICE_ITEM_QTY",
+      context: expect.objectContaining({ pendingServiceId: "opt_20" }),
+    }));
+
+    // Two of them.
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "INVOICE_ITEM_QTY",
+      context: { customerName: "Ada", availableServices: ITEMS, pendingServiceId: "opt_20", selectedItems: [] },
+    });
+    reply = await conversationEngine.handle(inbound("2", "w3"));
+    expect(reply?.text).toContain('Added: 2 × Frontal wig — 20" (NGN 90,000)');
+    expect(reply?.text).toContain("Add another item?");
+    expect(reply?.text).toContain("Reply with an item number to add more, or DONE to continue.");
+    expect(mockedSession.save).toHaveBeenCalledWith("sess_1", expect.objectContaining({
+      state: "INVOICE_MORE_ITEMS",
+      context: expect.objectContaining({ amount: 90000, selectedItems: [WIG_LINE] }),
+    }));
+
+    // Confirm: the invoice gets a product line.
+    mockedDispatch.createInvoice.mockResolvedValue({ number: "INV-1021", link: "https://app.sara.ng/invoices/y" });
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "INVOICE_CONFIRM",
+      context: { customerName: "Ada", availableServices: ITEMS, amount: 90000, selectedItems: [WIG_LINE] },
+    });
+    await conversationEngine.handle(inbound("yes", "w4"));
+    expect(mockedDispatch.createInvoice).toHaveBeenCalledWith("biz_1", {
+      customerName: "Ada",
+      amount: 90000,
+      description: undefined,
+      lines: [
+        { productOptionId: "opt_20", quantity: 2, unitPrice: 45000, total: 90000, description: 'Frontal wig — 20"' },
+      ],
+    });
+  });
+
+  it("adds to the quantity when the same option is picked again", async () => {
+    mockedSession.getOrCreateSession.mockResolvedValue({
+      ...IDENTITY.session,
+      state: "RECEIPT_ITEM_QTY",
+      context: { customerName: "Ada", availableServices: ITEMS, pendingServiceId: "opt_20", selectedItems: [WIG_LINE] },
+    });
+    await conversationEngine.handle(inbound("1", "w5"));
+    expect(lastSavedContext()).toMatchObject({
+      amount: 135000,
+      selectedItems: [{ ...WIG_LINE, quantity: 3, total: 135000 }],
+    });
   });
 });
 

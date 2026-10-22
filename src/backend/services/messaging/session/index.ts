@@ -1,13 +1,16 @@
 import { db } from "@/server/db";
 import {
   Prisma,
+  type BusinessSells,
   type ChatChannel,
   type ChatIdentity,
   type ChatSession,
 } from "@prisma/client";
 
+/** A linked chat, its session, and what its business sells (which picks the menu). */
 export type IdentityWithSession = ChatIdentity & {
   session: ChatSession | null;
+  business: { sells: BusinessSells };
 };
 
 const STALE_MS = 24 * 60 * 60 * 1000;
@@ -19,7 +22,7 @@ class ChatSessionService {
   ): Promise<IdentityWithSession | null> {
     return db.chatIdentity.findUnique({
       where: { channel_externalId: { channel, externalId } },
-      include: { session: true },
+      include: { session: true, business: { select: { sells: true } } },
     });
   }
 
