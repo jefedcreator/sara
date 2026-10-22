@@ -238,9 +238,12 @@ class InvoicePayments {
 
     // Best effort: the first money against an invoice that lists products
     // makes the order and takes the stock. It is idempotent, so a later part
-    // payment finds the order already there.
+    // payment finds the order already there. It runs in its own transaction so
+    // the stock it takes is rolled back if the order can't be written.
     try {
-      await orderService.createFromInvoice(db, invoice.id);
+      await db.$transaction((tx) =>
+        orderService.createFromInvoice(tx, invoice.id),
+      );
     } catch (error) {
       console.warn("[Paystack Webhook] Invoice order creation failed:", error);
     }
