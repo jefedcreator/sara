@@ -45,6 +45,22 @@ export const receiptItemValidatorSchema = z
     path: ["serviceId"],
   });
 
+/** How the products on a walk-in receipt reach the customer. */
+export const receiptSaleValidatorSchema = z
+  .object({
+    fulfilment: z.enum(
+      ["DELIVERY", "PICKUP"],
+      "fulfilment must be one of: DELIVERY, PICKUP",
+    ),
+    deliveryAddress: z
+      .string()
+      .trim()
+      .max(500, "deliveryAddress cannot exceed 500 characters")
+      .nullable()
+      .optional(),
+  })
+  .strict();
+
 export const receiptValidatorSchema = z
   .object({
     paymentId: cuidValidator.optional(),
@@ -82,11 +98,13 @@ export const receiptValidatorSchema = z
       .nullable()
       .optional(),
     lines: z.array(receiptItemValidatorSchema).optional(),
+    sale: receiptSaleValidatorSchema.optional(),
   })
   .strict();
 
+// A sale is decided when the receipt is made, never edited afterwards.
 export const updateReceiptValidatorSchema = z
-  .object(withoutDefaults(receiptValidatorSchema.shape))
+  .object(withoutDefaults(receiptValidatorSchema.omit({ sale: true }).shape))
   .partial()
   .strict();
 

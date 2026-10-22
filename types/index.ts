@@ -15,6 +15,7 @@ import type {
   BookingMode,
   Order,
   OrderLine,
+  OrderStatus,
   Customer,
 } from "@prisma/client";
 
@@ -79,6 +80,13 @@ export type InvoiceListItem = Invoice & {
     startTime: Date;
   } | null;
   payments: Payment[];
+  /** The order the invoice made on its first payment, when it lists products. */
+  order: {
+    id: string;
+    slug: string;
+    status: OrderStatus;
+    orderNumber: string | null;
+  } | null;
   _count: {
     payments: number;
   };

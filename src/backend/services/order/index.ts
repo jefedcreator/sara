@@ -2,8 +2,13 @@ import { holdExpiresFrom, isSerializationFailure } from "@/backend/services/book
 import { customerService } from "@/backend/services/customer";
 import { emailService } from "@/backend/services/email";
 import { paystackService } from "@/backend/services/paystack";
+import type { ResolvedLine } from "@/backend/services/lines";
 import { optionLabel } from "@/backend/services/product/labels";
-import { availableStock, returnStock } from "@/backend/services/product/stock";
+import {
+  availableStock,
+  returnStock,
+  takeStock,
+} from "@/backend/services/product/stock";
 import { db } from "@/server/db";
 import { publicLink } from "@/server/share";
 import {
@@ -17,6 +22,7 @@ import {
   type Order,
   type OrderLine,
   type OrderStatus,
+  type PaymentMethod,
 } from "@prisma/client";
 
 export type CheckoutInput = {
@@ -47,6 +53,37 @@ export type OrderStatusChange = "READY" | "COMPLETED" | "CANCELLED";
 export type OrderFulfilmentInput = {
   fulfilment: "DELIVERY" | "PICKUP";
   deliveryAddress?: string | null;
+};
+
+/** The receipt facts an in-person sale needs to become an order. */
+export type ReceiptSale = {
+  id: string;
+  businessId: string;
+  customerId: string | null;
+  currency: string;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  amountPaid: number;
+  paymentMethod: PaymentMethod | null;
+  lines: ResolvedLine[];
+};
+
+/** Everything a paid-for order needs that does not depend on where it came from. */
+type PaidOrderInput = {
+  businessId: string;
+  customerId: string | null;
+  source: "RECEIPT" | "INVOICE";
+  status: "NEW" | "COMPLETED";
+  fulfilment: "DELIVERY" | "PICKUP";
+  deliveryAddress: string | null;
+  currency: string;
+  clientName: string;
+  clientPhone: string | null;
+  clientEmail: string | null;
+  invoiceId?: string;
+  receiptId?: string;
+  lines: ResolvedLine[];
 };
 
 /** The row an order list, an order page and every update returns. */
@@ -154,6 +191,84 @@ export async function nextOrderNumber(
   }
 
   return `ORD-${next}`;
+}
+
+/** A slug no other order has, in the shape startCheckout uses. */
+async function uniqueOrderSlug(
+  client: Prisma.TransactionClient,
+  businessId: string,
+): Promise<string> {
+  const business = await client.business.findUnique({
+    where: { id: businessId },
+    select: { slug: true },
+  });
+  const baseSlug = `${business?.slug ?? "order"}-${Date.now().toString(36)}`;
+  let slug = baseSlug;
+  for (let attempts = 0; attempts < 10; attempts++) {
+    const existing = await client.order.findUnique({ where: { slug } });
+    if (!existing) break;
+    slug = `${baseSlug}-${Math.random().toString(36).substring(2, 7)}`;
+  }
+  return slug;
+}
+
+/**
+ * Write an order for money that has already been taken: number it, take the
+ * stock out and record the product lines. Must run inside the caller's
+ * transaction so the order and the stock change together.
+ */
+async function placePaidOrder(
+  client: Prisma.TransactionClient,
+  input: PaidOrderInput,
+): Promise<Order> {
+  const productLines = input.lines.filter((line) => line.productOptionId);
+  const subtotal = productLines.reduce((sum, line) => sum + line.total, 0);
+  const now = new Date();
+
+  const stock = await takeStock(
+    client,
+    productLines.map((line) => ({
+      productOptionId: line.productOptionId as string,
+      quantity: line.quantity,
+    })),
+  );
+  const orderNumber = await nextOrderNumber(client, input.businessId);
+  const slug = await uniqueOrderSlug(client, input.businessId);
+
+  return client.order.create({
+    data: {
+      slug,
+      businessId: input.businessId,
+      customerId: input.customerId,
+      orderNumber,
+      status: input.status,
+      source: input.source,
+      fulfilment: input.fulfilment,
+      deliveryAddress:
+        input.fulfilment === "DELIVERY" ? input.deliveryAddress : null,
+      deliveryFee: 0,
+      subtotal,
+      total: subtotal,
+      currency: input.currency,
+      oversold: stock.short,
+      invoiceId: input.invoiceId ?? null,
+      receiptId: input.receiptId ?? null,
+      clientName: input.clientName,
+      clientPhone: input.clientPhone,
+      clientEmail: input.clientEmail,
+      paidAt: now,
+      completedAt: input.status === "COMPLETED" ? now : null,
+      lines: {
+        create: productLines.map((line) => ({
+          productOptionId: line.productOptionId,
+          name: line.name,
+          quantity: line.quantity,
+          unitPrice: line.unitPrice,
+          total: line.total,
+        })),
+      },
+    },
+  });
 }
 
 class OrderService {
@@ -534,6 +649,111 @@ class OrderService {
         total: Number(order.subtotal) + deliveryFee,
       },
       include: orderSummaryInclude,
+    });
+  }
+
+  /**
+   * A receipt that sold products is a sale that already happened: record it as
+   * an order, take the stock and attach the payment to both. Picked up on the
+   * spot it is COMPLETED straight away; a delivery starts NEW. Returns null
+   * when the receipt has no product lines. Runs in the caller's transaction.
+   */
+  async createFromReceipt(
+    client: Prisma.TransactionClient,
+    receipt: ReceiptSale,
+    sale: OrderFulfilmentInput,
+  ): Promise<Order | null> {
+    if (!receipt.lines.some((line) => line.productOptionId)) return null;
+
+    const deliveryAddress = sale.deliveryAddress?.trim() || null;
+    if (sale.fulfilment === "DELIVERY" && !deliveryAddress) {
+      throw new BadRequestException("Enter a delivery address");
+    }
+
+    const order = await placePaidOrder(client, {
+      businessId: receipt.businessId,
+      customerId: receipt.customerId,
+      source: "RECEIPT",
+      status: sale.fulfilment === "PICKUP" ? "COMPLETED" : "NEW",
+      fulfilment: sale.fulfilment,
+      deliveryAddress,
+      currency: receipt.currency,
+      clientName: receipt.name?.trim() || "Customer",
+      clientPhone: receipt.phone,
+      clientEmail: receipt.email,
+      receiptId: receipt.id,
+      lines: receipt.lines,
+    });
+
+    const payment = await client.payment.create({
+      data: {
+        businessId: receipt.businessId,
+        orderId: order.id,
+        customerId: receipt.customerId,
+        amount: receipt.amountPaid,
+        method: receipt.paymentMethod ?? "CASH",
+        clientName: receipt.name,
+        clientEmail: receipt.email,
+        clientPhone: receipt.phone,
+      },
+    });
+
+    await client.receipt.update({
+      where: { id: receipt.id },
+      data: { paymentId: payment.id },
+    });
+
+    return order;
+  }
+
+  /**
+   * An invoice that lists products becomes an order when its first payment
+   * lands: the stock is taken then, once. Idempotent on Order.invoiceId, so a
+   * later part payment (or an online payment racing the owner's) finds the
+   * order that is already there and changes nothing. Invoice orders start as
+   * pickup, and the owner can add delivery afterwards. Returns null when the
+   * invoice has no product lines. Runs in the caller's transaction.
+   */
+  async createFromInvoice(
+    client: Prisma.TransactionClient,
+    invoiceId: string,
+  ): Promise<Order | null> {
+    const existing = await client.order.findUnique({ where: { invoiceId } });
+    if (existing) return existing;
+
+    const invoice = await client.invoice.findUnique({
+      where: { id: invoiceId },
+      include: { lines: { orderBy: { position: "asc" } } },
+    });
+    if (!invoice) {
+      throw new NotFoundException("Invoice not found");
+    }
+
+    const lines: ResolvedLine[] = invoice.lines.map((line) => ({
+      serviceId: line.serviceId,
+      productOptionId: line.productOptionId,
+      name: line.name,
+      description: line.description,
+      quantity: line.quantity,
+      unitPrice: Number(line.unitPrice),
+      total: Number(line.total),
+      position: line.position,
+    }));
+    if (!lines.some((line) => line.productOptionId)) return null;
+
+    return placePaidOrder(client, {
+      businessId: invoice.businessId,
+      customerId: invoice.customerId,
+      source: "INVOICE",
+      status: "NEW",
+      fulfilment: "PICKUP",
+      deliveryAddress: null,
+      currency: invoice.currency,
+      clientName: invoice.clientName,
+      clientPhone: invoice.clientPhone,
+      clientEmail: invoice.clientEmail,
+      invoiceId: invoice.id,
+      lines,
     });
   }
 }

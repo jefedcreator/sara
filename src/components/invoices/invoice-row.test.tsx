@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { InvoiceRow } from "./invoice-row";
 
 const BASE_INVOICE: InvoiceDto = {
+  order: null,
   id: "inv_1",
   slug: "inv-1",
   publicId: "pub_inv_1",

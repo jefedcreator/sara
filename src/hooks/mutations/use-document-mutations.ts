@@ -2,6 +2,8 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { dashboardKeys } from "@/hooks/queries/use-dashboard";
 import { invoiceKeys } from "@/hooks/queries/use-invoices";
+import { orderKeys } from "@/hooks/queries/use-orders";
+import { productKeys } from "@/hooks/queries/use-products";
 import { receiptKeys } from "@/hooks/queries/use-receipts";
 import {
   api,
@@ -12,13 +14,19 @@ import {
   type ReceiptUpdateInput,
 } from "@/utils/api";
 
-/** Invoices and receipts both feed the dashboard's numbers. */
+/**
+ * Invoices and receipts both feed the dashboard's numbers, and a sale of
+ * products makes (or cancels) an order and moves stock, so those lists go
+ * stale with them.
+ */
 function useInvalidateMoney() {
   const queryClient = useQueryClient();
   return () => {
     void queryClient.invalidateQueries({ queryKey: invoiceKeys.all });
     void queryClient.invalidateQueries({ queryKey: receiptKeys.all });
     void queryClient.invalidateQueries({ queryKey: dashboardKeys.all });
+    void queryClient.invalidateQueries({ queryKey: orderKeys.all });
+    void queryClient.invalidateQueries({ queryKey: productKeys.all });
   };
 }
 
@@ -66,8 +74,15 @@ export function useRecordPaymentMutation() {
 export function useSetInvoiceStatusMutation() {
   const invalidate = useInvalidateMoney();
   return useMutation({
-    mutationFn: ({ slug, status }: { slug: string; status: "SENT" | "VOID" }) =>
-      api.invoices.setStatus(slug, status),
+    mutationFn: ({
+      slug,
+      status,
+      cancelOrder,
+    }: {
+      slug: string;
+      status: "SENT" | "VOID";
+      cancelOrder?: boolean;
+    }) => api.invoices.setStatus(slug, status, { cancelOrder }),
     onSuccess: invalidate,
   });
 }
