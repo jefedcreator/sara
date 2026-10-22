@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/server/documents", () => ({ getSharedInvoice: vi.fn(), getSharedReceipt: vi.fn() }));
 vi.mock("@/server/booking-page", () => ({ getPublicBooking: vi.fn() }));
 vi.mock("@/server/service-page", () => ({ getServicePage: vi.fn() }));
+vi.mock("@/server/product-page", () => ({ getProductPage: vi.fn() }));
 
 vi.mock("@/server/og", () => {
   const png = (body: string) => async () =>
@@ -12,6 +13,7 @@ vi.mock("@/server/og", () => {
     documentCard: vi.fn(png("document")),
     bookingCard: vi.fn(png("booking")),
     serviceCard: vi.fn(async () => new Response("service", { headers: { "content-type": "image/jpeg" } })),
+    productCard: vi.fn(async () => new Response("product", { headers: { "content-type": "image/jpeg" } })),
     pageCard: vi.fn(png("site")),
   };
 });
@@ -20,18 +22,21 @@ vi.mock("@/utils/booking-view", () => ({ bookingView: vi.fn(() => "upcoming") })
 vi.mock("@/utils/url", () => ({ appBaseUrl: () => "https://sara.example" }));
 
 import { getSharedInvoice } from "@/server/documents";
+import { getProductPage } from "@/server/product-page";
 import { getServicePage } from "@/server/service-page";
 
 import { cardFor, linkCard, primeLinkCard } from "./link-cards";
 
 const mockedInvoice = getSharedInvoice as any;
 const mockedService = getServicePage as any;
+const mockedProduct = getProductPage as any;
 
 beforeEach(() => {
   vi.clearAllMocks();
   (globalThis as any).saraLinkCards?.clear();
   mockedInvoice.mockResolvedValue({ kind: "invoice", number: "INV-1" });
   mockedService.mockResolvedValue({ name: "Knotless braids" });
+  mockedProduct.mockResolvedValue({ slug: "frontal-wig", name: "Frontal wig" });
 });
 
 afterEach(() => vi.useRealTimers());
@@ -44,6 +49,7 @@ describe("cardFor", () => {
     expect(cardFor("https://sara.example/services/acme-braids")).toEqual({ kind: "service", id: "acme-braids" });
     expect(cardFor("https://sara.example/book/acme-braids")).toEqual({ kind: "service", id: "acme-braids" });
     expect(cardFor("https://sara.example/services/acme%20braids")).toEqual({ kind: "service", id: "acme braids" });
+    expect(cardFor("https://sara.example/products/frontal-wig")).toEqual({ kind: "product", id: "frontal-wig" });
   });
 
   it("leaves everything else alone", () => {
@@ -122,6 +128,15 @@ describe("primeLinkCard", () => {
     expect(await card.text()).toBe("service");
     expect(card.headers.get("content-type")).toBe("image/jpeg");
     expect(mockedService).toHaveBeenCalledTimes(1);
+  });
+
+  it("warms a product's page before its link goes out", async () => {
+    await primeLinkCard("https://sara.example/products/frontal-wig");
+    const card = await linkCard("product", "frontal-wig");
+
+    expect(await card.text()).toBe("product");
+    expect(card.headers.get("content-type")).toBe("image/jpeg");
+    expect(mockedProduct).toHaveBeenCalledTimes(1);
   });
 
   it("ignores links that aren't Sara's customer links", async () => {

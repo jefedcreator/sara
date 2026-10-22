@@ -32,7 +32,7 @@ type Sender =
   | {
       kind: "business";
       name: string;
-      credit: "Bookings" | "Invoices" | "Receipts";
+      credit: "Bookings" | "Invoices" | "Orders" | "Receipts";
     };
 
 export function EmailLayout({

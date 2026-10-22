@@ -20,9 +20,12 @@ import BookingReminderEmail from "./templates/BookingReminderEmail";
 import BookingRescheduledEmail from "./templates/BookingRescheduledEmail";
 import InvoiceEmail from "./templates/InvoiceEmail";
 import NewBookingEmail from "./templates/NewBookingEmail";
+import OrderEmail, { type OrderEmailKind } from "./templates/OrderEmail";
 import ReceiptEmail from "./templates/ReceiptEmail";
 import WelcomeEmail from "./templates/WelcomeEmail";
 import type { EmailMessage } from "./types";
+
+export type { OrderEmailKind };
 
 type Money = number | string;
 
@@ -247,6 +250,70 @@ export function bookingCancelledEmail(input: {
       />
     ),
   };
+}
+
+export function orderEmail(input: {
+  kind: OrderEmailKind;
+  origin: string;
+  to: string;
+  business: BusinessSender;
+  orderNumber: string;
+  lines: { name: string; quantity: number; total: Money }[];
+  total: Money;
+  currency: string;
+  fulfilment: "DELIVERY" | "PICKUP";
+  deliveryAddress: string | null;
+  pickupAddress: string | null;
+  receiptUrl: string | null;
+  orderUrl: string;
+}): EmailMessage {
+  const { replyTo, canReply } = fromBusiness(input.business);
+  return {
+    to: input.to,
+    replyTo,
+    subject: orderSubject(input.kind, input.fulfilment, input.business.name),
+    body: (
+      <OrderEmail
+        origin={input.origin}
+        businessName={input.business.name}
+        kind={input.kind}
+        orderNumber={input.orderNumber}
+        lines={input.lines.map((line) => ({
+          name: line.name,
+          quantity: line.quantity,
+          total: formatMoney(line.total, input.currency),
+        }))}
+        total={formatMoney(input.total, input.currency)}
+        fulfilment={input.fulfilment}
+        deliveryAddress={input.deliveryAddress}
+        pickupAddress={input.pickupAddress}
+        receiptUrl={input.receiptUrl}
+        orderUrl={input.orderUrl}
+        canReply={canReply}
+      />
+    ),
+  };
+}
+
+function orderSubject(
+  kind: OrderEmailKind,
+  fulfilment: "DELIVERY" | "PICKUP",
+  businessName: string,
+) {
+  switch (kind) {
+    case "confirmed":
+      return `Your order from ${businessName} is confirmed`;
+    case "ready":
+      return fulfilment === "PICKUP"
+        ? `Your order from ${businessName} is ready for pickup`
+        : `Your order from ${businessName} is on its way`;
+    case "completed":
+      return fulfilment === "DELIVERY"
+        ? `Your order from ${businessName} was delivered`
+        : `Thanks for collecting your order from ${businessName}`;
+    case "cancelled":
+      return `Your order from ${businessName} was cancelled`;
+  }
 }
 
 export function invoiceEmail(input: {

@@ -6,9 +6,11 @@ import { emailService } from "@/backend/services/email";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { formatMoney } from "@/backend/services/messaging/engine/amount";
 import { ownerNotifier } from "@/backend/services/messaging/notify";
+import { processOrderPayment } from "@/backend/services/order/payment";
 import {
   paystackService,
   type PaystackWebhookEvent,
+  type SuccessfulPaymentData,
 } from "@/backend/services/paystack";
 import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
@@ -26,9 +28,10 @@ export const runtime = "nodejs";
  *              Validates the webhook signature, then processes the event.
  *
  *              On `charge.success`:
- *              1. Checks idempotency — skips if a Payment with the same reference already exists.
- *              2. Validates the booking exists and is still PENDING.
- *              3. Atomically confirms the booking and creates a Payment record.
+ *              1. Orders: hands the charge to `processOrderPayment` when the
+ *                 metadata carries an `orderId`.
+ *              2. Bookings: checks idempotency, validates the booking, then
+ *                 atomically confirms it and creates a Payment record.
  */
 export async function POST(request: Request) {
   try {
@@ -82,14 +85,16 @@ export async function POST(request: Request) {
  * @description Handles Paystack post-payment redirect (Callback URL).
  *              Paystack redirects the user's browser here after payment.
  *              We perform a server-side redirect to the frontend to cleanly strip query parameters.
- *              If the booking is not yet confirmed (e.g. webhook has not arrived or in local dev),
- *              we verify the transaction directly with Paystack.
+ *              A payment already linked to a booking or an order goes straight to
+ *              that page; otherwise we verify the transaction with Paystack before
+ *              following the `?b=<bookingSlug>` or `?o=<orderSlug>` hint.
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const reference =
     url.searchParams.get("reference") || url.searchParams.get("trxref");
   const bookingSlug = url.searchParams.get("b");
+  const orderSlug = url.searchParams.get("o");
   const baseUrl = appBaseUrl();
 
   if (reference) {
@@ -99,12 +104,21 @@ export async function GET(request: Request) {
         booking: {
           select: { id: true, publicId: true, slug: true },
         },
+        order: {
+          select: { publicId: true },
+        },
       },
     });
 
     if (existingPayment?.booking) {
       return NextResponse.redirect(
         new URL(publicPath("booking", existingPayment.booking.publicId), baseUrl),
+      );
+    }
+
+    if (existingPayment?.order) {
+      return NextResponse.redirect(
+        new URL(publicPath("order", existingPayment.order.publicId), baseUrl),
       );
     }
 
@@ -119,9 +133,15 @@ export async function GET(request: Request) {
           channel: verification.channel,
         });
 
-        if (result?.booking) {
+        if (result && "booking" in result && result.booking) {
           return NextResponse.redirect(
             new URL(publicPath("booking", result.booking.publicId), baseUrl),
+          );
+        }
+
+        if (result && "order" in result && result.order) {
+          return NextResponse.redirect(
+            new URL(publicPath("order", result.order.publicId), baseUrl),
           );
         }
       }
@@ -129,6 +149,18 @@ export async function GET(request: Request) {
       console.error(
         "[Paystack Callback] Verification failed:",
         error?.message || error,
+      );
+    }
+  }
+
+  if (orderSlug) {
+    const order = await db.order.findUnique({
+      where: { slug: orderSlug },
+      select: { publicId: true },
+    });
+    if (order) {
+      return NextResponse.redirect(
+        new URL(publicPath("order", order.publicId), baseUrl),
       );
     }
   }
@@ -148,30 +180,26 @@ export async function GET(request: Request) {
   return NextResponse.redirect(new URL("/", baseUrl));
 }
 
-type SuccessfulPaymentData = {
-  reference: string;
-  amount: number;
-  metadata?: Record<string, unknown>;
-  customer?: {
-    email: string;
-    first_name?: string | null;
-    last_name?: string | null;
-  };
-  channel?: string | null;
-};
-
 /**
  * Handles a successful charge event from Paystack.
  *
  * Flow:
- * 1. Extract bookingId and businessId from transaction metadata.
- * 2. Idempotency check — skip if a payment with this reference already exists.
- * 3. Validate the booking exists and is in PENDING status.
- * 4. Atomically: confirm the booking + create a Payment record.
+ * 1. If the metadata carries an `orderId`, hand the charge to the order
+ *    processor and stop there.
+ * 2. Otherwise extract bookingId and businessId from transaction metadata.
+ * 3. Idempotency check — skip if a payment with this reference already exists.
+ * 4. Validate the booking exists and is in PENDING status.
+ * 5. Atomically: confirm the booking + create a Payment record.
  */
 async function processSuccessfulPayment(data: SuccessfulPaymentData) {
   const { reference, amount, metadata, channel } = data;
   const customer = data.customer ?? { email: "" };
+
+  // Orders have their own processor; a charge for one never carries a booking.
+  if (typeof metadata?.orderId === "string") {
+    const result = await processOrderPayment(data);
+    return result ? { order: result.order } : null;
+  }
 
   let bookingId = metadata?.bookingId as string | undefined;
   let businessId = metadata?.businessId as string | undefined;
@@ -205,6 +233,7 @@ async function processSuccessfulPayment(data: SuccessfulPaymentData) {
           status: true,
           businessId: true,
           serviceId: true,
+          customerId: true,
           units: true,
           amount: true,
           holdExpiresAt: true,
@@ -261,6 +290,7 @@ async function processSuccessfulPayment(data: SuccessfulPaymentData) {
       status: true,
       businessId: true,
       serviceId: true,
+      customerId: true,
       units: true,
       amount: true,
       holdExpiresAt: true,
@@ -334,6 +364,7 @@ async function processSuccessfulPayment(data: SuccessfulPaymentData) {
     amount: amount / 100, // Convert from smallest unit (kobo/cents) to main unit
     method: "PAYSTACK" as const,
     reference,
+    customerId: booking.customerId ?? null,
     clientName:
       booking.clientName ||
       [customer.first_name, customer.last_name].filter(Boolean).join(" ") ||
@@ -437,6 +468,7 @@ async function processSuccessfulPayment(data: SuccessfulPaymentData) {
     });
     const receipt = await receiptService.create({
       businessId,
+      customerId: booking.customerId ?? null,
       paymentId: payment?.id ?? null,
       name: booking.clientName ?? null,
       email: booking.clientEmail ?? null,
@@ -448,7 +480,7 @@ async function processSuccessfulPayment(data: SuccessfulPaymentData) {
       total: amount / 100,
       amountPaid: amount / 100,
       paymentMethod: "PAYSTACK",
-      services: [
+      lines: [
         {
           serviceId: booking.serviceId,
           description: booking.service.name,

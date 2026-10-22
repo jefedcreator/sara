@@ -1,6 +1,13 @@
 import { getPublicBooking } from "@/server/booking-page";
 import { getSharedInvoice, getSharedReceipt } from "@/server/documents";
-import { bookingCard, documentCard, pageCard, serviceCard } from "@/server/og";
+import {
+  bookingCard,
+  documentCard,
+  pageCard,
+  productCard,
+  serviceCard,
+} from "@/server/og";
+import { getProductPage } from "@/server/product-page";
 import { getServicePage } from "@/server/service-page";
 import { bookingView } from "@/utils/booking-view";
 import { appBaseUrl } from "@/utils/url";
@@ -20,7 +27,12 @@ import { appBaseUrl } from "@/utils/url";
  * card routes are separate bundles.
  */
 
-export type LinkCardKind = "invoice" | "receipt" | "booking" | "service";
+export type LinkCardKind =
+  | "invoice"
+  | "receipt"
+  | "booking"
+  | "service"
+  | "product";
 
 type Card = { body: ArrayBuffer; headers: [string, string][] };
 type Entry = { card: Promise<Card | null>; expires: number };
@@ -38,6 +50,7 @@ const SEGMENTS = new Map<string, LinkCardKind>([
   ["bookings", "booking"],
   ["services", "service"],
   ["book", "service"],
+  ["products", "product"],
 ]);
 
 /** A card's response, or null for a link that leads nowhere. */
@@ -57,6 +70,10 @@ const RENDER: Record<LinkCardKind, (id: string) => Promise<Response | null>> = {
   service: async (slug) => {
     const service = await getServicePage(slug);
     return service && serviceCard(service);
+  },
+  product: async (slug) => {
+    const product = await getProductPage(slug);
+    return product && productCard(product);
   },
 };
 

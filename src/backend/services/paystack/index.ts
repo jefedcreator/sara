@@ -66,6 +66,20 @@ export type PaystackResolvedAccount = {
   bank_id: number;
 };
 
+/** The charge fields the webhook and the callback verification hand to the processors. */
+export type SuccessfulPaymentData = {
+  reference: string;
+  /** Amount in the smallest currency unit (kobo/cents). */
+  amount: number;
+  metadata?: Record<string, unknown>;
+  customer?: {
+    email: string;
+    first_name?: string | null;
+    last_name?: string | null;
+  };
+  channel?: string | null;
+};
+
 export type PaystackWebhookEvent = {
   event: string;
   data: {
