@@ -24,7 +24,7 @@ export const publicBusinessSelect = {
 export const invoiceListInclude = {
   business: { select: publicBusinessSelect },
   payments: true,
-  services: { include: { service: true } },
+  lines: { include: { service: true }, orderBy: { position: "asc" } },
   booking: {
     select: { id: true, slug: true, clientName: true, startTime: true },
   },
@@ -39,7 +39,7 @@ export const receiptListInclude = {
     },
   },
   business: { select: publicBusinessSelect },
-  services: { include: { service: true } },
+  lines: { include: { service: true }, orderBy: { position: "asc" } },
 } satisfies Prisma.ReceiptInclude;
 
 /** What a booking list row carries (GET /api/bookings and the bookings page). */

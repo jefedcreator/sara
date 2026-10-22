@@ -1,6 +1,7 @@
 import {
   createSearchParamsCache,
   parseAsInteger,
+  parseAsString,
   parseAsStringLiteral,
 } from "nuqs/server";
 
@@ -64,3 +65,9 @@ export const receiptsParams = {
   page: parseAsInteger.withDefault(1),
 };
 export const receiptsParamsCache = createSearchParamsCache(receiptsParams);
+
+export const customersParams = {
+  query: parseAsString.withDefault(""),
+  page: parseAsInteger.withDefault(1),
+};
+export const customersParamsCache = createSearchParamsCache(customersParams);

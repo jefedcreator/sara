@@ -268,7 +268,7 @@ describe("service item selection with quantities", () => {
       customerName: "Ada",
       amount: 30000,
       description: undefined,
-      services: [
+      lines: [
         { serviceId: "srv_1", quantity: 2, unitPrice: 15000, total: 30000, description: "Box Braids" },
       ],
     });
@@ -350,7 +350,7 @@ describe("service item selection with quantities", () => {
       customerName: "Tunde",
       amount: 35000,
       description: "Full service",
-      services: [
+      lines: [
         { serviceId: "srv_1", quantity: 2, unitPrice: 15000, total: 30000, description: "Box Braids" },
         { serviceId: "srv_2", quantity: 1, unitPrice: 5000, total: 5000, description: "Wash & Blow Dry" },
       ],

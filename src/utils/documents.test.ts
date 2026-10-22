@@ -75,8 +75,23 @@ describe("toDocumentPayload", () => {
       discount: 0,
       total: 25000,
       notes: undefined,
-      services: [{ serviceId: "s1", quantity: 1, unitPrice: 25000, total: 25000 }],
+      lines: [{ serviceId: "s1", quantity: 1, unitPrice: 25000, total: 25000 }],
     });
+  });
+
+  it("carries a product line's option through to the API", () => {
+    const payload = toDocumentPayload(
+      {
+        ...base,
+        items: [
+          { productOptionId: "opt_1", quantity: "1", unitPrice: "45000" },
+        ],
+      },
+      "NGN",
+    );
+    expect(payload.lines).toEqual([
+      { productOptionId: "opt_1", quantity: 1, unitPrice: 45000, total: 45000 },
+    ]);
   });
 
   it("puts a custom amount's description in the notes, with no items", () => {
@@ -84,7 +99,7 @@ describe("toDocumentPayload", () => {
       { ...base, mode: "amount", amount: "15000", description: "Wig install" },
       "NGN",
     );
-    expect(payload.services).toBeUndefined();
+    expect(payload.lines).toBeUndefined();
     expect(payload.notes).toBe("Wig install");
     expect(payload.total).toBe(15000);
   });
@@ -114,14 +129,18 @@ const MOCK_INVOICE: InvoiceDto = {
   url: "https://cdn.test/inv.pdf",
   createdAt: "2026-10-01T00:00:00.000Z",
   updatedAt: "2026-10-01T00:00:00.000Z",
-  services: [
+  lines: [
     {
+      id: "line_1",
       invoiceId: "inv_1",
       serviceId: "srv_1",
+      productOptionId: null,
+      name: "Braids",
       description: "Braids",
       quantity: 1,
       unitPrice: "25000",
       total: "25000",
+      position: 0,
       service: { id: "srv_1", name: "Braids" } as any,
     },
   ],
@@ -154,7 +173,7 @@ const MOCK_RECEIPT: ReceiptDto = {
   updatedAt: "2026-10-05T00:00:00.000Z",
   business: { id: "biz_1", name: "Sara Salon" } as any,
   payment: null,
-  services: [],
+  lines: [],
 };
 
 describe("documentToFormValues", () => {

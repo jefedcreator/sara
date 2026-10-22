@@ -54,6 +54,12 @@ export const CARDS = {
     headline: "Your bookings.",
     description: "Every appointment booked through your links, day by day.",
   },
+  customers: {
+    title: "Customers · Sara",
+    headline: "Your customers.",
+    description:
+      "Everyone who books, buys or gets an invoice, with what they've spent and still owe.",
+  },
   invoices: {
     title: "Invoices · Sara",
     headline: "Your invoices.",
@@ -69,6 +75,18 @@ export const CARDS = {
     headline: "Your services and booking links.",
     description:
       "Prices, lengths and the links customers book and pay through.",
+  },
+  products: {
+    title: "Products · Sara",
+    headline: "Your products and links.",
+    description:
+      "Photos, prices and stock, with a link customers order through.",
+  },
+  orders: {
+    title: "Orders · Sara",
+    headline: "Your orders.",
+    description:
+      "What's been paid, what to send out and what's already done.",
   },
   settings: {
     title: "Settings · Sara",
@@ -98,9 +116,12 @@ export function isCardKey(value: string): value is CardKey {
 const DESTINATION_CARDS: Record<string, CardKey> = {
   dashboard: "dashboard",
   bookings: "bookings",
+  customers: "customers",
   invoices: "invoices",
   receipts: "receipts",
   services: "services",
+  products: "products",
+  orders: "orders",
   settings: "settings",
   onboarding: "onboarding",
   link: "link",

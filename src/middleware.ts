@@ -69,9 +69,13 @@ export const config = {
     // The owner's lists only. Below them (/invoices/<id>, /services/<slug>,
     // ...) are the customers' public pages, which never need a session.
     "/bookings",
+    "/customers",
+    "/customers/:path*",
     "/invoices",
     "/receipts",
     "/services",
+    "/products",
+    "/orders",
     "/settings/:path*",
     "/onboarding",
     "/link",

@@ -1,3 +1,4 @@
+import { customerService } from "@/backend/services/customer";
 import { paystackService } from "@/backend/services/paystack";
 import { db } from "@/server/db";
 import { BadRequestException, ConflictException, NotFoundException } from "@/utils/exceptions";
@@ -69,6 +70,15 @@ class BookingService {
     const range = { start: input.startTime, end: terms.endTime };
     const takenMessage = service.bookingMode === "SLOT" ? SLOT_TAKEN : DATES_TAKEN;
 
+    // Resolve before the serializable insert, so a retry cannot create a
+    // second customer for the same booking.
+    const customer = await customerService.resolve(db, {
+      businessId: service.business.id,
+      name: input.clientName,
+      phone: input.clientPhone,
+      email: input.clientEmail,
+    });
+
     // Check and insert in one serializable transaction, so two customers
     // paying for the same time at the same moment can't both get through.
     const insert = () =>
@@ -88,10 +98,11 @@ class BookingService {
             slug = `${slug}-${Math.random().toString(36).substring(2, 7)}`;
           }
 
-          const data: Prisma.BookingCreateInput = {
+          const data: Prisma.BookingUncheckedCreateInput = {
             slug,
-            business: { connect: { id: service.business.id } },
-            service: { connect: { id: service.id } },
+            businessId: service.business.id,
+            serviceId: service.id,
+            customerId: customer?.id ?? null,
             startTime: input.startTime,
             endTime: terms.endTime,
             units: terms.units,

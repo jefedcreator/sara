@@ -73,7 +73,7 @@ beforeEach(() => {
     clientName: "Ada",
     clientEmail: "ada@example.com",
     business: { id: "biz_1", name: "Tobi Beauty" },
-    services: [],
+    lines: [],
     ...data,
   }));
 });
@@ -109,7 +109,7 @@ describe("PUT /api/invoices/[slug]", () => {
     mockedDb.invoice.findUnique.mockResolvedValue({
       ...invoice("SENT"),
       clientEmail: "ada@example.com",
-      services: [],
+      lines: [],
     });
     mockedDb.invoice.update.mockResolvedValue({
       id: "inv_1",
@@ -129,7 +129,7 @@ describe("PUT /api/invoices/[slug]", () => {
       paidAt: null,
       notes: null,
       business: { id: "biz_1", name: "Tobi Beauty" },
-      services: [],
+      lines: [],
     });
     const response = await put({ name: "Ada Updated" });
     expect(response.status).toBe(200);

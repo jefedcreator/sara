@@ -5,26 +5,26 @@ import { INVOICE_STATUS, PAYMENT_METHOD } from "@/utils/labels";
 import type { SharedDocument } from "@/utils/shared-document";
 
 const lineSelect = {
+  name: true,
   description: true,
   quantity: true,
   unitPrice: true,
   total: true,
-  service: { select: { name: true } },
 } as const;
 
 function toLines(
   rows: {
+    name: string;
     description: string | null;
     quantity: number;
     unitPrice: unknown;
     total: unknown;
-    service: { name: string };
   }[],
 ) {
   return rows.map((row) => ({
-    // `||`: an empty description falls back to the service's name, as on the PDF.
+    // `||`: an empty description falls back to the line's name, as on the PDF.
     // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-    description: row.description || row.service.name,
+    description: row.description || row.name,
     quantity: row.quantity,
     unitPrice: Number(row.unitPrice),
     total: Number(row.total),
@@ -52,7 +52,7 @@ export const getSharedInvoice = cache(
         notes: true,
         url: true,
         business: { select: { name: true } },
-        services: { select: lineSelect },
+        lines: { select: lineSelect, orderBy: { position: "asc" } },
       },
     });
     if (!invoice) return null;
@@ -67,7 +67,7 @@ export const getSharedInvoice = cache(
       businessName: invoice.business.name,
       customerName: invoice.clientName,
       currency: invoice.currency,
-      lines: toLines(invoice.services),
+      lines: toLines(invoice.lines),
       subtotal: Number(invoice.subtotal),
       taxAmount: Number(invoice.taxAmount),
       discount: Number(invoice.discount),
@@ -110,7 +110,7 @@ export const getSharedReceipt = cache(
         notes: true,
         url: true,
         business: { select: { name: true } },
-        services: { select: lineSelect },
+        lines: { select: lineSelect, orderBy: { position: "asc" } },
       },
     });
     if (!receipt) return null;
@@ -122,7 +122,7 @@ export const getSharedReceipt = cache(
       businessName: receipt.business.name,
       customerName: receipt.name,
       currency: receipt.currency,
-      lines: toLines(receipt.services),
+      lines: toLines(receipt.lines),
       subtotal: Number(receipt.subtotal),
       taxAmount: Number(receipt.taxAmount),
       discount: Number(receipt.discount),

@@ -42,7 +42,7 @@ export function InvoiceRow({
   const isEditable =
     ["DRAFT", "SENT", "OVERDUE"].includes(invoice.status) &&
     Number(invoice.amountPaid) === 0;
-  const lines = invoice.services.map((line) => line.service.name).join(", ");
+  const lines = invoice.lines.map((line) => line.name).join(", ");
   // The date that matters next: when it's due, or, with no due date, when it was made.
   const when = invoice.dueAt ? `Due ${formatDate(invoice.dueAt)}` : formatDate(invoice.createdAt);
 

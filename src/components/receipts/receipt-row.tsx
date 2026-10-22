@@ -20,7 +20,7 @@ interface ReceiptRowProps {
 export function ReceiptRow({ receipt, link, onEdit }: ReceiptRowProps) {
   const invoice = receipt.payment?.invoice;
   const method = receipt.paymentMethod ? PAYMENT_METHOD[receipt.paymentMethod] : null;
-  const lines = receipt.services.map((line) => line.service.name).join(", ");
+  const lines = receipt.lines.map((line) => line.name).join(", ");
   const isEditable =
     !receipt.payment?.invoice &&
     (receipt.paymentMethod === "CASH" || receipt.paymentMethod === "BANK_TRANSFER");

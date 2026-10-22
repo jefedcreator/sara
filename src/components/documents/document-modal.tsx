@@ -2,14 +2,17 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, Trash } from "@phosphor-icons/react/dist/ssr";
+import { useState } from "react";
 import { Controller, useFieldArray, useForm, useWatch } from "react-hook-form";
-import type { InvoiceDto, ReceiptDto, ServiceDto } from "types";
+import type { CustomerListItem, InvoiceDto, ReceiptDto, ServiceDto } from "types";
 
 import {
   documentFormSchema,
   type DocumentFormSchema,
 } from "@/backend/validators/document-form.validator";
 import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
+import { useCustomersQuery } from "@/hooks/queries/use-customers";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import {
   Button,
   DatePicker,
@@ -27,6 +30,13 @@ import { formatMoney, todayIso } from "@/utils/format";
 
 export type DocumentKind = "invoice" | "receipt";
 
+export type CustomerPrefill = Pick<CustomerListItem, "id" | "name" | "phone" | "email">;
+
+export type DocumentSubmitOptions = {
+  draft: boolean;
+  customerId?: string;
+};
+
 export type CreatedDocument = {
   number: string;
   /** The customer's link: a page with the document's own preview card. */
@@ -43,12 +53,14 @@ interface DocumentModalProps {
   onOpenChange: (open: boolean) => void;
   services: ServiceDto[];
   currency: string;
-  onSubmit: (values: DocumentFormSchema, options: { draft: boolean }) => void;
+  onSubmit: (values: DocumentFormSchema, options: DocumentSubmitOptions) => void;
   isPending: boolean;
   error: string | null;
   /** Set once saved: the modal turns into the share view. */
   created: CreatedDocument | null;
   editing?: InvoiceDto | ReceiptDto | null;
+  /** A customer chosen before opening, from their page. */
+  customer?: CustomerPrefill | null;
 }
 
 const COPY: Record<
@@ -67,12 +79,12 @@ const COPY: Record<
   },
 };
 
-function emptyValues(services: ServiceDto[]): DocumentFormSchema {
+function emptyValues(services: ServiceDto[], customer?: CustomerPrefill | null): DocumentFormSchema {
   const first = services[0];
   return {
-    name: "",
-    email: "",
-    phone: "",
+    name: customer?.name ?? "",
+    email: customer?.email ?? "",
+    phone: customer?.phone ?? "",
     mode: first ? "services" : "amount",
     items: first
       ? [
@@ -108,8 +120,16 @@ export function DocumentModal({
   error,
   created,
   editing,
+  customer,
 }: DocumentModalProps) {
   const copy = COPY[kind];
+  const [customerId, setCustomerId] = useState<string | undefined>(
+    editing?.customerId ?? customer?.id,
+  );
+  const [selectedCustomer, setSelectedCustomer] = useState<Pick<CustomerPrefill, "id" | "name"> | null>(
+    customer ? { id: customer.id, name: customer.name } : null,
+  );
+  const [looking, setLooking] = useState(false);
   const {
     register,
     control,
@@ -120,11 +140,19 @@ export function DocumentModal({
     resolver: zodResolver(documentFormSchema),
     defaultValues: editing
       ? documentToFormValues(editing, kind)
-      : emptyValues(services),
+      : emptyValues(services, customer),
   });
   const items = useFieldArray({ control, name: "items" });
   const values = useWatch({ control });
   const mode = values.mode ?? "amount";
+  const nameValue = values.name ?? "";
+  const debouncedName = useDebouncedValue(nameValue.trim(), 250);
+  const customerMatches = useCustomersQuery(
+    { query: debouncedName || undefined, page: 1 },
+    undefined,
+    { enabled: looking && debouncedName.length >= 2 },
+  );
+  const matches = customerMatches.data?.data ?? [];
   const totals = computeTotals({
     mode,
     items: (values.items ?? []).map((item) => ({
@@ -138,7 +166,16 @@ export function DocumentModal({
   });
 
   const submit = (draft: boolean) =>
-    handleSubmit((form) => onSubmit(form, { draft }));
+    handleSubmit((form) => onSubmit(form, { draft, customerId }));
+
+  function chooseCustomer(next: CustomerListItem) {
+    setValue("name", next.name, { shouldValidate: true, shouldDirty: true });
+    setValue("email", next.email ?? "", { shouldDirty: true });
+    setValue("phone", next.phone ?? "", { shouldDirty: true });
+    setCustomerId(next.id);
+    setSelectedCustomer({ id: next.id, name: next.name });
+    setLooking(false);
+  }
 
   const docNumber = editing
     ? "invoiceNumber" in editing
@@ -175,9 +212,67 @@ export function DocumentModal({
                 <Field
                   id={`${kind}-name`}
                   label="Customer"
+                  hint={
+                    selectedCustomer
+                      ? `Using ${selectedCustomer.name}'s saved details.`
+                      : "Type to find a saved customer, or enter a new name."
+                  }
                   error={errors.name?.message}
                 >
-                  <Input placeholder="Funke Bello" {...register("name")} />
+                  <div
+                    onBlur={(event) => {
+                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                        setLooking(false);
+                      }
+                    }}
+                  >
+                    <Input
+                      autoComplete="off"
+                      placeholder="Funke Bello"
+                      {...register("name", {
+                        onChange: () => {
+                          setCustomerId(undefined);
+                          setSelectedCustomer(null);
+                        },
+                      })}
+                      onFocus={() => setLooking(true)}
+                    />
+                    {looking && debouncedName.length >= 2 ? (
+                      <div className="border-line bg-canvas rounded-card shadow-bubble mt-1 overflow-hidden border">
+                        {customerMatches.isFetching && matches.length === 0 ? (
+                          <p className="text-muted px-3.5 py-2.5 text-[13px]">Searching…</p>
+                        ) : customerMatches.isError ? (
+                          <p className="text-danger px-3.5 py-2.5 text-[13px]">
+                            Couldn&apos;t search customers.
+                          </p>
+                        ) : matches.length === 0 ? (
+                          <p className="text-muted px-3.5 py-2.5 text-[13px]">
+                            No saved customer matches.
+                          </p>
+                        ) : (
+                          <ul className="divide-line max-h-56 divide-y overflow-y-auto">
+                            {matches.map((match) => (
+                              <li key={match.id}>
+                                <button
+                                  type="button"
+                                  onMouseDown={(event) => event.preventDefault()}
+                                  onClick={() => chooseCustomer(match)}
+                                  className="hover:bg-surface flex w-full cursor-pointer flex-col items-start gap-0.5 px-3.5 py-2.5 text-left transition-colors duration-150"
+                                >
+                                  <span className="text-ink text-[14px] font-semibold">
+                                    {match.name}
+                                  </span>
+                                  <span className="text-muted max-w-full truncate text-[13px]">
+                                    {match.phone ?? match.email ?? "No contact details"}
+                                  </span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </div>
+                    ) : null}
+                  </div>
                 </Field>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field
@@ -240,7 +335,7 @@ export function DocumentModal({
                                 render={({ field: serviceField }) => (
                                   <Select
                                     ref={serviceField.ref}
-                                    value={serviceField.value}
+                                    value={serviceField.value ?? ""}
                                     onValueChange={(serviceId) => {
                                       serviceField.onChange(serviceId);
                                       const service = services.find(

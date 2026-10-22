@@ -65,7 +65,8 @@ export const POST = withMiddleware<InvoiceValidatorSchema>(
         paidAt: payload.paidAt,
         notes: payload.notes,
         bookingId: payload.bookingId,
-        services: payload.services,
+        customerId: payload.customerId,
+        lines: payload.lines,
       });
 
       // A sent invoice with an address goes to the customer too.

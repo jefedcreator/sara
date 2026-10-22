@@ -18,6 +18,7 @@ vi.mock("@/server/db", () => {
       count: vi.fn(),
     },
     business: { findUnique: vi.fn() },
+    customer: { findUnique: vi.fn(), findMany: vi.fn(), create: vi.fn(), update: vi.fn() },
   };
   db.$transaction = vi.fn(async (cb: (tx: typeof db) => unknown) => cb(db));
   return { db };
@@ -86,6 +87,8 @@ beforeEach(() => {
     latitude: null,
     longitude: null,
   });
+  mockedDb.customer.findMany.mockResolvedValue([]);
+  mockedDb.customer.create.mockResolvedValue({ id: "cus_1" });
 });
 
 describe("POST /api/bookings overlap check", () => {

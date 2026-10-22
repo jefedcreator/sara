@@ -115,13 +115,13 @@ describe("createInvoice with services", () => {
       customerName: "Ada",
       amount: 30000,
       description: "Braids",
-      services: [
+      lines: [
         { serviceId: "srv_1", quantity: 2, unitPrice: 15000, total: 30000, description: "Box Braids" },
       ],
     });
     expect(invoiceService.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        services: [
+        lines: [
           { serviceId: "srv_1", quantity: 2, unitPrice: 15000, total: 30000, description: "Box Braids" },
         ],
       }),
@@ -137,13 +137,13 @@ describe("createReceipt with services", () => {
     await intentDispatcher.createReceipt("biz_1", {
       customerName: "Ada",
       amount: 15000,
-      services: [
+      lines: [
         { serviceId: "srv_1", quantity: 1, unitPrice: 15000, total: 15000, description: "Box Braids" },
       ],
     });
     expect(receiptService.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        services: [
+        lines: [
           { serviceId: "srv_1", quantity: 1, unitPrice: 15000, total: 15000, description: "Box Braids" },
         ],
       }),

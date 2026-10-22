@@ -1,8 +1,9 @@
 "use client";
 
 import { Plus } from "@phosphor-icons/react/dist/ssr";
+import { useSearchParams } from "next/navigation";
 import { useQueryStates } from "nuqs";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { InvoiceDto, Page, ServiceDto } from "types";
 
 import type { PaymentFormSchema } from "@/backend/validators/document-form.validator";
@@ -14,6 +15,7 @@ import {
   useSetInvoiceStatusMutation,
 } from "@/hooks/mutations/use-document-mutations";
 import { useInvoicesQuery } from "@/hooks/queries/use-invoices";
+import { useCustomerQuery } from "@/hooks/queries/use-customers";
 import { useDocumentComposer } from "@/hooks/use-document-composer";
 import { Button, ConfirmModal, Notice, Pager, Segmented } from "@/primitives";
 import { parseMoney } from "@/backend/validators/document-form.validator";
@@ -68,6 +70,26 @@ export function InvoicesPageClient({ currency, services, publicBaseUrl, initial 
   const [payKey, setPayKey] = useState(0);
   const [confirm, setConfirm] = useState<Confirm | null>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
+
+  // A customer page can open this screen with `?compose=1&customer=<id>`.
+  const searchParams = useSearchParams();
+  const compose = searchParams.get("compose") === "1";
+  const customerIdParam = searchParams.get("customer");
+  const prefill = useCustomerQuery(compose ? (customerIdParam ?? "") : "");
+  const composed = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!compose || !customerIdParam || composed.current === customerIdParam) return;
+    if (prefill.data) {
+      composed.current = customerIdParam;
+      composer.start(undefined, prefill.data);
+      return;
+    }
+    if (prefill.isError) {
+      composed.current = customerIdParam;
+      setNotice({ tone: "danger", text: errorMessage(prefill.error) });
+    }
+  }, [compose, customerIdParam, prefill.data, prefill.isError, prefill.error, composer]);
 
   function pay(invoice: InvoiceDto, values: PaymentFormSchema) {
     const amount = parseMoney(values.amount);

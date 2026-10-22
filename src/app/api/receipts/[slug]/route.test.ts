@@ -49,7 +49,7 @@ function receipt(overrides: Record<string, unknown> = {}) {
     createdAt: new Date(),
     business: { id: "biz_1", ownerId: "user_1", name: "Sara Business" },
     payment: null,
-    services: [],
+    lines: [],
     ...overrides,
   };
 }

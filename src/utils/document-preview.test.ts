@@ -19,11 +19,11 @@ const business = {
 };
 
 const line = (name: string, description: string | null, quantity = 1) => ({
+  name,
   description,
   quantity,
   unitPrice: "3000",
   total: String(3000 * quantity),
-  service: { name },
 });
 
 const INVOICE = {
@@ -38,7 +38,7 @@ const INVOICE = {
   dueAt: "2026-10-12T00:00:00.000Z",
   paidAt: null,
   business,
-  services: [line("Knotless braids", ""), line("Extensions", "Hair extensions, colour 1B", 3)],
+  lines: [line("Knotless braids", ""), line("Extensions", "Hair extensions, colour 1B", 3)],
 } as unknown as InvoiceDto;
 
 const RECEIPT = {
@@ -50,7 +50,7 @@ const RECEIPT = {
   createdAt: "2026-09-29T10:00:00.000Z",
   paymentMethod: "BANK_TRANSFER",
   business,
-  services: [line("Gele tying", null)],
+  lines: [line("Gele tying", null)],
 } as unknown as ReceiptDto;
 
 describe("invoicePreview", () => {
@@ -85,7 +85,7 @@ describe("invoicePreview", () => {
 
   it("keeps only the lines that fit the top of the page", () => {
     const many = Array.from({ length: PREVIEW_ITEMS + 3 }, (_, i) => line(`Service ${i}`, null));
-    expect(invoicePreview({ ...INVOICE, services: many } as InvoiceDto).items).toHaveLength(
+    expect(invoicePreview({ ...INVOICE, lines: many } as InvoiceDto).items).toHaveLength(
       PREVIEW_ITEMS,
     );
   });

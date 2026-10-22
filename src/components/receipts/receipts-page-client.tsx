@@ -1,14 +1,18 @@
 "use client";
 
 import { Plus } from "@phosphor-icons/react/dist/ssr";
+import { useSearchParams } from "next/navigation";
 import { useQueryStates } from "nuqs";
+import { useEffect, useRef, useState } from "react";
 import type { Page, ReceiptDto, ServiceDto } from "types";
 
 import { DOCUMENT_GRID, DocumentCardSkeleton } from "@/components/documents/document-card";
 import { DocumentModal } from "@/components/documents/document-modal";
+import { useCustomerQuery } from "@/hooks/queries/use-customers";
 import { useReceiptsQuery } from "@/hooks/queries/use-receipts";
 import { useDocumentComposer } from "@/hooks/use-document-composer";
 import { Button, Notice, Pager } from "@/primitives";
+import { errorMessage } from "@/utils/axios";
 import { cn } from "@/utils/cn";
 import { publicPath } from "@/utils/public-links";
 import { receiptsParams } from "@/utils/url-state";
@@ -31,6 +35,27 @@ export function ReceiptsPageClient({ currency, services, publicBaseUrl, initial 
   const query = useReceiptsQuery(page, initial);
   const composer = useDocumentComposer("receipt", currency);
   const rows = query.data?.data ?? [];
+  const [notice, setNotice] = useState<string | null>(null);
+
+  // A customer page can open this screen with `?compose=1&customer=<id>`.
+  const searchParams = useSearchParams();
+  const compose = searchParams.get("compose") === "1";
+  const customerIdParam = searchParams.get("customer");
+  const prefill = useCustomerQuery(compose ? (customerIdParam ?? "") : "");
+  const composed = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!compose || !customerIdParam || composed.current === customerIdParam) return;
+    if (prefill.data) {
+      composed.current = customerIdParam;
+      composer.start(undefined, prefill.data);
+      return;
+    }
+    if (prefill.isError) {
+      composed.current = customerIdParam;
+      setNotice(errorMessage(prefill.error));
+    }
+  }, [compose, customerIdParam, prefill.data, prefill.isError, prefill.error, composer]);
 
   return (
     <div className="grid grid-cols-1 gap-6">
@@ -48,6 +73,8 @@ export function ReceiptsPageClient({ currency, services, publicBaseUrl, initial 
           New receipt
         </Button>
       </header>
+
+      {notice ? <Notice tone="danger">{notice}</Notice> : null}
 
       {query.isPending ? (
         <div className={DOCUMENT_GRID}>

@@ -2,16 +2,24 @@ import type {
   ApiResponse,
   BookingDto,
   BusinessClosureDto,
+  CustomerDetail,
+  CustomerDto,
+  CustomerListItem,
   DashboardData,
   InvoiceDto,
   Page,
+  ProductDto,
+  ProductOptionDto,
   ReceiptDto,
   ServiceSlotsDto,
   BusinessHoursDto,
   PaginatedApiResponse,
   PublicBookingDto,
   PublicBookingInput,
+  PublicOrderDto,
+  PublicOrderInput,
   PublicServiceDto,
+  Sells,
   ServiceDto,
 } from "types";
 
@@ -39,6 +47,27 @@ export type ServiceFormInput = {
   availableTo: string;
 };
 
+export type ProductOptionInput = {
+  id?: string;
+  name: string;
+  price: number | null;
+  stock: number;
+};
+
+export type ProductInput = {
+  name: string;
+  description?: string;
+  price: number;
+  tracksStock: boolean;
+  options: ProductOptionInput[];
+};
+
+export type StockAdjustInput = {
+  optionId: string;
+  add?: number;
+  set?: number;
+};
+
 export type BusinessHoursInput = {
   dayOfWeek: number;
   startTime: string;
@@ -54,6 +83,10 @@ export type BusinessUpdateInput = {
   address?: string;
   city?: string;
   state?: string;
+  sells?: Sells;
+  offersDelivery?: boolean;
+  deliveryFee?: number | null;
+  offersPickup?: boolean;
 };
 
 export type BusinessCreateInput = BusinessUpdateInput & {
@@ -77,9 +110,29 @@ export type InvoiceListParams = {
   page?: number;
 };
 
-export type LineItemInput = {
-  serviceId: string;
-  description?: string;
+export type CustomerListParams = {
+  query?: string;
+  page?: number;
+};
+
+export type CustomerUpdateInput = {
+  name?: string;
+  phone?: string | null;
+  email?: string | null;
+  address?: string | null;
+  notes?: string | null;
+};
+
+export type CustomerMergeInput = {
+  keepId: string;
+  mergeId: string;
+};
+
+export type DocumentLineInput = {
+  serviceId?: string | null;
+  productOptionId?: string | null;
+  name?: string;
+  description?: string | null;
   quantity: number;
   unitPrice: number;
   total: number;
@@ -96,7 +149,7 @@ type DocumentMoney = {
   discount: number;
   total: number;
   notes?: string;
-  services?: LineItemInput[];
+  lines?: DocumentLineInput[];
 };
 
 export type InvoiceCreateInput = DocumentMoney & {
@@ -104,6 +157,7 @@ export type InvoiceCreateInput = DocumentMoney & {
   amountPaid: number;
   sentAt?: string;
   dueAt?: string;
+  customerId?: string;
 };
 
 export type InvoicePaymentInput = {
@@ -121,12 +175,14 @@ export type InvoiceUpdateInput = Partial<DocumentMoney> & {
   dueAt?: string;
   sentAt?: string;
   notes?: string;
-  services?: LineItemInput[];
+  lines?: DocumentLineInput[];
+  customerId?: string;
 };
 
 export type ReceiptCreateInput = DocumentMoney & {
   amountPaid: number;
   paymentMethod?: "CASH" | "BANK_TRANSFER" | "PAYSTACK";
+  customerId?: string;
 };
 
 export type ReceiptUpdateInput = Partial<DocumentMoney> & {
@@ -136,7 +192,8 @@ export type ReceiptUpdateInput = Partial<DocumentMoney> & {
   amountPaid?: number;
   paymentMethod?: "CASH" | "BANK_TRANSFER";
   notes?: string;
-  services?: LineItemInput[];
+  lines?: DocumentLineInput[];
+  customerId?: string;
 };
 
 // Matches PAGE_SIZE in src/server/lists.ts, so server-seeded pages line up.
@@ -153,12 +210,40 @@ async function page<T>(request: Promise<{ data: ApiResponse<T[]> & Omit<Page<T>,
   } satisfies Page<T>;
 }
 
-function toFormData(values: Record<string, string | number | File | undefined>) {
+function toFormData(
+  values: Record<string, string | number | boolean | File | null | undefined>,
+) {
   const form = new FormData();
   for (const [key, value] of Object.entries(values)) {
-    if (value === undefined || value === "") continue;
+    if (value === undefined || value === null || value === "") continue;
     form.set(key, value instanceof File ? value : String(value));
   }
+  return form;
+}
+
+/** Product fields for multipart, with each new file appended as `photos`. */
+function productFormData(
+  values: Partial<ProductInput> & { isActive?: boolean },
+  photos: File[],
+  keepPhotos?: string[],
+) {
+  const form = new FormData();
+
+  if (values.name !== undefined) form.set("name", values.name);
+  // An empty description is meaningful on edit: it clears the old one.
+  if (values.description !== undefined) form.set("description", values.description);
+  if (values.price !== undefined) form.set("price", String(values.price));
+  if (values.tracksStock !== undefined) {
+    form.set("tracksStock", String(values.tracksStock));
+  }
+  if (values.options !== undefined) {
+    form.set("options", JSON.stringify(values.options));
+  }
+  if (values.isActive !== undefined) form.set("isActive", String(values.isActive));
+  if (keepPhotos !== undefined) form.set("keepPhotos", JSON.stringify(keepPhotos));
+
+  for (const photo of photos) form.append("photos", photo);
+
   return form;
 }
 
@@ -176,6 +261,8 @@ export const api = {
       data<PublicServiceDto>(http.get(`/public/services/${encodeURIComponent(slug)}`, { params: { date, units } })),
     book: (input: PublicBookingInput) =>
       data<PublicBookingDto>(http.post("/public/bookings", input)),
+    order: (input: PublicOrderInput) =>
+      data<PublicOrderDto>(http.post("/public/orders", input)),
   },
 
   services: {
@@ -217,6 +304,32 @@ export const api = {
         paused: response.data.message.toLowerCase().includes("deactivated"),
       };
     },
+  },
+
+  products: {
+    // The owner's list includes paused products so they can be resumed.
+    list: () =>
+      data<ProductDto[]>(
+        http.get("/products", { params: { includeInactive: true } }),
+      ),
+    create: (values: ProductInput, photos: File[] = []) =>
+      data<ProductDto>(http.post("/products", productFormData(values, photos))),
+    update: (
+      slug: string,
+      values: Partial<ProductInput> & { isActive?: boolean },
+      photos: File[] = [],
+      keepPhotos?: string[],
+    ) =>
+      data<ProductDto>(
+        http.put(
+          `/products/${encodeURIComponent(slug)}`,
+          productFormData(values, photos, keepPhotos),
+        ),
+      ),
+    adjustStock: (slug: string, input: StockAdjustInput) =>
+      data<ProductOptionDto>(
+        http.post(`/products/${encodeURIComponent(slug)}/stock`, input),
+      ),
   },
 
   business: {
@@ -308,6 +421,25 @@ export const api = {
       data<ReceiptDto & SharedLink>(http.post("/receipts", values)),
     update: (slug: string, values: ReceiptUpdateInput) =>
       data<ReceiptDto>(http.put(`/receipts/${encodeURIComponent(slug)}`, values)),
+  },
+
+  customers: {
+    list: ({ query, page: pageNumber = 1 }: CustomerListParams) =>
+      page<CustomerListItem>(
+        http.get("/customers", {
+          params: {
+            query: query?.trim() || undefined,
+            page: pageNumber,
+            size: PAGE_SIZE,
+          },
+        }),
+      ),
+    get: (id: string) =>
+      data<CustomerDetail>(http.get(`/customers/${encodeURIComponent(id)}`)),
+    update: (id: string, values: CustomerUpdateInput) =>
+      data<CustomerDto>(http.put(`/customers/${encodeURIComponent(id)}`, values)),
+    merge: ({ keepId, mergeId }: CustomerMergeInput) =>
+      data<CustomerDto>(http.post("/customers/merge", { keepId, mergeId })),
   },
 
   messaging: {
