@@ -7,7 +7,6 @@ import { useState } from "react";
 
 import { PublicPage } from "@/components/public/public-page";
 import { Button, LogoMark, Notice } from "@/primitives";
-import { cn } from "@/utils/cn";
 import { formatMoney } from "@/utils/format";
 import { productPath } from "@/utils/public-links";
 import {

@@ -11,7 +11,7 @@ import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
 import { BadRequestException, NotFoundException } from "@/utils/exceptions";
 import { appBaseUrl } from "@/utils/url";
-import { Prisma, type InvoiceStatus } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 const NOT_PAYABLE = "This invoice can't be paid online";
 const PAYMENT_SETUP =
@@ -70,6 +70,8 @@ class InvoicePayments {
     }
 
     const transaction = await paystackService.initializeTransaction({
+      // `||`: Paystack needs an email, and a blank one counts as none.
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       email: invoice.clientEmail || "customer@sara.app",
       amount: balance,
       subaccountCode: invoice.business.paystackSubaccountCode,
@@ -194,7 +196,7 @@ class InvoicePayments {
               ...(status === "VOID"
                 ? {}
                 : {
-                    status: (settled ? "PAID" : "PARTIALLY_PAID") as InvoiceStatus,
+                    status: settled ? "PAID" : "PARTIALLY_PAID",
                     ...(settled ? { paidAt: new Date() } : {}),
                   }),
             },

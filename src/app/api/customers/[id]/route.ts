@@ -31,10 +31,15 @@ export const GET = withMiddleware<unknown>(
         throw new NotFoundException("Business not found for this user");
       }
 
+      const { id } = params;
+      if (!id) {
+        throw new NotFoundException("Customer not found");
+      }
+
       const response: ApiResponse<CustomerDetail> = {
         status: 200,
         message: "Customer retrieved successfully",
-        data: await customerService.detail(business.id, params.id),
+        data: await customerService.detail(business.id, id),
       };
 
       return NextResponse.json(response);
@@ -66,9 +71,14 @@ export const PUT = withMiddleware<UpdateCustomerValidatorSchema>(
         throw new NotFoundException("Business not found for this user");
       }
 
+      const { id } = params;
+      if (!id) {
+        throw new NotFoundException("Customer not found");
+      }
+
       const customer = await customerService.update(
         business.id,
-        params.id,
+        id,
         request.validatedData!,
       );
 

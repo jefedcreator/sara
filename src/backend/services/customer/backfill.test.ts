@@ -174,7 +174,7 @@ describe("customerBackfill.run", () => {
   });
 
   it("is safe to run twice", async () => {
-    const rows: Record<string, any[]> = {
+    const rows: Record<(typeof tables)[number], any[]> = {
       booking: [
         {
           id: "bkg_1",

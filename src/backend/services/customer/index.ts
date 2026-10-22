@@ -144,8 +144,11 @@ class CustomerService {
   ): Promise<Customer | null> {
     const phone = normalizePhone(input.phone);
     const email = normalizeEmail(input.email);
+    // `||`: blank text counts as none.
+    /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
     const name = input.name?.trim() || null;
     const address = input.address?.trim() || null;
+    /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
 
     if (!name && !phone && !email) return null;
 
@@ -508,10 +511,13 @@ class CustomerService {
     }
     if (patch.phone !== undefined) data.phone = normalizePhone(patch.phone);
     if (patch.email !== undefined) data.email = normalizeEmail(patch.email);
+    // `||`: blank text clears the field.
+    /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
     if (patch.address !== undefined) {
       data.address = patch.address?.trim() || null;
     }
     if (patch.notes !== undefined) data.notes = patch.notes?.trim() || null;
+    /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
 
     try {
       return await db.customer.update({ where: { id }, data });

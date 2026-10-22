@@ -310,7 +310,7 @@ export function DocumentModal({
                 >
                   <div
                     onBlur={(event) => {
-                      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                      if (!event.currentTarget.contains(event.relatedTarget)) {
                         setLooking(false);
                       }
                     }}
@@ -483,6 +483,8 @@ export function DocumentModal({
                                     {current && !choices.some((c) => c.key === current) ? (
                                       // Paused or removed since this document was made.
                                       <Select.Item value={current}>
+                                        {/* `||`: a service line keeps an empty name. */}
+                                        {/* eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing */}
                                         {row?.name || "Unavailable item"}
                                       </Select.Item>
                                     ) : null}

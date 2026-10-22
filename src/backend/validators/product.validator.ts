@@ -52,7 +52,7 @@ const optionsFromFormSchema = z
         });
         return z.NEVER;
       }
-      return parsed;
+      return parsed as unknown[];
     } catch {
       ctx.addIssue({
         code: "custom",
@@ -105,7 +105,7 @@ const photoListFromFormSchema = z
         });
         return z.NEVER;
       }
-      return parsed;
+      return parsed as unknown[];
     } catch {
       ctx.addIssue({
         code: "custom",

@@ -228,7 +228,7 @@ async function placePaidOrder(
   const stock = await takeStock(
     client,
     productLines.map((line) => ({
-      productOptionId: line.productOptionId as string,
+      productOptionId: line.productOptionId!,
       quantity: line.quantity,
     })),
   );
@@ -305,7 +305,7 @@ class OrderService {
       },
     });
 
-    if (!product || !product.isActive) {
+    if (!product?.isActive) {
       throw new BadRequestException(UNAVAILABLE);
     }
 
@@ -329,6 +329,8 @@ class OrderService {
       throw new BadRequestException(NOT_OFFERED[input.fulfilment]);
     }
 
+    // `||`: a blank address counts as none.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const deliveryAddress = input.deliveryAddress?.trim() || null;
     if (input.fulfilment === "DELIVERY" && !deliveryAddress) {
       throw new BadRequestException("Enter a delivery address");
@@ -423,6 +425,8 @@ class OrderService {
       }
     }
 
+    // `||`: Paystack needs an email, and a blank one counts as none.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const payerEmail = input.clientEmail || "customer@sara.app";
     const transaction = await paystackService.initializeTransaction({
       email: payerEmail,
@@ -569,7 +573,7 @@ class OrderService {
           order.lines
             .filter((line) => line.productOptionId !== null)
             .map((line) => ({
-              productOptionId: line.productOptionId as string,
+              productOptionId: line.productOptionId!,
               quantity: line.quantity,
             })),
         );
@@ -629,6 +633,8 @@ class OrderService {
       throw new NotFoundException("Order not found");
     }
 
+    // `||`: a blank address counts as none.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const deliveryAddress = input.deliveryAddress?.trim() || null;
     if (input.fulfilment === "DELIVERY" && !deliveryAddress) {
       throw new BadRequestException("Enter a delivery address");
@@ -665,6 +671,8 @@ class OrderService {
   ): Promise<Order | null> {
     if (!receipt.lines.some((line) => line.productOptionId)) return null;
 
+    // `||`: a blank address counts as none.
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
     const deliveryAddress = sale.deliveryAddress?.trim() || null;
     if (sale.fulfilment === "DELIVERY" && !deliveryAddress) {
       throw new BadRequestException("Enter a delivery address");
@@ -678,6 +686,8 @@ class OrderService {
       fulfilment: sale.fulfilment,
       deliveryAddress,
       currency: receipt.currency,
+      // `||`: a blank name falls back to "Customer".
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
       clientName: receipt.name?.trim() || "Customer",
       clientPhone: receipt.phone,
       clientEmail: receipt.email,

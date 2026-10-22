@@ -470,6 +470,8 @@ export const api = {
       page<CustomerListItem>(
         http.get("/customers", {
           params: {
+            // `||`: a blank search sends no query.
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
             query: query?.trim() || undefined,
             page: pageNumber,
             size: PAGE_SIZE,
