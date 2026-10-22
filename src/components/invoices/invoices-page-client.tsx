@@ -296,7 +296,7 @@ export function InvoicesPageClient({ currency, services, publicBaseUrl, initial 
                   <Switch
                     checked={cancelOrder}
                     onCheckedChange={setCancelOrder}
-                    aria-label="Also cancel the order and put the stock back"
+                    aria-label={`Also cancel ${orderToCancel.orderNumber ?? "its order"} and put the stock back`}
                   />
                 </label>
               ) : null}

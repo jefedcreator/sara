@@ -38,7 +38,7 @@ export function CustomerDetailClient({ initial, currency }: CustomerDetailClient
             href="/customers"
             className="text-muted hover:text-ink inline-flex items-center gap-1.5 text-sm font-semibold no-underline transition-colors duration-200"
           >
-            <ArrowLeft weight="bold" className="size-4" />
+            <ArrowLeft weight="bold" className="size-4" aria-hidden="true" />
             Customers
           </Link>
           <Button variant="ghost" size="sm" onClick={openEditor}>
@@ -100,7 +100,7 @@ export function CustomerDetailClient({ initial, currency }: CustomerDetailClient
       <Panel title="History">
         {customer.timeline.length === 0 ? (
           <p className="text-muted text-[15px]">
-            No bookings, invoices or receipts yet.
+            No bookings, invoices, receipts or orders yet.
           </p>
         ) : (
           <ul className="grid gap-2">
@@ -123,8 +123,24 @@ export function CustomerDetailClient({ initial, currency }: CustomerDetailClient
   );
 }
 
+/**
+ * An order's status in the timeline. The entry carries no fulfilment, so Ready
+ * and Done stay generic, as the Orders filter words them.
+ */
+const ORDER_STATUS: Record<string, { label: string; tone: "accent" | "muted" }> = {
+  NEW: { label: "New", tone: "accent" },
+  READY: { label: "Ready", tone: "accent" },
+  COMPLETED: { label: "Done", tone: "muted" },
+  CANCELLED: { label: "Cancelled", tone: "muted" },
+};
+
 function TimelineRow({ entry, currency }: { entry: TimelineEntry; currency: string }) {
-  const status = INVOICE_STATUS[entry.status] ?? BOOKING_STATUS[entry.status];
+  const status =
+    entry.kind === "order"
+      ? ORDER_STATUS[entry.status]
+      : entry.kind === "booking"
+        ? BOOKING_STATUS[entry.status]
+        : INVOICE_STATUS[entry.status];
   const body = (
     <div className="grid gap-1">
       <div className="flex items-start justify-between gap-3">
@@ -159,6 +175,7 @@ function TimelineRow({ entry, currency }: { entry: TimelineEntry; currency: stri
       className="rounded-card bg-canvas hover:bg-accent-soft ease-out-expo block px-4 py-3 no-underline transition-colors duration-200"
     >
       {body}
+      <span className="sr-only"> (opens in a new tab)</span>
     </a>
   );
 }

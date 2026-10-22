@@ -28,8 +28,10 @@ export function PhotoGallery({
     const track = trackRef.current;
     const slide = track?.children[index];
     if (slide instanceof HTMLElement) {
+      // A scripted smooth scroll ignores the CSS reduced-motion rule, so ask here.
+      const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       slide.scrollIntoView({
-        behavior: "smooth",
+        behavior: reduce ? "auto" : "smooth",
         block: "nearest",
         inline: "start",
       });

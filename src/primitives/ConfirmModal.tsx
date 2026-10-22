@@ -11,6 +11,8 @@ interface ConfirmModalProps {
   title: string;
   description: ReactNode;
   confirmLabel: string;
+  /** The way out. Name it ("Keep order") when the confirm label also says "Cancel". */
+  cancelLabel?: string;
   onConfirm: () => void;
   isPending?: boolean;
   tone?: "danger" | "default";
@@ -23,6 +25,7 @@ export function ConfirmModal({
   title,
   description,
   confirmLabel,
+  cancelLabel = "Cancel",
   onConfirm,
   isPending = false,
   tone = "default",
@@ -43,7 +46,7 @@ export function ConfirmModal({
               {confirmLabel}
             </Button>
             <Modal.Close asChild>
-              <Button variant="secondary">Cancel</Button>
+              <Button variant="secondary">{cancelLabel}</Button>
             </Modal.Close>
           </div>
         </Modal.Content>

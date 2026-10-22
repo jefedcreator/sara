@@ -169,7 +169,8 @@ export function SharedDocumentPage({
           variant={payable ? "secondary" : "primary"}
           className={cn(
             "animate-rise-3 mt-8 w-full sm:w-auto",
-            payable && "lg:mt-3",
+            // The CTA shadow belongs to primary buttons only (DESIGN.md).
+            payable && "shadow-none lg:mt-3",
           )}
         >
           <a href={doc.pdfUrl} target="_blank" rel="noopener">

@@ -245,32 +245,33 @@ export function ProductModal({
                   ))}
                 </ul>
 
-                {photos.length < MAX_PHOTOS ? (
-                  <label
-                    htmlFor="product-photos"
-                    className="rounded-card border-line hover:border-ink-2 mt-2 flex min-h-14 cursor-pointer items-center gap-3 border border-dashed px-3 py-2.5 transition-colors duration-200"
-                  >
-                    <span className="bg-surface text-ink-2 rounded-chip grid size-8 shrink-0 place-items-center">
-                      <Plus className="size-4" weight="bold" />
-                    </span>
-                    <span className="text-ink-2 text-base font-semibold">
-                      {photos.length === 0 ? "Choose photos" : "Add another photo"}
-                    </span>
-                  </label>
-                ) : null}
-
+                {/* Visually hidden, so the label after it (its peer) shows keyboard focus. */}
                 <input
                   id="product-photos"
                   type="file"
                   accept="image/*"
                   multiple
                   disabled={photos.length >= MAX_PHOTOS}
-                  className="sr-only"
+                  className="peer sr-only"
                   onChange={(event) => {
                     addPhotos(event.target.files);
                     event.target.value = "";
                   }}
                 />
+
+                {photos.length < MAX_PHOTOS ? (
+                  <label
+                    htmlFor="product-photos"
+                    className="rounded-card border-line hover:border-ink-2 peer-focus-visible:outline-accent-ink mt-2 flex min-h-14 cursor-pointer items-center gap-3 border border-dashed px-3 py-2.5 transition-colors duration-200 peer-focus-visible:outline-2 peer-focus-visible:outline-offset-3"
+                  >
+                    <span className="bg-surface text-ink-2 rounded-chip grid size-8 shrink-0 place-items-center">
+                      <Plus className="size-4" weight="bold" aria-hidden="true" />
+                    </span>
+                    <span className="text-ink-2 text-base font-semibold">
+                      {photos.length === 0 ? "Choose photos" : "Add another photo"}
+                    </span>
+                  </label>
+                ) : null}
               </Field>
 
               <Field
