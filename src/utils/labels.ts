@@ -30,6 +30,30 @@ export const PAYMENT_METHOD: Record<string, string> = {
 };
 
 /**
+ * How an order's status reads to the owner and the customer. Ready and
+ * completed depend on how the order leaves the business: a pickup is
+ * "Ready for pickup" then "Collected", a delivery is "Out for delivery" then
+ * "Delivered".
+ */
+export function orderStatusLabel(
+  status: "AWAITING_PAYMENT" | "NEW" | "READY" | "COMPLETED" | "CANCELLED",
+  fulfilment: "DELIVERY" | "PICKUP",
+): string {
+  switch (status) {
+    case "AWAITING_PAYMENT":
+      return "Awaiting payment";
+    case "NEW":
+      return "New";
+    case "READY":
+      return fulfilment === "PICKUP" ? "Ready for pickup" : "Out for delivery";
+    case "COMPLETED":
+      return fulfilment === "PICKUP" ? "Collected" : "Delivered";
+    case "CANCELLED":
+      return "Cancelled";
+  }
+}
+
+/**
  * A real instant (a hold's expiry) as a Lagos time: "14:32". Not for slot
  * times, which are wall-clock written as UTC (formatSlotTime in utils/format).
  */

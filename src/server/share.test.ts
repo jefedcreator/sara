@@ -4,7 +4,7 @@ vi.mock("@/env", () => ({
   env: { NEXT_PUBLIC_APP_URL: "https://app.sara.ng" },
 }));
 
-import { publicLink, serviceLink } from "./share";
+import { productLink, publicLink, serviceLink } from "./share";
 
 describe("public links", () => {
   it("makes absolute links from the app's origin", () => {
@@ -17,6 +17,14 @@ describe("public links", () => {
     expect(publicLink("booking", "Pq8sN1xV0kL3mA6t")).toBe(
       "https://app.sara.ng/bookings/Pq8sN1xV0kL3mA6t",
     );
-    expect(serviceLink("acme-braids")).toBe("https://app.sara.ng/services/acme-braids");
+    expect(publicLink("order", "Qm4rT7yW2bN8cV5x")).toBe(
+      "https://app.sara.ng/orders/Qm4rT7yW2bN8cV5x",
+    );
+    expect(serviceLink("acme-braids")).toBe(
+      "https://app.sara.ng/services/acme-braids",
+    );
+    expect(productLink("frontal-wig")).toBe(
+      "https://app.sara.ng/products/frontal-wig",
+    );
   });
 });

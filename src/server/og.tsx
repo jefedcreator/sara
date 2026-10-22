@@ -10,6 +10,7 @@ import { BRAND_COLOR, MARK_ACCENT, MARK_BODY } from "@/utils/brand";
 import { formatMoney, formatSlotTime, shortDay, unitCount } from "@/utils/format";
 import { formatDate } from "@/utils/labels";
 import { CARDS, OG_SIZE, type CardKey } from "@/utils/metadata";
+import type { ProductPage } from "@/utils/product-page";
 import { SERVICE_PICK, servicePriceLine } from "@/utils/service-page";
 import { documentLines, type SharedDocument } from "@/utils/shared-document";
 
@@ -512,6 +513,110 @@ export async function serviceCard(service: ServiceCardInput) {
           }}
         >
           Bookings by
+          <OgLockup size={30} color={OG.faint} accent={OG.faint} />
+        </div>
+      </div>
+    </div>,
+    { ...OG_SIZE, fonts: await ogFonts() },
+  );
+  return asJpeg(card);
+}
+
+/*
+ * A product's card, for its public page (/products/<slug>). Built like a
+ * service card: the business, product and price at the top, the first photo
+ * across the middle (the mark on leaf grey when there is none), and a pill
+ * saying what the customer can do at the foot. Sara signs it "Orders by".
+ */
+export async function productCard(page: ProductPage) {
+  const image = await panelPhoto(page.photos[0] ?? null);
+  const titleSize = page.name.length > 28 ? 60 : 76;
+  const soldOut =
+    page.options.length === 0 ||
+    page.options.every((option) => option.available === 0);
+  const action = soldOut ? "Sold out" : page.canBuy ? "Buy now" : "View product";
+  const actionStyle = soldOut
+    ? PILL.muted
+    : { background: OG.accent, color: OG.onAccent };
+
+  const card = new ImageResponse(
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        width: "100%",
+        height: "100%",
+        background: OG.canvas,
+        padding: CARD_PAD,
+        gap: 32,
+      }}
+    >
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ fontFamily: "Hanken", fontWeight: 600, fontSize: 28, color: OG.muted }}>
+          {clip(page.businessName, 44)}
+        </div>
+        <div
+          style={{
+            fontFamily: "Bricolage",
+            fontSize: titleSize,
+            lineHeight: 1.04,
+            letterSpacing: -0.035 * titleSize,
+            color: OG.ink,
+          }}
+        >
+          {clip(page.name, 48)}
+        </div>
+        <div style={{ fontFamily: "Hanken", fontSize: 30, color: OG.ink, marginTop: 4 }}>
+          {formatMoney(page.price, page.currency)}
+        </div>
+      </div>
+
+      {image ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={image} alt="" {...PANEL} style={{ borderRadius: 32, objectFit: "cover" }} />
+      ) : (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            ...PANEL,
+            borderRadius: 32,
+            background: OG.surface,
+          }}
+        >
+          <OgMark size={200} />
+        </div>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            height: 68,
+            padding: "0 34px",
+            borderRadius: 999,
+            ...actionStyle,
+            fontFamily: "Hanken",
+            fontWeight: 600,
+            fontSize: 28,
+          }}
+        >
+          {action}
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            fontFamily: "Hanken",
+            fontSize: 22,
+            color: OG.faint,
+          }}
+        >
+          Orders by
           <OgLockup size={30} color={OG.faint} accent={OG.faint} />
         </div>
       </div>

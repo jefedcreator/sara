@@ -7,8 +7,10 @@ import {
   bookingRescheduledEmail,
   invoiceEmail,
   newBookingEmail,
+  orderEmail,
   receiptEmail,
   welcomeEmail,
+  type OrderEmailKind,
 } from "./messages";
 import { renderEmail } from "./render";
 import type { EmailMessage } from "./types";
@@ -230,5 +232,94 @@ describe("customer emails", () => {
       }),
     );
     expect(moved.html).toContain(`href="${bookingUrl}"`);
+  });
+});
+
+describe("order emails", () => {
+  const orderBase = {
+    origin,
+    to: "ada@example.com",
+    business: { name: "Tobi Hair", email: "hello@tobihair.test" },
+    orderNumber: "ORD-1022",
+    lines: [
+      { name: 'Frontal wig — 20"', quantity: 2, total: 62000 },
+      { name: "Closure — 5x5", quantity: 1, total: 31000 },
+    ],
+    total: 93000,
+    currency: "NGN",
+    fulfilment: "PICKUP" as const,
+    deliveryAddress: "4 Ozumba Mbadiwe Avenue, Victoria Island, Lagos",
+    pickupAddress: "12 Admiralty Way, Lekki, Lagos",
+    receiptUrl: "https://app.sara.ng/receipts/b7T0qLm2Vn9cZ4wE",
+    orderUrl: "https://app.sara.ng/orders/Xk39fjQ2aB7mN0pR",
+  };
+  const subject = (kind: OrderEmailKind, fulfilment: "DELIVERY" | "PICKUP") =>
+    orderEmail({ ...orderBase, kind, fulfilment }).subject;
+
+  it("writes a subject for every state a customer sees", () => {
+    expect(subject("confirmed", "PICKUP")).toBe(
+      "Your order from Tobi Hair is confirmed",
+    );
+    expect(subject("ready", "PICKUP")).toBe(
+      "Your order from Tobi Hair is ready for pickup",
+    );
+    expect(subject("ready", "DELIVERY")).toBe(
+      "Your order from Tobi Hair is on its way",
+    );
+    expect(subject("completed", "DELIVERY")).toBe(
+      "Your order from Tobi Hair was delivered",
+    );
+    expect(subject("completed", "PICKUP")).toBe(
+      "Thanks for collecting your order from Tobi Hair",
+    );
+    expect(subject("cancelled", "PICKUP")).toBe(
+      "Your order from Tobi Hair was cancelled",
+    );
+  });
+
+  it("lists the order number, lines and total in the body", async () => {
+    const message = orderEmail({ ...orderBase, kind: "confirmed" });
+    expect(message.replyTo).toBe("hello@tobihair.test");
+    const { html, text } = await rendered(message);
+    expect(text).toContain("ORD-1022");
+    expect(text).toContain('2 × Frontal wig — 20"');
+    expect(text).toContain("NGN 93,000");
+    expect(html).toContain("2 × Frontal wig — 20&quot;");
+    expect(html).toContain(`href="${orderBase.orderUrl}"`);
+    expect(html).toContain(`href="${orderBase.receiptUrl}"`);
+  });
+
+  it("shows the pickup address on a ready pickup email", async () => {
+    const message = orderEmail({
+      ...orderBase,
+      kind: "ready",
+      fulfilment: "PICKUP",
+    });
+    const { text } = await rendered(message);
+    expect(text).toContain("12 Admiralty Way, Lekki, Lagos");
+  });
+
+  it("changes the heading and lead with the order's state", async () => {
+    const confirmed = await rendered(
+      orderEmail({ ...orderBase, kind: "confirmed" }),
+    );
+    expect(confirmed.text).toContain("Your order is confirmed.");
+    expect(confirmed.text).toContain(
+      "We'll email you as soon as it's ready to collect.",
+    );
+
+    const collected = await rendered(
+      orderEmail({ ...orderBase, kind: "completed", fulfilment: "PICKUP" }),
+    );
+    expect(collected.text).toContain("Thanks for collecting your order.");
+    expect(collected.text).toContain(
+      "Here's what you collected from Tobi Hair.",
+    );
+
+    const cancelled = await rendered(
+      orderEmail({ ...orderBase, kind: "cancelled" }),
+    );
+    expect(cancelled.text).toContain("Your order was cancelled.");
+    expect(cancelled.text).toContain("This order won't go ahead.");
   });
 });

@@ -4,6 +4,7 @@ vi.mock("@/server/db", () => ({
   db: {
     payment: { findUnique: vi.fn(), create: vi.fn() },
     booking: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
+    order: { findUnique: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
@@ -39,9 +40,14 @@ vi.mock("@/backend/services/messaging/notify", () => ({
   ownerNotifier: { notify: vi.fn().mockResolvedValue(undefined) },
 }));
 
+vi.mock("@/backend/services/order/payment", () => ({
+  processOrderPayment: vi.fn().mockResolvedValue(null),
+}));
+
 import { emailService } from "@/backend/services/email";
 import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { ownerNotifier } from "@/backend/services/messaging/notify";
+import { processOrderPayment } from "@/backend/services/order/payment";
 import { paystackService } from "@/backend/services/paystack";
 import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
@@ -53,6 +59,7 @@ const mockedEmail = emailService as any;
 const mockedCalendar = googleCalendarService as any;
 const mockedReceipt = receiptService as any;
 const mockedNotifier = ownerNotifier as any;
+const mockedProcessOrderPayment = vi.mocked(processOrderPayment);
 
 const BOOKING = {
   id: "bkg_1",
@@ -110,6 +117,8 @@ function buildRequest(event: unknown) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedProcessOrderPayment.mockResolvedValue(null);
+  mockedDb.order.findUnique.mockResolvedValue(null);
   // First call: idempotency check (must return null to proceed).
   // Second call: payment lookup inside receipt creation.
   mockedDb.payment.findUnique
@@ -257,7 +266,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     await POST(buildRequest(buildEvent()));
     expect(mockedReceipt.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        services: [
+        lines: [
           expect.objectContaining({ serviceId: "svc_1", quantity: 3, unitPrice: 50 / 3, total: 50 }),
         ],
       }),
@@ -324,6 +333,60 @@ describe("POST /api/webhooks/paystack charge.success", () => {
       data: expect.objectContaining({ bookingId: BOOKING.id, reference: "ref_123" }),
     });
   });
+
+  it("copies the booking's customer onto the payment", async () => {
+    mockedDb.booking.findUnique.mockResolvedValue({
+      ...BOOKING,
+      customerId: "cus_1",
+    });
+
+    await POST(buildRequest(buildEvent()));
+
+    expect(mockedDb.payment.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ customerId: "cus_1" }),
+    });
+  });
+
+  it("dispatches order metadata to processOrderPayment", async () => {
+    mockedProcessOrderPayment.mockResolvedValue({
+      order: { publicId: "ord_pub" },
+    });
+    const event = buildEvent();
+    event.data.metadata = {
+      orderId: "ord_1",
+      businessId: "biz_1",
+    } as any;
+
+    const response = await POST(buildRequest(event));
+
+    expect(response.status).toBe(200);
+    expect(mockedProcessOrderPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reference: "ref_123",
+        amount: 5000,
+        metadata: expect.objectContaining({ orderId: "ord_1" }),
+      }),
+    );
+    expect(mockedDb.booking.findUnique).not.toHaveBeenCalled();
+    expect(mockedDb.payment.create).not.toHaveBeenCalled();
+  });
+
+  it("does not fall back to the booking path when order processing refuses the charge", async () => {
+    mockedProcessOrderPayment.mockResolvedValue(null);
+    const event = buildEvent();
+    event.data.metadata = {
+      orderId: "ord_1",
+      businessId: "biz_1",
+    } as any;
+
+    const response = await POST(buildRequest(event));
+
+    expect(response.status).toBe(200);
+    expect(mockedProcessOrderPayment).toHaveBeenCalled();
+    expect(mockedDb.booking.findUnique).not.toHaveBeenCalled();
+    expect(mockedDb.payment.create).not.toHaveBeenCalled();
+    expect(mockedReceipt.create).not.toHaveBeenCalled();
+  });
 });
 
 describe("GET /api/webhooks/paystack", () => {
@@ -381,6 +444,69 @@ describe("GET /api/webhooks/paystack", () => {
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe(`http://localhost:3000/bookings/${BOOKING.publicId}`);
+  });
+
+  it("redirects to the order page when only order slug 'o' is given", async () => {
+    mockedDb.order.findUnique.mockResolvedValueOnce({ publicId: "ord_pub" });
+
+    const req = new Request("http://localhost:3000/api/webhooks/paystack?o=tobi-hair-abc");
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost:3000/orders/ord_pub");
+    expect(mockedDb.order.findUnique).toHaveBeenCalledWith({
+      where: { slug: "tobi-hair-abc" },
+      select: { publicId: true },
+    });
+  });
+
+  it("redirects to the order page when the reference's payment is linked to an order", async () => {
+    mockedDb.payment.findUnique.mockReset();
+    mockedDb.payment.findUnique.mockResolvedValue({
+      id: "pay_1",
+      reference: "ref_order",
+      order: { publicId: "ord_pub" },
+    });
+
+    const req = new Request("http://localhost:3000/api/webhooks/paystack?reference=ref_order");
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost:3000/orders/ord_pub");
+    expect(mockedPaystack.verifyTransaction).not.toHaveBeenCalled();
+  });
+
+  it("verifies with Paystack and redirects to the order after payment", async () => {
+    mockedDb.payment.findUnique.mockReset();
+    mockedDb.payment.findUnique.mockResolvedValueOnce(null);
+    mockedProcessOrderPayment.mockResolvedValue({
+      order: { publicId: "ord_pub" },
+    });
+    mockedPaystack.verifyTransaction.mockResolvedValue({
+      status: "success",
+      reference: "ref_order",
+      amount: 9300000,
+      currency: "NGN",
+      channel: "card",
+      metadata: { orderId: "ord_1", businessId: "biz_1" },
+      customer: {
+        email: "tolu@example.com",
+        first_name: "Tolu",
+        last_name: "Adeyemi",
+      },
+    });
+
+    const req = new Request("http://localhost:3000/api/webhooks/paystack?reference=ref_order");
+    const res = await GET(req);
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get("location")).toBe("http://localhost:3000/orders/ord_pub");
+    expect(mockedProcessOrderPayment).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reference: "ref_order",
+        metadata: expect.objectContaining({ orderId: "ord_1" }),
+      }),
+    );
   });
 
   it("falls back to home page when no query params are provided", async () => {

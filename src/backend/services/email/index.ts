@@ -9,6 +9,7 @@ import {
   bookingRescheduledEmail,
   invoiceEmail,
   newBookingEmail,
+  orderEmail,
   receiptEmail,
   welcomeEmail,
 } from "./messages";
@@ -16,6 +17,7 @@ import { ResendEmailSender } from "./resend";
 import type { EmailMessage, EmailSender } from "./types";
 
 export type { EmailMessage, EmailSender } from "./types";
+export type { OrderEmailKind } from "./messages";
 export { renderEmail } from "./render";
 
 /** The sender Sara used before EMAIL_FROM existed; kept as the default. */
@@ -115,6 +117,14 @@ class EmailService {
     return this.deliver(
       bookingCancelledEmail({ ...input, origin: appBaseUrl() }),
       "booking cancellation",
+    );
+  }
+
+  /** To the customer, as their order is confirmed, ready, completed or cancelled. */
+  sendOrderEmail(input: Input<typeof orderEmail>) {
+    return this.deliver(
+      orderEmail({ ...input, origin: appBaseUrl() }),
+      "order",
     );
   }
 
