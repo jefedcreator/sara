@@ -137,6 +137,13 @@ function memoryDelegate(table: string) {
 
 // ─── Fixture data ──────────────────────────────────────────────────────────────
 
+// `expect.objectContaining` is typed `any`; this returns it as `unknown` so it
+// can sit in an expected-call object without an unsafe assignment.
+function rowLike(fields: Row): unknown {
+  const matcher: unknown = expect.objectContaining(fields);
+  return matcher;
+}
+
 const ADA = '0b8e5d2c-9f1a-4c3e-8a7b-6d5e4f3a2b1c';
 const NOBODY = '9c1d2e3f-4a5b-4c6d-8e7f-0a1b2c3d4e5f';
 
@@ -335,7 +342,7 @@ describe('createRecord', () => {
     expect(afterWrite).toHaveBeenCalledWith({
       mode: 'create',
       before: null,
-      after: expect.objectContaining({ name: 'Abuja Striders' }),
+      after: rowLike({ name: 'Abuja Striders' }),
     });
   });
 
@@ -414,8 +421,8 @@ describe('updateRecord', () => {
     expect(record._title).toBe('Lagos Road Runners');
     expect(afterWrite).toHaveBeenCalledWith({
       mode: 'update',
-      before: expect.objectContaining({ name: 'Lagos Runners' }),
-      after: expect.objectContaining({ name: 'Lagos Road Runners' }),
+      before: rowLike({ name: 'Lagos Runners' }),
+      after: rowLike({ name: 'Lagos Road Runners' }),
     });
   });
 
@@ -456,7 +463,7 @@ describe('deleteRecord', () => {
     await deleteRecord(registry, resourceIn(registry, 'clubs'), 'c1');
     expect(afterWrite).toHaveBeenCalledWith({
       mode: 'delete',
-      before: expect.objectContaining({ id: 'c1', name: 'Lagos Runners' }),
+      before: rowLike({ id: 'c1', name: 'Lagos Runners' }),
       after: null,
     });
     expect(tables.club).toEqual([]);
