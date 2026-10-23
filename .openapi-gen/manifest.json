@@ -1,41 +1,97 @@
 {
-  "configPath": "/Users/jefedcreator/Documents/Development/sara/next.openapi.json",
-  "outputFile": "/Users/jefedcreator/Documents/Development/sara/public/openapi.json",
+  "configPath": "/Users/jefedcreator/Documents/Development/interacti/sara/next.openapi.json",
+  "outputFile": "/Users/jefedcreator/Documents/Development/interacti/sara/public/openapi.json",
   "diagnostics": [
+    {
+      "code": "response-inference-unresolved",
+      "severity": "warning",
+      "message": "Could not fully infer a response schema from a return statement. Add an explicit @response tag to make the output deterministic.",
+      "filePath": "/Users/jefedcreator/Documents/Development/interacti/sara/src/app/api/og/[card]/route.tsx",
+      "routePath": "/og/{card}"
+    },
+    {
+      "code": "response-inference-unresolved",
+      "severity": "warning",
+      "message": "Could not fully infer a response schema from a return statement. Add an explicit @response tag to make the output deterministic.",
+      "filePath": "/Users/jefedcreator/Documents/Development/interacti/sara/src/app/api/og/[card]/route.tsx",
+      "routePath": "/og/{card}"
+    },
+    {
+      "code": "missing-path-params-type",
+      "severity": "warning",
+      "message": "Route /og/{card} contains path parameters card but no @pathParams type is defined.",
+      "filePath": "src/app/api/og/[card]/route.tsx",
+      "routePath": "/og/{card}"
+    },
+    {
+      "code": "response-inference-unresolved",
+      "severity": "warning",
+      "message": "Could not fully infer a response schema from a return statement. Add an explicit @response tag to make the output deterministic.",
+      "filePath": "/Users/jefedcreator/Documents/Development/interacti/sara/src/app/api/public/services/[slug]/route.ts",
+      "routePath": "/public/services/{slug}"
+    },
+    {
+      "code": "response-inference-unresolved",
+      "severity": "warning",
+      "message": "Could not fully infer a response schema from a return statement. Add an explicit @response tag to make the output deterministic.",
+      "filePath": "/Users/jefedcreator/Documents/Development/interacti/sara/src/app/api/public/services/[slug]/route.ts",
+      "routePath": "/public/services/{slug}"
+    },
+    {
+      "code": "response-inference-unresolved",
+      "severity": "warning",
+      "message": "Could not fully infer a response schema from a return statement. Add an explicit @response tag to make the output deterministic.",
+      "filePath": "/Users/jefedcreator/Documents/Development/interacti/sara/src/app/api/public/services/[slug]/route.ts",
+      "routePath": "/public/services/{slug}"
+    },
+    {
+      "code": "response-inference-unresolved",
+      "severity": "warning",
+      "message": "Could not fully infer a response schema from a return statement. Add an explicit @response tag to make the output deterministic.",
+      "filePath": "/Users/jefedcreator/Documents/Development/interacti/sara/src/app/api/public/services/[slug]/route.ts",
+      "routePath": "/public/services/{slug}"
+    },
     {
       "code": "missing-path-params-type",
       "severity": "warning",
       "message": "Route /public/services/{slug} contains path parameters slug but no @pathParams type is defined.",
       "filePath": "src/app/api/public/services/[slug]/route.ts",
       "routePath": "/public/services/{slug}"
+    },
+    {
+      "code": "response-inference-unresolved",
+      "severity": "warning",
+      "message": "Could not fully infer a response schema from a return statement. Add an explicit @response tag to make the output deterministic.",
+      "filePath": "/Users/jefedcreator/Documents/Development/interacti/sara/src/app/api/webhooks/whatsapp/route.ts",
+      "routePath": "/webhooks/whatsapp"
     }
   ],
   "performance": {
-    "prepareTemplateMs": 1.5621240000000398,
-    "loadCustomFragmentsMs": 0.0012340000002950546,
-    "prepareDocumentMs": 1.5633580000003349,
-    "scanRouteFilesMs": 8.447303999999804,
-    "deriveRoutePathMs": 1.3675130000001445,
-    "filterRouteCandidatesMs": 0.09258799999815892,
-    "sourcePrecheckMs": 4.997843000001922,
-    "readRouteFilesMs": 3.6116759999949863,
-    "parseRouteFilesMs": 353.23605200000065,
-    "analyzeRouteFilesMs": 256.7349440000007,
-    "typescriptResponseInferenceMs": 6920.938707999999,
-    "processRouteFilesMs": 7532.897329999998,
-    "registerRouteMs": 3925.7903170000027,
-    "getSchemaContentMs": 3910.499151999994,
-    "createRequestParamsMs": 2.9360500000029788,
+    "prepareTemplateMs": 0.1845210000001316,
+    "loadCustomFragmentsMs": 0.0009179999997286359,
+    "prepareDocumentMs": 0.18543899999986024,
+    "scanRouteFilesMs": 27.55744700000014,
+    "deriveRoutePathMs": 1.0055610000063098,
+    "filterRouteCandidatesMs": 0.11379700000134108,
+    "sourcePrecheckMs": 13.506072999989556,
+    "readRouteFilesMs": 10.895639000006668,
+    "parseRouteFilesMs": 227.2168110000148,
+    "analyzeRouteFilesMs": 219.24388000000272,
+    "typescriptResponseInferenceMs": 22853.679289000007,
+    "processRouteFilesMs": 23303.205921999986,
+    "registerRouteMs": 15262.104749999966,
+    "getSchemaContentMs": 15227.64634699998,
+    "createRequestParamsMs": 15.179455999989841,
     "createRequestBodyMs": 0,
-    "processResponsesMs": 3.840309000000161,
+    "processResponsesMs": 6.808273000030567,
     "createResponseSchemaMs": 0,
-    "buildOperationsMs": 3925.967486000003,
-    "sortAndMergePathsMs": 13.48933500000021,
-    "buildPathsMs": 13.48933500000021,
-    "defaultComponentsAndErrorsMs": 0.3457060000000638,
-    "mergeSchemasMs": 5.398634999999558,
-    "finalizeDocumentMs": 34.67454800000087,
-    "totalMs": 11530.647776,
-    "scanRoutesMs": 11467.31212
+    "buildOperationsMs": 15262.292071999975,
+    "sortAndMergePathsMs": 19.60703199999989,
+    "buildPathsMs": 19.60703199999989,
+    "defaultComponentsAndErrorsMs": 0.36261799999920186,
+    "mergeSchemasMs": 15.18083199999819,
+    "finalizeDocumentMs": 56.30835400000069,
+    "totalMs": 38701.153128000005,
+    "scanRoutesMs": 38593.05544099996
   }
 }
