@@ -36,7 +36,7 @@ export function whereForKey(
   }
 
   const parts = decodeParts(key);
-  if (parts === null || parts.length !== resource.idFields.length) return null;
+  if (parts?.length !== resource.idFields.length) return null;
   const compound: Record<string, unknown> = {};
   for (const [index, name] of resource.idFields.entries()) {
     const value = compositePart(resource, name, parts[index]);
