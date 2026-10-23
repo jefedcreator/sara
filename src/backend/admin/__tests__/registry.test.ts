@@ -168,7 +168,10 @@ describe("the customers nameKey hook", () => {
 
   it("sets nameKey from a name on update, keeping the other fields", () =>
     expect(
-      beforeWrite({ name: " Chidi OKAFOR ", phone: "+2348031234567" }, "update"),
+      beforeWrite(
+        { name: " Chidi OKAFOR ", phone: "+2348031234567" },
+        "update",
+      ),
     ).toEqual({
       name: " Chidi OKAFOR ",
       phone: "+2348031234567",
