@@ -1,3 +1,5 @@
+"use client";
+
 import { PencilSimple } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import { useState } from "react";
