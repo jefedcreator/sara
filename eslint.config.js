@@ -36,6 +36,19 @@ export default tseslint.config(
     },
   },
   {
+    // The kit is copied byte for byte from Strive and linted there; rewriting
+    // it here would break the md5 contract the admin plan depends on.
+    files: ["src/backend/admin/kit/**"],
+    rules: {
+      "@typescript-eslint/no-explicit-any": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/prefer-optional-chain": "off",
+    },
+  },
+  {
     linterOptions: {
       reportUnusedDisableDirectives: true,
     },

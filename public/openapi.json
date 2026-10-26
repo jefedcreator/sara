@@ -20,6 +20,23 @@
       }
     },
     "schemas": {
+      "adminAnalyticsQueryDoc": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "string",
+            "enum": [
+              "7",
+              "30",
+              "90"
+            ],
+            "description": "Window length in days ending yesterday (7, 30 or 90)"
+          }
+        },
+        "required": [
+          "days"
+        ]
+      },
       "adminListQueryDoc": {
         "type": "object",
         "properties": {
@@ -3957,6 +3974,46 @@
             }
           }
         },
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          }
+        }
+      }
+    },
+    "/admin/analytics": {
+      "get": {
+        "operationId": "get-admin-analytics",
+        "summary": "",
+        "description": "Admin analytics: Google Analytics visitors, page views and enquiries for the requested window. Answers 404 unless the admin API is switched on with ADMIN_API_TOKEN.",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "7",
+                "30",
+                "90"
+              ],
+              "description": "Window length in days ending yesterday (7, 30 or 90)"
+            },
+            "description": "Window length in days ending yesterday (7, 30 or 90)"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {
           "400": {
             "$ref": "#/components/responses/400"

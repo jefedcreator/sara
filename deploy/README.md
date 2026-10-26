@@ -41,6 +41,9 @@ Add these under **Settings -> Secrets and variables -> Actions**:
 | `RESEND_API_KEY`, `EMAIL_FROM` | Optional: transactional email. Unset, emails go to `pm2 logs sara` |
 | `CRON_SECRET` | Optional: guards the booking reminder endpoint (see below) |
 | `ADMIN_API_TOKEN`, `ADMIN_ORIGIN` | Optional: switch on the admin API (see below). `ADMIN_API_TOKEN` is at least 32 characters, the same in every interacti product; `ADMIN_ORIGIN` is the dashboard's origin, no trailing slash |
+| `GA_PROPERTY_ID` | Optional: numeric GA4 property ID for `/api/admin/analytics`, not the `G-` measurement id |
+| `GA_SERVICE_ACCOUNT_B64` | Optional: base64-encoded Google service account JSON key with Viewer access on the property |
+| `GA_ENQUIRY_EVENT` | Optional: GA event name counted as enquiries; unset, no Enquiries metric |
 | `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY`, `PAYSTACK_WEBHOOK_SECRET` | Optional: payments |
 | `MONO_CLIENT_ID`, `MONO_SECRET_KEY`, `NEXT_PUBLIC_MONO_PUBLIC_KEY` | Optional: Mono bank connect |
 | `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_TOKEN`, `META_APP_SECRET` | Optional: WhatsApp Cloud API |

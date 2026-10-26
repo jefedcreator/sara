@@ -51,6 +51,11 @@ export const env = createEnv({
     ADMIN_API_TOKEN: z.string().min(32).optional(),
     // The admin dashboard's origin, which /api/admin allows through CORS.
     ADMIN_ORIGIN: z.string().url().optional(),
+    // Google Analytics for /api/admin/analytics. Optional: the kit validates
+    // them at request time, so a typo can't stop the site booting.
+    GA_PROPERTY_ID: z.string().optional(),
+    GA_SERVICE_ACCOUNT_B64: z.string().optional(),
+    GA_ENQUIRY_EVENT: z.string().optional(),
     WHATSAPP_VERIFY_TOKEN: z.string().trim().optional(),
     WHATSAPP_PHONE_NUMBER_ID: z.string().trim().optional(),
     WHATSAPP_TOKEN: z.string().trim().optional(),
@@ -133,6 +138,9 @@ export const env = createEnv({
     CRON_SECRET: process.env.CRON_SECRET,
     ADMIN_API_TOKEN: process.env.ADMIN_API_TOKEN,
     ADMIN_ORIGIN: process.env.ADMIN_ORIGIN,
+    GA_PROPERTY_ID: process.env.GA_PROPERTY_ID,
+    GA_SERVICE_ACCOUNT_B64: process.env.GA_SERVICE_ACCOUNT_B64,
+    GA_ENQUIRY_EVENT: process.env.GA_ENQUIRY_EVENT,
     WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN,
     WHATSAPP_PHONE_NUMBER_ID: process.env.WHATSAPP_PHONE_NUMBER_ID,
     WHATSAPP_TOKEN: process.env.WHATSAPP_TOKEN,

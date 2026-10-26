@@ -3,6 +3,11 @@ import { NotFoundException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import type { ApiResponse, PaginatedApiResponse } from "types";
 import {
+  readAnalytics,
+  type AdminAnalytics,
+  type AnalyticsDays,
+} from "./kit/analytics";
+import {
   createRecord,
   deleteRecord,
   listRecords,
@@ -131,6 +136,18 @@ export const removeHandler = async (
     status: 200,
     message: `${resource.singular} deleted`,
     data: null,
+  };
+  return NextResponse.json(response);
+};
+
+export const analyticsHandler = async (
+  request: AuthRequest<unknown, { days: AnalyticsDays }>,
+): Promise<Response> => {
+  const data = await readAnalytics(request.query!.days);
+  const response: ApiResponse<AdminAnalytics> = {
+    status: 200,
+    message: "Analytics retrieved",
+    data,
   };
   return NextResponse.json(response);
 };
