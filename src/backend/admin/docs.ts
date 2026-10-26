@@ -28,3 +28,9 @@ export const adminWriteBodyDoc = z
   .object({})
   .passthrough()
   .describe("A JSON object of the resource's writable fields");
+
+export const adminAnalyticsQueryDoc = z.object({
+  days: z
+    .enum(["7", "30", "90"])
+    .describe("Window length in days ending yesterday (7, 30 or 90)"),
+});

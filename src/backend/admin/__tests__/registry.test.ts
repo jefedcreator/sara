@@ -147,6 +147,9 @@ describe("sara admin registry", () => {
     expect(resolved.byKey.get("chat-sessions")!.note).toBe(
       "Live chat state. Editing it changes what Sara does next in that chat.",
     ));
+
+  it("no resource is keyed analytics", () =>
+    expect(resolved.byKey.has("analytics")).toBe(false));
 });
 
 describe("the customers nameKey hook", () => {

@@ -5,6 +5,7 @@ import type {
   QueryParameters,
 } from "@/backend/middleware/types";
 import { adminEnabled, tokenMatches } from "./kit/access";
+import { parseAnalyticsQuery, type AnalyticsDays } from "./kit/analytics";
 import { forbidden, notFound } from "./kit/errors";
 import { whereForKey } from "./kit/keys";
 import { listQuerySchema, writeSchema } from "./kit/schema";
@@ -119,6 +120,22 @@ export const adminListQueryMiddleware: MiddlewareFunction<
     console.error(error);
     return stop(400, "Error parsing query parameters");
   }
+  return proceed();
+};
+
+/**
+ * Parses the analytics window and sets `request.query`. The kit rejects a
+ * missing or repeated `days`, a value outside 7/30/90, and any other parameter.
+ */
+export const adminAnalyticsQueryMiddleware: MiddlewareFunction<
+  unknown,
+  { days: AnalyticsDays }
+> = async (request) => {
+  const result = parseAnalyticsQuery(request.nextUrl.searchParams);
+  if ("error" in result) {
+    return stop(422, `Invalid query parameter: ${result.error}`);
+  }
+  request.query = { days: result.days };
   return proceed();
 };
 
