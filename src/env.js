@@ -47,8 +47,8 @@ export const env = createEnv({
     EMAIL_FROM: z.string().trim().optional(),
     CRON_SECRET: z.string().trim().optional(),
     // Bearer token for /api/admin. Unset means the admin API is off and every
-    // /api/admin request answers 404. At least 32 characters.
-    ADMIN_API_TOKEN: z.string().min(32).optional(),
+    // /api/admin request answers 404.
+    ADMIN_API_TOKEN: z.string().optional(),
     // The admin dashboard's origin, which /api/admin allows through CORS.
     ADMIN_ORIGIN: z.string().url().optional(),
     // Google Analytics for /api/admin/analytics. Optional: the kit validates
