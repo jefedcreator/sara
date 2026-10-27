@@ -5,11 +5,22 @@ import { HttpException } from '@/utils/exceptions';
 export const ANALYTICS_DAYS = [7, 30, 90] as const;
 export type AnalyticsDays = (typeof ANALYTICS_DAYS)[number];
 
+export type MetricUnit = 'number' | 'percent' | 'duration';
+
+export type AdminAnalyticsMetric = {
+  key: string;
+  label: string;
+  count: number;
+  previous: number;
+  /** How the dashboard formats the value: counts, percents or seconds. */
+  unit?: MetricUnit;
+};
+
 export type AdminAnalytics = {
   days: AnalyticsDays;
   configured: boolean;
   note: string | null;
-  metrics: { key: string; label: string; count: number; previous: number }[];
+  metrics: AdminAnalyticsMetric[];
   series: { key: string; label: string; points: { date: string; count: number }[] }[];
 };
 
@@ -245,7 +256,8 @@ function extractMetricValue(
     }
 
     const raw = row.metricValues?.[metricIndex]?.value;
-    const parsed = parseInt(raw ?? '', 10);
+    // Rates and durations come back as decimals ("0.68", "95.4"), so parseFloat, not parseInt.
+    const parsed = parseFloat(raw ?? '');
     return Number.isFinite(parsed) ? parsed : 0;
   }
 
@@ -286,7 +298,14 @@ export function createAnalytics(
           { startDate: `${days}daysAgo`, endDate: 'yesterday' },
           { startDate: `${days * 2}daysAgo`, endDate: `${days + 1}daysAgo` },
         ],
-        metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
+        metrics: [
+          { name: 'activeUsers' },
+          { name: 'screenPageViews' },
+          { name: 'sessions' },
+          { name: 'engagementRate' },
+          { name: 'bounceRate' },
+          { name: 'averageSessionDuration' },
+        ],
       },
       // (2) Series: current range only, dimension date, ordered by date ascending
       {
@@ -295,10 +314,27 @@ export function createAnalytics(
         metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
         orderBys: [{ dimension: { dimensionName: 'date' }, desc: false }],
       },
+      // (3) Clicks: both ranges, metric eventCount, exact event name filter
+      {
+        dateRanges: [
+          { startDate: `${days}daysAgo`, endDate: 'yesterday' },
+          { startDate: `${days * 2}daysAgo`, endDate: `${days + 1}daysAgo` },
+        ],
+        metrics: [{ name: 'eventCount' }],
+        dimensionFilter: {
+          filter: {
+            fieldName: 'eventName',
+            stringFilter: {
+              matchType: 'EXACT',
+              value: 'click',
+            },
+          },
+        },
+      },
     ];
 
     if (envConfig.GA_ENQUIRY_EVENT) {
-      // (3) Enquiries: both ranges, metric eventCount, exact event name filter
+      // (4) Enquiries: both ranges, metric eventCount, exact event name filter
       requests.push({
         dateRanges: [
           { startDate: `${days}daysAgo`, endDate: 'yesterday' },
@@ -370,26 +406,81 @@ export function createAnalytics(
     const windowDates = computeWindowDates(getNow(), timeZone, days);
 
     // Totals mapping
-    const visitorsCurrent = extractMetricValue(firstReport, 'date_range_0', 'activeUsers');
-    const visitorsPrevious = extractMetricValue(firstReport, 'date_range_1', 'activeUsers');
-    const viewsCurrent = extractMetricValue(firstReport, 'date_range_0', 'screenPageViews');
-    const viewsPrevious = extractMetricValue(firstReport, 'date_range_1', 'screenPageViews');
+    /**
+     * One metric as the dashboard reads it: both periods, in the unit it is written in.
+     * GA4 returns rates as ratios (0.68) and durations in seconds (95.4).
+     */
+    const readMetric = (
+      reportData: Record<string, unknown> | undefined,
+      spec: { key: string; label: string; metric: string; unit: MetricUnit }
+    ): AdminAnalyticsMetric => {
+      const scale = spec.unit === 'percent' ? 100 : 1;
+      const round = (value: number) =>
+        spec.unit === 'percent' ? Math.round(value * 10) / 10 : Math.round(value);
 
-    const metrics: AdminAnalytics['metrics'] = [
-      { key: 'visitors', label: 'Visitors', count: visitorsCurrent, previous: visitorsPrevious },
-      { key: 'views', label: 'Page views', count: viewsCurrent, previous: viewsPrevious },
+      return {
+        key: spec.key,
+        label: spec.label,
+        count: round(extractMetricValue(reportData, 'date_range_0', spec.metric) * scale),
+        previous: round(extractMetricValue(reportData, 'date_range_1', spec.metric) * scale),
+        unit: spec.unit,
+      };
+    };
+
+    const metrics: AdminAnalyticsMetric[] = [
+      readMetric(firstReport, {
+        key: 'visitors',
+        label: 'Visitors',
+        metric: 'activeUsers',
+        unit: 'number',
+      }),
+      readMetric(firstReport, {
+        key: 'views',
+        label: 'Page views',
+        metric: 'screenPageViews',
+        unit: 'number',
+      }),
+      readMetric(firstReport, {
+        key: 'sessions',
+        label: 'Sessions',
+        metric: 'sessions',
+        unit: 'number',
+      }),
+      readMetric(firstReport, {
+        key: 'engagement',
+        label: 'Engagement rate',
+        metric: 'engagementRate',
+        unit: 'percent',
+      }),
+      readMetric(firstReport, {
+        key: 'bounce',
+        label: 'Bounce rate',
+        metric: 'bounceRate',
+        unit: 'percent',
+      }),
+      readMetric(firstReport, {
+        key: 'duration',
+        label: 'Avg session duration',
+        metric: 'averageSessionDuration',
+        unit: 'duration',
+      }),
+      readMetric(payload.reports?.[2], {
+        key: 'clicks',
+        label: 'Clicks',
+        metric: 'eventCount',
+        unit: 'number',
+      }),
     ];
 
     if (envConfig.GA_ENQUIRY_EVENT) {
-      const enquiryReport = payload.reports?.[2];
-      const enquiriesCurrent = extractMetricValue(enquiryReport, 'date_range_0', 'eventCount');
-      const enquiriesPrevious = extractMetricValue(enquiryReport, 'date_range_1', 'eventCount');
-      metrics.push({
-        key: 'enquiries',
-        label: 'Enquiries',
-        count: enquiriesCurrent,
-        previous: enquiriesPrevious,
-      });
+      metrics.push(
+        readMetric(payload.reports?.[3], {
+          key: 'enquiries',
+          label: 'Enquiries',
+          metric: 'eventCount',
+          unit: 'number',
+        })
+      );
     }
 
     // Series mapping
