@@ -104,7 +104,7 @@ describe('analytics kit', () => {
   });
 
   describe('GA requests and responses', () => {
-    it('asks Google for totals with no dimension and for the series by date', async () => {
+    it('asks Google for engagement totals, the series by date and the click events', async () => {
       const fetchMock = vi.fn().mockResolvedValue(
         mockResponse([
           report({
@@ -137,7 +137,7 @@ describe('analytics kit', () => {
       expect(init.signal).toBeDefined();
 
       const body = JSON.parse(init.body as string);
-      expect(body.requests).toHaveLength(2);
+      expect(body.requests).toHaveLength(3);
 
       // (1) totals
       expect(body.requests[0]).toEqual({
@@ -145,7 +145,14 @@ describe('analytics kit', () => {
           { startDate: '30daysAgo', endDate: 'yesterday' },
           { startDate: '60daysAgo', endDate: '31daysAgo' },
         ],
-        metrics: [{ name: 'activeUsers' }, { name: 'screenPageViews' }],
+        metrics: [
+          { name: 'activeUsers' },
+          { name: 'screenPageViews' },
+          { name: 'sessions' },
+          { name: 'engagementRate' },
+          { name: 'bounceRate' },
+          { name: 'averageSessionDuration' },
+        ],
       });
 
       // (2) series
@@ -156,8 +163,78 @@ describe('analytics kit', () => {
         orderBys: [{ dimension: { dimensionName: 'date' }, desc: false }],
       });
 
+      // (3) clicks
+      expect(body.requests[2]).toEqual({
+        dateRanges: [
+          { startDate: '30daysAgo', endDate: 'yesterday' },
+          { startDate: '60daysAgo', endDate: '31daysAgo' },
+        ],
+        metrics: [{ name: 'eventCount' }],
+        dimensionFilter: {
+          filter: {
+            fieldName: 'eventName',
+            stringFilter: { matchType: 'EXACT', value: 'click' },
+          },
+        },
+      });
+
       expect(res.configured).toBe(true);
       expect(res.note).toBe('Google Analytics figures can lag by up to a day. Each period ends on the last complete day.');
+    });
+
+    it('returns every engagement metric with its unit, reading rates as percents and duration as seconds', async () => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        mockResponse([
+          report({
+            headers: {
+              dimensions: ['dateRange'],
+              metrics: [
+                'activeUsers',
+                'screenPageViews',
+                'sessions',
+                'engagementRate',
+                'bounceRate',
+                'averageSessionDuration',
+              ],
+            },
+            rows: [
+              { dimensions: ['date_range_0'], metrics: [100, 200, 300, 0.6842, 0.3158, 95.4] },
+              { dimensions: ['date_range_1'], metrics: [50, 80, 120, 0.6, 0.4, 60] },
+            ],
+          }),
+          report({
+            headers: { dimensions: ['date'], metrics: ['activeUsers', 'screenPageViews'] },
+            rows: [],
+          }),
+          report({
+            headers: { dimensions: ['dateRange'], metrics: ['eventCount'] },
+            rows: [
+              { dimensions: ['date_range_0'], metrics: [42] },
+              { dimensions: ['date_range_1'], metrics: [17] },
+            ],
+          }),
+        ])
+      );
+
+      const analytics = createAnalytics(
+        { GA_PROPERTY_ID: VALID_PROPERTY_ID, GA_SERVICE_ACCOUNT_B64: VALID_SA_B64 },
+        {
+          fetch: fetchMock as any,
+          accessToken: vi.fn().mockResolvedValue('token'),
+          now: () => new Date('2026-10-23T12:00:00Z'),
+        }
+      );
+
+      const res = await analytics.read(30);
+      expect(res.metrics).toEqual([
+        { key: 'visitors', label: 'Visitors', count: 100, previous: 50, unit: 'number' },
+        { key: 'views', label: 'Page views', count: 200, previous: 80, unit: 'number' },
+        { key: 'sessions', label: 'Sessions', count: 300, previous: 120, unit: 'number' },
+        { key: 'engagement', label: 'Engagement rate', count: 68.4, previous: 60, unit: 'percent' },
+        { key: 'bounce', label: 'Bounce rate', count: 31.6, previous: 40, unit: 'percent' },
+        { key: 'duration', label: 'Avg session duration', count: 95, previous: 60, unit: 'duration' },
+        { key: 'clicks', label: 'Clicks', count: 42, previous: 17, unit: 'number' },
+      ]);
     });
 
     it('adds the enquiry report only when an event is set', async () => {
@@ -170,6 +247,13 @@ describe('analytics kit', () => {
           report({
             headers: { dimensions: ['date'], metrics: ['activeUsers', 'screenPageViews'] },
             rows: [],
+          }),
+          report({
+            headers: { dimensions: ['dateRange'], metrics: ['eventCount'] },
+            rows: [
+              { dimensions: ['date_range_0'], metrics: [7] },
+              { dimensions: ['date_range_1'], metrics: [3] },
+            ],
           }),
           report({
             headers: { dimensions: ['dateRange'], metrics: ['eventCount'] },
@@ -198,8 +282,8 @@ describe('analytics kit', () => {
       const call = fetchMock.mock.calls[0]!;
       const body = JSON.parse(call[1].body as string);
 
-      expect(body.requests).toHaveLength(3);
-      expect(body.requests[2]).toEqual({
+      expect(body.requests).toHaveLength(4);
+      expect(body.requests[3]).toEqual({
         dateRanges: [
           { startDate: '7daysAgo', endDate: 'yesterday' },
           { startDate: '14daysAgo', endDate: '8daysAgo' },
@@ -216,12 +300,22 @@ describe('analytics kit', () => {
         },
       });
 
-      expect(res.metrics.map((m) => m.key)).toEqual(['visitors', 'views', 'enquiries']);
-      expect(res.metrics[2]).toEqual({
+      expect(res.metrics.map((m) => m.key)).toEqual([
+        'visitors',
+        'views',
+        'sessions',
+        'engagement',
+        'bounce',
+        'duration',
+        'clicks',
+        'enquiries',
+      ]);
+      expect(res.metrics[7]).toEqual({
         key: 'enquiries',
         label: 'Enquiries',
         count: 5,
         previous: 2,
+        unit: 'number',
       });
       // Series has only visitors and views
       expect(res.series.map((s) => s.key)).toEqual(['visitors', 'views']);
@@ -257,8 +351,13 @@ describe('analytics kit', () => {
 
       const res = await analytics.read(30);
       expect(res.metrics).toEqual([
-        { key: 'visitors', label: 'Visitors', count: 120, previous: 40 },
-        { key: 'views', label: 'Page views', count: 250, previous: 70 },
+        { key: 'visitors', label: 'Visitors', count: 120, previous: 40, unit: 'number' },
+        { key: 'views', label: 'Page views', count: 250, previous: 70, unit: 'number' },
+        { key: 'sessions', label: 'Sessions', count: 0, previous: 0, unit: 'number' },
+        { key: 'engagement', label: 'Engagement rate', count: 0, previous: 0, unit: 'percent' },
+        { key: 'bounce', label: 'Bounce rate', count: 0, previous: 0, unit: 'percent' },
+        { key: 'duration', label: 'Avg session duration', count: 0, previous: 0, unit: 'duration' },
+        { key: 'clicks', label: 'Clicks', count: 0, previous: 0, unit: 'number' },
       ]);
     });
 
@@ -291,8 +390,13 @@ describe('analytics kit', () => {
 
       const res = await analytics.read(30);
       expect(res.metrics).toEqual([
-        { key: 'visitors', label: 'Visitors', count: 150, previous: 0 },
-        { key: 'views', label: 'Page views', count: 500, previous: 300 },
+        { key: 'visitors', label: 'Visitors', count: 150, previous: 0, unit: 'number' },
+        { key: 'views', label: 'Page views', count: 500, previous: 300, unit: 'number' },
+        { key: 'sessions', label: 'Sessions', count: 0, previous: 0, unit: 'number' },
+        { key: 'engagement', label: 'Engagement rate', count: 0, previous: 0, unit: 'percent' },
+        { key: 'bounce', label: 'Bounce rate', count: 0, previous: 0, unit: 'percent' },
+        { key: 'duration', label: 'Avg session duration', count: 0, previous: 0, unit: 'duration' },
+        { key: 'clicks', label: 'Clicks', count: 0, previous: 0, unit: 'number' },
       ]);
     });
 
@@ -305,6 +409,10 @@ describe('analytics kit', () => {
           }),
           report({
             headers: { dimensions: ['date'], metrics: ['activeUsers', 'screenPageViews'] },
+            rows: [],
+          }),
+          report({
+            headers: { dimensions: ['dateRange'], metrics: ['eventCount'] },
             rows: [],
           }),
           report({
@@ -329,9 +437,14 @@ describe('analytics kit', () => {
 
       const res = await analytics.read(7);
       expect(res.metrics).toEqual([
-        { key: 'visitors', label: 'Visitors', count: 0, previous: 0 },
-        { key: 'views', label: 'Page views', count: 0, previous: 0 },
-        { key: 'enquiries', label: 'Enquiries', count: 0, previous: 0 },
+        { key: 'visitors', label: 'Visitors', count: 0, previous: 0, unit: 'number' },
+        { key: 'views', label: 'Page views', count: 0, previous: 0, unit: 'number' },
+        { key: 'sessions', label: 'Sessions', count: 0, previous: 0, unit: 'number' },
+        { key: 'engagement', label: 'Engagement rate', count: 0, previous: 0, unit: 'percent' },
+        { key: 'bounce', label: 'Bounce rate', count: 0, previous: 0, unit: 'percent' },
+        { key: 'duration', label: 'Avg session duration', count: 0, previous: 0, unit: 'duration' },
+        { key: 'clicks', label: 'Clicks', count: 0, previous: 0, unit: 'number' },
+        { key: 'enquiries', label: 'Enquiries', count: 0, previous: 0, unit: 'number' },
       ]);
     });
 
