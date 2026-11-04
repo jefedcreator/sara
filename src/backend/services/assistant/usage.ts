@@ -32,6 +32,9 @@ const MODEL_RATES: Record<string, TokenRates> = {
 
 export type UsageMode = "VOICE" | "TEXT" | "APPROVAL";
 
+/** Only a fresh reservation authorizes one paid execution of this request. */
+export type UsageReservation = { id: string; fresh: boolean };
+
 export type UsageOutcome =
   | "answered"
   | "draft"
@@ -123,15 +126,19 @@ function isUniqueViolation(error: unknown): boolean {
  * Reserve one paid assistant turn.
  *
  * Returns null when the assistant is off, unavailable or over its daily cap.
- * A duplicate request returns its existing reservation id, and the unique
- * usage row means it cannot increment the daily counter a second time.
+ * Only fresh:true permits paid work. An existing or raced reservation returns
+ * fresh:false and must terminate/replay the turn without any provider call or
+ * accounting patch. Retrying paid work requires a distinct request id and slot.
  */
 export async function reserveUsage(
   scope: AssistantScope,
   requestId: string,
   mode: Exclude<UsageMode, "APPROVAL">,
   now: Date,
-): Promise<{ id: string } | null> {
+): Promise<UsageReservation | null> {
+  if (requestId.startsWith("approve:")) {
+    throw new Error("ASSISTANT_REQUEST_ID_RESERVED");
+  }
   const config = assistantConfig();
   if (!config.enabled || !config.available) return null;
 
@@ -145,7 +152,7 @@ export async function reserveUsage(
     },
     select: { id: true },
   });
-  if (existing) return existing;
+  if (existing) return { id: existing.id, fresh: false };
 
   try {
     return await db.$transaction(async (tx) => {
@@ -181,7 +188,7 @@ export async function reserveUsage(
         RETURNING "count"
       `;
       if (rows.length === 0) throw new Error("ASSISTANT_LIMIT_REACHED");
-      return { id: reservation.id };
+      return { id: reservation.id, fresh: true };
     });
   } catch (error) {
     if (error instanceof Error && error.message === "ASSISTANT_LIMIT_REACHED") {
@@ -197,7 +204,7 @@ export async function reserveUsage(
         },
         select: { id: true },
       });
-      if (raced) return raced;
+      if (raced) return { id: raced.id, fresh: false };
     }
     throw error;
   }

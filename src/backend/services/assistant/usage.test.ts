@@ -156,6 +156,20 @@ describe("estimateCost", () => {
 });
 
 describe("reserveUsage", () => {
+  it("rejects the approval namespace before any paid reservation", async () => {
+    await expect(reserveUsage(scope, "approve:action-1", "TEXT", now)).rejects.toThrow("ASSISTANT_REQUEST_ID_RESERVED");
+    expect(mockedDb.$transaction).not.toHaveBeenCalled();
+  });
+  it("does not authorize another paid attempt after an abandoned reservation", async () => {
+    const first = await reserveUsage(scope, "crashed-request", "TEXT", now);
+    expect(first).toEqual({ id: "usage_1", fresh: true });
+    // Simulate process death after the provider call but before finalization.
+    mockedDb.assistantUsage.findUnique.mockResolvedValue({ id: "usage_1" });
+    const retry = await reserveUsage(scope, "crashed-request", "TEXT", new Date(now.getTime() + 31_000));
+    expect(retry).toEqual({ id: "usage_1", fresh: false });
+    expect(mockedDb.$transaction).toHaveBeenCalledTimes(1);
+    expect(mockedDb.assistantUsage.update).not.toHaveBeenCalled();
+  });
   it("creates the unique reservation then conditionally increments the Lagos day", async () => {
     const tx = transactionClient();
     mockedDb.$transaction.mockImplementation(async (callback: any) =>
@@ -163,7 +177,7 @@ describe("reserveUsage", () => {
     );
 
     await expect(reserveUsage(scope, "r1", "TEXT", now)).resolves.toEqual({
-      id: "usage_1",
+      id: "usage_1", fresh: true,
     });
 
     expect(tx.assistantUsage.create).toHaveBeenCalledWith({
@@ -204,7 +218,7 @@ describe("reserveUsage", () => {
     mockedDb.assistantUsage.findUnique.mockResolvedValue({ id: "usage_0" });
 
     await expect(reserveUsage(scope, "r1", "TEXT", now)).resolves.toEqual({
-      id: "usage_0",
+      id: "usage_0", fresh: false,
     });
     expect(mockedDb.$transaction).not.toHaveBeenCalled();
   });
@@ -244,7 +258,7 @@ describe("reserveUsage", () => {
     );
 
     await expect(reserveUsage(scope, "r1", "TEXT", now)).resolves.toEqual({
-      id: "usage_winner",
+      id: "usage_winner", fresh: false,
     });
   });
 
@@ -258,6 +272,17 @@ describe("reserveUsage", () => {
 });
 
 describe("finishUsage", () => {
+  it("allows only the original execution to finalize after an orphan replay without losing its counters", async () => {
+    mockedDb.assistantUsage.findUnique.mockResolvedValue({ id: "usage_1", model: "gpt-5.4-mini", mode: "TEXT", audioSeconds: null, inputTokens: 500, cachedTokens: 100, outputTokens: 20, durationMs: 1000 });
+    const recovered = await reserveUsage(scope, "orphan", "TEXT", now);
+    expect(recovered).toEqual({ id: "usage_1", fresh: false });
+    // Recovery does not finalize anything; the original paid owner arrives late.
+    expect(mockedDb.assistantUsage.update).not.toHaveBeenCalled();
+    await finishUsage("usage_1", { outcome: "answered", durationMs: 1200, providerRequestIds: ["original-provider-request"] });
+    expect(mockedDb.assistantUsage.update).toHaveBeenCalledTimes(1);
+    expect(mockedDb.assistantUsage.update).toHaveBeenCalledWith({ where: { id: "usage_1" }, data: expect.objectContaining({ inputTokens: 500, cachedTokens: 100, outputTokens: 20, providerRequestIds: ["original-provider-request"] }) });
+    expect(mockedDb.$transaction).not.toHaveBeenCalled();
+  });
   it("keeps prior tokens when a later accounting patch omits counters", async () => {
     mockedDb.assistantUsage.findUnique.mockResolvedValue({ model: "gpt-5.4-mini", mode: "TEXT", audioSeconds: null, inputTokens: 1000, cachedTokens: 400, outputTokens: 100, durationMs: 1200 });
     await finishUsage("usage_1", { outcome: "answered" });

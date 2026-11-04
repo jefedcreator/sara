@@ -36,6 +36,9 @@ const RECENT_MS = 30 * 60 * 1000;
 const MAX_RECENT_TURNS = 12;
 const MAX_HISTORY_CHARS = 16_000;
 
+export const INTERRUPTED_TURN_REPLY =
+  "That request was interrupted. Please send it again as a new message.";
+
 const draftStatuses: ReadonlySet<string> = new Set<string>([
   "PENDING",
   "APPROVED",
@@ -310,6 +313,9 @@ export async function claimTurnLease(
   scope: AssistantScope,
   requestId: string,
 ): Promise<TurnClaim> {
+  if (requestId.startsWith("approve:")) {
+    throw storeError("ASSISTANT_REQUEST_ID_RESERVED");
+  }
   const conversation = await getConversation(scope);
   const key = { conversationId: conversation.id, requestId };
   const existing = await db.assistantTurn.findUnique({
@@ -347,6 +353,37 @@ export async function claimTurnLease(
         data: { leaseToken: null, leaseExpiresAt: null },
       });
       return replay(conversation.id, row);
+    }
+    // A prior reservation may already have paid for provider work, even when
+    // its process died before writing counters or a DONE reply. Never execute
+    // that request again. Recover it terminally while holding the lease lock.
+    const reserved = await tx.assistantUsage.findUnique({
+      where: { conversationId_requestId: key },
+      select: { id: true },
+    });
+    if (reserved) {
+      const recovered: AssistantReply = {
+        conversationId: conversation.id,
+        requestId,
+        transcript: row?.transcript ?? null,
+        reply: INTERRUPTED_TURN_REPLY,
+        draft: null,
+        result: null,
+      };
+      const reply = { text: recovered.reply, draft: null, result: null };
+      await tx.assistantTurn.upsert({
+        where: { conversationId_requestId: key },
+        create: { ...key, memoryVersion: current.memoryVersion, reply, state: "DONE" },
+        // Preserve the old memory version across a reset and all known inputs.
+        update: { reply, state: "DONE" },
+      });
+      await tx.assistantConversation.update({
+        where: { id: conversation.id },
+        data: { leaseToken: null, leaseExpiresAt: null },
+      });
+      // Do not modify usage: the original execution may still finalize known
+      // counters late. There is only ever one paid attempt for this key.
+      return recovered;
     }
     await tx.assistantTurn.upsert({
       where: { conversationId_requestId: key },

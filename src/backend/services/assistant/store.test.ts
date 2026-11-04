@@ -12,13 +12,14 @@ vi.mock("@/server/db", () => ({
       updateMany: vi.fn(), deleteMany: vi.fn(),
     },
     assistantAction: { findFirst: vi.fn(), updateMany: vi.fn() },
+    assistantUsage: { findUnique: vi.fn(), update: vi.fn() },
     $transaction: vi.fn(),
   },
 }));
 
 import { db } from "@/server/db";
 import {
-  assertConversation, claimTurn, claimTurnLease, getAction, loadRecent,
+  assertConversation, claimTurn, claimTurnLease, getAction, INTERRUPTED_TURN_REPLY, loadRecent,
   releaseTurn, resetMemory, saveTurn,
 } from "./store";
 import type { AssistantScope } from "./types";
@@ -51,6 +52,7 @@ beforeEach(() => {
   mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue(conversation);
   mockedDb.assistantConversation.updateMany.mockResolvedValue({ count: 1 });
   mockedDb.assistantTurn.findUnique.mockResolvedValue(null);
+  mockedDb.assistantUsage.findUnique.mockResolvedValue(null);
   mockedDb.assistantTurn.findMany.mockResolvedValue([]);
   mockedDb.assistantTurn.updateMany.mockResolvedValue({ count: 1 });
 });
@@ -127,6 +129,34 @@ describe("bounded memory with durable replay", () => {
 });
 
 describe("lease generations", () => {
+  it("terminally recovers a paid orphan after lease expiry without exposing a new execution lease", async () => {
+    const first = await claimTurnLease(scope, "crashed-request");
+    expect(first).toMatchObject({ status: "claimed" });
+    const priorUsage = { id: "usage-1", inputTokens: 500, outputTokens: 20 };
+    // The reservation survived; no completion ran after the paid provider call.
+    mockedDb.assistantUsage.findUnique.mockResolvedValue(priorUsage);
+    mockedDb.assistantTurn.findUnique.mockResolvedValue(turnRow({ requestId: "crashed-request", state: "RUNNING", reply: null }));
+    vi.setSystemTime(new Date(now.getTime() + 31_000));
+    const recovered = await claimTurnLease(scope, "crashed-request");
+    expect(recovered).toEqual({ conversationId: "conv_1", requestId: "crashed-request", transcript: null, reply: INTERRUPTED_TURN_REPLY, draft: null, result: null });
+    expect(recovered).not.toHaveProperty("leaseToken");
+    expect(mockedDb.assistantTurn.upsert).toHaveBeenLastCalledWith(expect.objectContaining({ update: { reply: { text: INTERRUPTED_TURN_REPLY, draft: null, result: null }, state: "DONE" } }));
+    expect(mockedDb.assistantUsage.update).not.toHaveBeenCalled();
+  });
+  it("recovers after a reset without moving old inputs into the new memory version", async () => {
+    mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue({ ...conversation, memoryVersion: 3 });
+    mockedDb.assistantTurn.findUnique.mockResolvedValue(turnRow({ memoryVersion: 2, state: "ERROR" }));
+    mockedDb.assistantUsage.findUnique.mockResolvedValue({ id: "old-reservation" });
+    await expect(claimTurnLease(scope, "r1")).resolves.toMatchObject({ reply: INTERRUPTED_TURN_REPLY });
+    expect(mockedDb.assistantTurn.upsert.mock.calls.at(-1)[0].update).not.toHaveProperty("memoryVersion");
+    mockedDb.assistantConversation.updateMany.mockResolvedValue({ count: 0 });
+    await expect(saveTurn(scope, "r1", savedTurn)).rejects.toMatchObject({ code: "ASSISTANT_TURN_STALE" });
+    expect(mockedDb.assistantUsage.update).not.toHaveBeenCalled();
+  });
+  it("rejects paid claims in the approval namespace", async () => {
+    await expect(claimTurnLease(scope, "approve:action-1")).rejects.toMatchObject({ code: "ASSISTANT_REQUEST_ID_RESERVED" });
+    expect(mockedDb.$transaction).not.toHaveBeenCalled();
+  });
   it("captures the memory version only after the atomic lease acquisition", async () => {
     mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue({ ...conversation, memoryVersion: 3 });
     const claim = await claimTurnLease(scope, "r1");
