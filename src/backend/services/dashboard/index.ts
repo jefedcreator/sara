@@ -2,6 +2,7 @@ import type { InvoiceStatus, Prisma } from "@prisma/client";
 
 import type { DashboardData, ItemRevenue } from "types";
 
+import { periodRange, type PeriodRange } from "@/backend/services/assistant/clock";
 import { activeBookingWhere } from "@/backend/services/booking/conflicts";
 import { db } from "@/server/db";
 import type { TodayEventKind } from "@/utils/format";
@@ -11,28 +12,38 @@ import { LOW_STOCK } from "@/utils/stock";
  * The owner's day at a glance. One source for both the chat menu (items 4-6)
  * and the web dashboard, so they always show the same numbers.
  *
- * Day and week boundaries use the server's local midnight (Monday-first
- * week), as the chat always has.
+ * Day and week boundaries use Africa/Lagos (Monday-first week).
  */
 
 export const UNPAID_STATUSES: InvoiceStatus[] = ["SENT", "PARTIALLY_PAID", "OVERDUE"];
 
-function startOfToday(): Date {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d;
+export type UnpaidInvoiceFilters = {
+  customerId?: string;
+  from?: Date;
+  to?: Date;
+};
+
+function unpaidWhere(businessId: string, filters: UnpaidInvoiceFilters): Prisma.InvoiceWhereInput {
+  return {
+    businessId,
+    status: { in: UNPAID_STATUSES },
+    ...(filters.customerId && { customerId: filters.customerId }),
+    ...((filters.from || filters.to) && {
+      dueAt: {
+        ...(filters.from && { gte: filters.from }),
+        ...(filters.to && { lt: filters.to }),
+      },
+    }),
+  };
 }
-function startOfWeek(): Date {
-  const d = startOfToday();
-  const day = (d.getDay() + 6) % 7; // Monday = 0
-  d.setDate(d.getDate() - day);
-  return d;
-}
-function endOfToday(): Date {
-  const d = startOfToday();
-  d.setDate(d.getDate() + 1);
-  return d;
-}
+
+export type UnpaidInvoiceSummary = {
+  count: number;
+  outstanding: number;
+  byCurrency: { currency: string; count: number; outstanding: number }[];
+};
+
+export type PeriodSummary = { revenue: number; unpaidCount: number; unpaidTotal: number };
 
 export type UnpaidInvoice = {
   slug: string;
@@ -91,9 +102,9 @@ export type BusinessSummary = {
 
 class DashboardService {
   /** Oldest first: the ones waiting longest lead. */
-  async unpaidInvoices(businessId: string, limit = 10): Promise<UnpaidInvoice[]> {
+  async unpaidInvoices(businessId: string, limit = 10, filters: UnpaidInvoiceFilters = {}): Promise<UnpaidInvoice[]> {
     const invoices = await db.invoice.findMany({
-      where: { businessId, status: { in: UNPAID_STATUSES } },
+      where: unpaidWhere(businessId, filters),
       orderBy: { createdAt: "asc" },
       take: limit,
       select: {
@@ -110,10 +121,30 @@ class DashboardService {
       slug: inv.slug,
       invoiceNumber: inv.invoiceNumber,
       clientName: inv.clientName,
-      outstanding: Number(inv.total) - Number(inv.amountPaid),
+      outstanding: Math.round((Number(inv.total) - Number(inv.amountPaid)) * 100) / 100,
       currency: inv.currency,
       url: inv.url ?? null,
     }));
+  }
+
+  /** Aggregates every match, independently of the displayed invoice limit. */
+  async unpaidInvoiceSummary(businessId: string, filters: UnpaidInvoiceFilters = {}): Promise<UnpaidInvoiceSummary> {
+    const groups = await db.invoice.groupBy({
+      by: ["currency"],
+      where: unpaidWhere(businessId, filters),
+      _count: { _all: true },
+      _sum: { total: true, amountPaid: true },
+    });
+    const byCurrency = groups.map((group) => ({
+      currency: group.currency,
+      count: group._count._all,
+      outstanding: Math.round((Number(group._sum.total ?? 0) - Number(group._sum.amountPaid ?? 0)) * 100) / 100,
+    })).sort((a, b) => a.currency.localeCompare(b.currency));
+    return {
+      count: byCurrency.reduce((sum, group) => sum + group.count, 0),
+      outstanding: byCurrency.reduce((sum, group) => sum + group.outstanding, 0),
+      byCurrency,
+    };
   }
 
   /**
@@ -121,13 +152,19 @@ class DashboardService {
    * that start (check-in, pickup) or end (check-out, return) today.
    */
   async todayBookings(businessId: string): Promise<TodayBooking[]> {
-    const start = startOfToday();
-    const end = endOfToday();
+    const now = new Date();
+    return (await this.bookingsInRange(businessId, periodRange("today", now), now)).slice(0, 20);
+  }
+
+  /** All start/end events in the half-open range; callers cap only their display. */
+  async bookingsInRange(businessId: string, range: PeriodRange, now = new Date()): Promise<TodayBooking[]> {
+    const { from: start, to: end } = range;
     const bookings = await db.booking.findMany({
       where: {
         businessId,
+        service: { businessId },
         AND: [
-          activeBookingWhere(),
+          activeBookingWhere(now),
           {
             OR: [
               { startTime: { gte: start, lt: end } },
@@ -137,7 +174,6 @@ class DashboardService {
         ],
       },
       orderBy: { startTime: "asc" },
-      take: 40,
       select: {
         slug: true, startTime: true, endTime: true, units: true, status: true, clientName: true,
         service: { select: { name: true, bookingMode: true } },
@@ -159,27 +195,30 @@ class DashboardService {
       if (b.startTime >= start && b.startTime < end) events.push({ ...base, kind: START_KIND[mode], at: b.startTime });
       if (mode !== "SLOT" && b.endTime >= start && b.endTime < end) events.push({ ...base, kind: END_KIND[mode], at: b.endTime });
     }
-    return events.sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, 20);
+    return events.sort((a, b) => a.at.getTime() - b.at.getTime() || a.slug.localeCompare(b.slug) || a.kind.localeCompare(b.kind));
   }
 
   /** Payments received today and this week, and how many invoices are unpaid. */
   async summary(businessId: string): Promise<BusinessSummary> {
-    const [todayAgg, weekAgg, unpaidCount] = await Promise.all([
+    const now = new Date();
+    const [today, week] = await Promise.all([
+      this.summaryForPeriod(businessId, periodRange("today", now)),
+      this.summaryForPeriod(businessId, periodRange("week", now)),
+    ]);
+    return { todayRevenue: today.revenue, weekRevenue: week.revenue, unpaidCount: today.unpaidCount };
+  }
+
+  /** Payments received within the range, plus all current unpaid invoices. */
+  async summaryForPeriod(businessId: string, range: PeriodRange): Promise<PeriodSummary> {
+    const [payments, unpaidCount, unpaidTotal] = await Promise.all([
       db.payment.aggregate({
-        where: { businessId, createdAt: { gte: startOfToday() } },
-        _sum: { amount: true },
-      }),
-      db.payment.aggregate({
-        where: { businessId, createdAt: { gte: startOfWeek() } },
+        where: { businessId, createdAt: { gte: range.from, lt: range.to } },
         _sum: { amount: true },
       }),
       db.invoice.count({ where: { businessId, status: { in: UNPAID_STATUSES } } }),
+      this.unpaidTotal(businessId),
     ]);
-    return {
-      todayRevenue: Number(todayAgg._sum.amount ?? 0),
-      weekRevenue: Number(weekAgg._sum.amount ?? 0),
-      unpaidCount,
-    };
+    return { revenue: Number(payments._sum.amount ?? 0), unpaidCount, unpaidTotal };
   }
 
   /** Everything still owed across unpaid invoices. */
@@ -188,7 +227,7 @@ class DashboardService {
       where: { businessId, status: { in: UNPAID_STATUSES } },
       _sum: { total: true, amountPaid: true },
     });
-    return Number(agg._sum.total ?? 0) - Number(agg._sum.amountPaid ?? 0);
+    return Math.round((Number(agg._sum.total ?? 0) - Number(agg._sum.amountPaid ?? 0)) * 100) / 100;
   }
 
   /**
@@ -250,10 +289,15 @@ class DashboardService {
    * confirmed bookings at the service's current price; products from the
    * lines of New, Ready and Completed orders (count is units sold).
    */
-  async revenueByItem(businessId: string): Promise<ItemRevenue[]> {
+  async revenueByItem(businessId: string, range?: PeriodRange): Promise<ItemRevenue[]> {
     const [bookings, lines] = await Promise.all([
       db.booking.findMany({
-        where: { businessId, status: "CONFIRMED" },
+        where: {
+          businessId,
+          service: { businessId },
+          status: "CONFIRMED",
+          ...(range && { createdAt: { gte: range.from, lt: range.to } }),
+        },
         select: {
           serviceId: true,
           service: { select: { name: true, slug: true, price: true } },
@@ -261,8 +305,9 @@ class DashboardService {
       }),
       db.orderLine.findMany({
         where: {
-          order: { businessId, status: { in: [...SOLD_STATUSES] } },
+          order: { businessId, status: { in: [...SOLD_STATUSES] }, ...(range && { createdAt: { gte: range.from, lt: range.to } }) },
           productOptionId: { not: null },
+          productOption: { product: { businessId } },
         },
         select: {
           quantity: true,

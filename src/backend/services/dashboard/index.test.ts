@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/server/db", () => ({
   db: {
@@ -6,6 +6,8 @@ vi.mock("@/server/db", () => ({
     orderLine: { findMany: vi.fn() },
     order: { findMany: vi.fn() },
     product: { findMany: vi.fn() },
+    invoice: { findMany: vi.fn(), groupBy: vi.fn(), aggregate: vi.fn(), count: vi.fn() },
+    payment: { aggregate: vi.fn() },
   },
 }));
 
@@ -16,18 +18,20 @@ import { dashboardService } from "./index";
 const mockedDb = db as any;
 
 function today(time: string) {
-  const d = new Date();
-  const [h, m] = time.split(":").map(Number);
-  d.setHours(h!, m!, 0, 0);
-  return d;
+  return new Date(`2026-11-04T${time}:00+01:00`);
 }
 const daysFromNow = (n: number, time: string) => {
   const d = today(time);
-  d.setDate(d.getDate() + n);
+  d.setUTCDate(d.getUTCDate() + n);
   return d;
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-04T12:00:00+01:00"));
+});
+afterEach(() => vi.useRealTimers());
 
 describe("dashboardService.todayBookings", () => {
   it("lists check-outs, check-ins, pickups and slots in time order", async () => {
@@ -53,11 +57,28 @@ describe("dashboardService.todayBookings", () => {
     await dashboardService.todayBookings("biz_1");
     const where = mockedDb.booking.findMany.mock.calls[0][0].where;
     expect(where.businessId).toBe("biz_1");
+    expect(where.service).toEqual({ businessId: "biz_1" });
     expect(where.AND).toHaveLength(2);
+    expect(where.AND[0].OR[1]).toEqual({ status: "PENDING", OR: [{ holdExpiresAt: null }, { holdExpiresAt: { gt: new Date() } }] });
   });
 });
 
 describe("dashboardService.revenueByItem", () => {
+  it("uses the same half-open period for booking and order creation", async () => {
+    mockedDb.booking.findMany.mockResolvedValue([]);
+    mockedDb.orderLine.findMany.mockResolvedValue([]);
+    const range = { from: today("00:00"), to: daysFromNow(1, "00:00") };
+    await dashboardService.revenueByItem("biz_1", range);
+    expect(mockedDb.booking.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { businessId: "biz_1", service: { businessId: "biz_1" }, status: "CONFIRMED", createdAt: { gte: range.from, lt: range.to } },
+    }));
+    expect(mockedDb.orderLine.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ order: {
+        businessId: "biz_1", status: { in: ["NEW", "READY", "COMPLETED"] }, createdAt: { gte: range.from, lt: range.to },
+      } }),
+    }));
+  });
+
   it("merges service and product revenue, highest first", async () => {
     mockedDb.booking.findMany.mockResolvedValue([
       { serviceId: "s1", service: { name: "Knotless braids", slug: "kb", price: 25000 } },
@@ -79,6 +100,72 @@ describe("dashboardService.revenueByItem", () => {
     ]);
     const where = mockedDb.orderLine.findMany.mock.calls[0][0].where;
     expect(where.order).toEqual({ businessId: "biz_1", status: { in: ["NEW", "READY", "COMPLETED"] } });
+    expect(where.productOption).toEqual({ product: { businessId: "biz_1" } });
+  });
+});
+
+describe("dashboardService shared reads", () => {
+  it("filters unpaid invoices by owned business, customer and half-open due period", async () => {
+    mockedDb.invoice.findMany.mockResolvedValue([{
+      slug: "inv-1", invoiceNumber: "INV-1042", clientName: "Ada", total: "50000.50", amountPaid: "10000.25", currency: "NGN", url: null,
+    }]);
+    const filters = { customerId: "cus_1", from: today("00:00"), to: daysFromNow(1, "00:00") };
+    expect(await dashboardService.unpaidInvoices("biz_1", 5, filters)).toEqual([{
+      slug: "inv-1", invoiceNumber: "INV-1042", clientName: "Ada", outstanding: 40000.25, currency: "NGN", url: null,
+    }]);
+    expect(mockedDb.invoice.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { businessId: "biz_1", status: { in: ["SENT", "PARTIALLY_PAID", "OVERDUE"] }, customerId: "cus_1", dueAt: { gte: filters.from, lt: filters.to } },
+      take: 5,
+    }));
+  });
+
+  it("aggregates all unpaid matches separately by currency without a list cap", async () => {
+    mockedDb.invoice.groupBy.mockResolvedValue([
+      { currency: "USD", _count: { _all: 4 }, _sum: { total: "1000", amountPaid: "100" } },
+      { currency: "NGN", _count: { _all: 21 }, _sum: { total: "500000", amountPaid: "50000" } },
+    ]);
+    const filters = { customerId: "cus_1", from: today("00:00"), to: daysFromNow(1, "00:00") };
+    expect(await dashboardService.unpaidInvoiceSummary("biz_1", filters)).toEqual({
+      count: 25, outstanding: 450900, byCurrency: [
+        { currency: "NGN", count: 21, outstanding: 450000 },
+        { currency: "USD", count: 4, outstanding: 900 },
+      ],
+    });
+    const args = mockedDb.invoice.groupBy.mock.calls[0][0];
+    expect(args.where).toEqual({ businessId: "biz_1", status: { in: ["SENT", "PARTIALLY_PAID", "OVERDUE"] }, customerId: "cus_1", dueAt: { gte: filters.from, lt: filters.to } });
+    expect(args).not.toHaveProperty("take");
+  });
+
+  it("uses Lagos midnight even when the UTC day has not changed", async () => {
+    vi.setSystemTime(new Date("2026-11-03T23:30:00Z"));
+    mockedDb.booking.findMany.mockResolvedValue([]);
+    await dashboardService.todayBookings("biz_1");
+    expect(mockedDb.booking.findMany.mock.calls[0][0].where.AND[1].OR[0]).toEqual({
+      startTime: { gte: new Date("2026-11-03T23:00:00Z"), lt: new Date("2026-11-04T23:00:00Z") },
+    });
+  });
+
+  it("includes the start, excludes the end, and retains all events before display caps", async () => {
+    const range = { from: today("00:00"), to: daysFromNow(1, "00:00") };
+    const base = { units: 1, status: "CONFIRMED", clientName: "Ada", service: { name: "Apartment", bookingMode: "NIGHTLY" } };
+    mockedDb.booking.findMany.mockResolvedValue([
+      { ...base, slug: "boundary", startTime: range.from, endTime: range.to },
+      ...Array.from({ length: 25 }, (_, index) => ({ ...base, slug: `stay-${index}`, startTime: today("10:00"), endTime: today("14:00") })),
+    ]);
+    const all = await dashboardService.bookingsInRange("biz_1", range);
+    expect(all).toHaveLength(51);
+    expect(all.filter((event) => event.slug === "boundary").map((event) => event.kind)).toEqual(["CHECK_IN"]);
+    expect(mockedDb.booking.findMany.mock.calls[0][0]).not.toHaveProperty("take");
+    expect(await dashboardService.todayBookings("biz_1")).toHaveLength(20);
+  });
+
+  it("summarises payments inside the range and current unpaid totals independently", async () => {
+    const range = { from: today("00:00"), to: daysFromNow(1, "00:00") };
+    mockedDb.payment.aggregate.mockResolvedValue({ _sum: { amount: "45000.50" } });
+    mockedDb.invoice.count.mockResolvedValue(30);
+    mockedDb.invoice.aggregate.mockResolvedValue({ _sum: { total: "900000", amountPaid: "50000" } });
+    expect(await dashboardService.summaryForPeriod("biz_1", range)).toEqual({ revenue: 45000.5, unpaidCount: 30, unpaidTotal: 850000 });
+    expect(mockedDb.payment.aggregate).toHaveBeenCalledWith({ where: { businessId: "biz_1", createdAt: { gte: range.from, lt: range.to } }, _sum: { amount: true } });
   });
 });
 
