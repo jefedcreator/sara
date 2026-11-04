@@ -369,3 +369,15 @@ export type CustomerDetail = CustomerListItem & {
   createdAt: string;
   timeline: TimelineEntry[];
 };
+
+// --- Assistant wire types ---
+
+export type {
+  ActionResult,
+  ApprovalReply,
+  AssistantChannel,
+  AssistantReply,
+  DraftDto,
+  DraftStatus,
+  ResourceKind,
+} from "./assistant";

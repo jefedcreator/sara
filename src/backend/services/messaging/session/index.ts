@@ -29,7 +29,15 @@ class ChatSessionService {
   async getOrCreateSession(identityId: string): Promise<ChatSession> {
     const existing = await db.chatSession.findUnique({ where: { identityId } });
     if (existing) return existing;
-    return db.chatSession.create({ data: { identityId } });
+    try {
+      return await db.chatSession.create({ data: { identityId } });
+    } catch (error) {
+      if (typeof error !== "object" || error === null || !("code" in error) || error.code !== "P2002") throw error;
+      // Concurrent first deliveries may create the same identity session.
+      const winner = await db.chatSession.findUnique({ where: { identityId } });
+      if (!winner) throw error;
+      return winner;
+    }
   }
 
   async save(
@@ -56,17 +64,21 @@ class ChatSessionService {
   }
 
   async claimMessage(sessionId: string, messageId: string): Promise<boolean> {
-    const result = await db.chatSession.updateMany({
-      where: {
-        id: sessionId,
-        OR: [
-          { lastProcessedMsgId: null },
-          { lastProcessedMsgId: { not: messageId } },
-        ],
-      },
-      data: { lastProcessedMsgId: messageId, lastActiveAt: new Date() },
-    });
-    return result.count === 1;
+    try {
+      await db.$transaction(async (tx) => {
+        await tx.processedChatMessage.create({ data: { sessionId, messageId } });
+        // Keep the compatibility field in the same commit so an outage cannot
+        // leave a claimed message whose processing never started.
+        await tx.chatSession.update({
+          where: { id: sessionId },
+          data: { lastProcessedMsgId: messageId, lastActiveAt: new Date() },
+        });
+      });
+      return true;
+    } catch (error) {
+      if (typeof error === "object" && error !== null && "code" in error && error.code === "P2002") return false;
+      throw error;
+    }
   }
 }
 

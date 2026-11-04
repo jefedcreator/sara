@@ -67,6 +67,28 @@ export const env = createEnv({
     INSTAGRAM_VERIFY_TOKEN: z.string().trim().optional(),
     INSTAGRAM_IG_ID: z.string().trim().optional(),
     INSTAGRAM_PAGE_TOKEN: z.string().trim().optional(),
+    // Sara's plain-English assistant. The key is optional so a deployment
+    // without OpenAI still serves the numbered menu.
+    OPENAI_API_KEY: z.string().trim().optional(),
+    OPENAI_ASSISTANT_MODEL: z
+      .string()
+      .trim()
+      .min(1)
+      .default("gpt-5.4-mini"),
+    OPENAI_TRANSCRIBE_MODEL: z
+      .string()
+      .trim()
+      .min(1)
+      .default("whisper-1"),
+    ASSISTANT_ENABLED: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
+    ASSISTANT_DAILY_LIMIT: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(100),
     NODE_ENV: z
       .enum(["development", "test", "production"])
       .default("development"),
@@ -151,6 +173,11 @@ export const env = createEnv({
     INSTAGRAM_VERIFY_TOKEN: process.env.INSTAGRAM_VERIFY_TOKEN,
     INSTAGRAM_IG_ID: process.env.INSTAGRAM_IG_ID,
     INSTAGRAM_PAGE_TOKEN: process.env.INSTAGRAM_PAGE_TOKEN,
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+    OPENAI_ASSISTANT_MODEL: process.env.OPENAI_ASSISTANT_MODEL,
+    OPENAI_TRANSCRIBE_MODEL: process.env.OPENAI_TRANSCRIBE_MODEL,
+    ASSISTANT_ENABLED: process.env.ASSISTANT_ENABLED,
+    ASSISTANT_DAILY_LIMIT: process.env.ASSISTANT_DAILY_LIMIT,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     NEXT_PUBLIC_SARA_WHATSAPP_NUMBER:
       process.env.NEXT_PUBLIC_SARA_WHATSAPP_NUMBER,

@@ -1,0 +1,182 @@
+import { Prisma } from "@prisma/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/server/db", () => ({
+  db: {
+    assistantConversation: {
+      upsert: vi.fn(), findFirst: vi.fn(), findUniqueOrThrow: vi.fn(),
+      update: vi.fn(), updateMany: vi.fn(),
+    },
+    assistantTurn: {
+      findUnique: vi.fn(), findMany: vi.fn(), upsert: vi.fn(),
+      updateMany: vi.fn(), deleteMany: vi.fn(),
+    },
+    assistantAction: { findFirst: vi.fn(), updateMany: vi.fn() },
+    $transaction: vi.fn(),
+  },
+}));
+
+import { db } from "@/server/db";
+import {
+  assertConversation, claimTurn, claimTurnLease, getAction, loadRecent,
+  releaseTurn, resetMemory, saveTurn,
+} from "./store";
+import type { AssistantScope } from "./types";
+
+const mockedDb = db as any;
+const scope: AssistantScope = {
+  businessId: "biz_1", channel: "WHATSAPP", principalId: "identity_1",
+};
+const now = new Date("2026-11-04T12:00:00Z");
+const conversation = {
+  id: "conv_1", ...scope, lastActiveAt: now, memoryVersion: 2,
+  clarification: null, editingActionId: null, leaseToken: null, leaseExpiresAt: null,
+};
+function turnRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "turn_1", conversationId: "conv_1", requestId: "r1", memoryVersion: 2,
+    userText: "hello", transcript: null, toolRecords: [], reply: { text: "hi" },
+    state: "DONE", createdAt: now, ...overrides,
+  };
+}
+const savedTurn = { userText: "sales?", reply: "NGN 45,000", memoryVersion: 2, leaseToken: "generation-1" };
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.useFakeTimers();
+  vi.setSystemTime(now);
+  mockedDb.$transaction.mockImplementation((callback: any) => callback(mockedDb));
+  mockedDb.assistantConversation.upsert.mockResolvedValue(conversation);
+  mockedDb.assistantConversation.findFirst.mockResolvedValue(conversation);
+  mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue(conversation);
+  mockedDb.assistantConversation.updateMany.mockResolvedValue({ count: 1 });
+  mockedDb.assistantTurn.findUnique.mockResolvedValue(null);
+  mockedDb.assistantTurn.findMany.mockResolvedValue([]);
+  mockedDb.assistantTurn.updateMany.mockResolvedValue({ count: 1 });
+});
+afterEach(() => vi.useRealTimers());
+
+describe("scope boundaries", () => {
+  it("requires business, principal and channel for conversation access", async () => {
+    mockedDb.assistantConversation.findFirst.mockImplementation(({ where }: any) =>
+      where.businessId === scope.businessId && where.channel === scope.channel &&
+      where.principalId === scope.principalId ? conversation : null,
+    );
+    await expect(assertConversation(scope, "conv_1")).resolves.toEqual(conversation);
+    for (const foreign of [
+      { ...scope, businessId: "other" }, { ...scope, principalId: "other" },
+      { ...scope, channel: "WEB" as const },
+    ]) {
+      await expect(assertConversation(foreign, "conv_1")).rejects.toMatchObject({ code: "CONVERSATION_NOT_FOUND" });
+    }
+  });
+  it("scopes an action through its conversation", async () => {
+    mockedDb.assistantAction.findFirst.mockResolvedValue(null);
+    await expect(getAction(scope, "foreign")).rejects.toMatchObject({ code: "ACTION_NOT_FOUND" });
+    expect(mockedDb.assistantAction.findFirst).toHaveBeenCalledWith({ where: {
+      id: "foreign", businessId: scope.businessId, conversation: scope,
+    } });
+  });
+});
+
+describe("bounded memory with durable replay", () => {
+  it("keeps 29-minute history and omits 31-minute history", async () => {
+    mockedDb.assistantTurn.findMany.mockResolvedValue([
+      turnRow({ userText: "recent", createdAt: new Date(now.getTime() - 29 * 60_000) }),
+      turnRow({ userText: "old", createdAt: new Date(now.getTime() - 31 * 60_000) }),
+    ]);
+    expect((await loadRecent(scope, now)).map((turn) => turn.userText)).toEqual(["recent"]);
+    expect(mockedDb.assistantTurn.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      take: 12, where: expect.objectContaining({ memoryVersion: 2, state: "DONE" }),
+    }));
+  });
+  it("returns chronological history and counts tool content toward the budget", async () => {
+    mockedDb.assistantTurn.findMany.mockResolvedValue([
+      turnRow({ userText: "new", toolRecords: [{ name: "lookup", arguments: {}, output: "x".repeat(9_000) }] }),
+      turnRow({ userText: "old", toolRecords: [{ name: "lookup", arguments: {}, output: "x".repeat(9_000) }] }),
+    ]);
+    expect((await loadRecent(scope, now)).map((turn) => turn.userText)).toEqual(["new"]);
+  });
+  it("drops a whole oversized latest turn rather than exceeding 16,000 characters", async () => {
+    mockedDb.assistantTurn.findMany.mockResolvedValue([turnRow({ userText: "x".repeat(16_001) })]);
+    expect(await loadRecent(scope, now)).toEqual([]);
+  });
+  it("ignores malformed stored JSON", async () => {
+    mockedDb.assistantTurn.findMany.mockResolvedValue([
+      turnRow({ reply: { nonsense: true } }), turnRow({ toolRecords: [{ name: "missing-output" }] }),
+    ]);
+    expect(await loadRecent(scope, now)).toEqual([]);
+  });
+  it("resets clarification/history without expiring a 24-hour action", async () => {
+    await resetMemory(scope);
+    expect(mockedDb.assistantConversation.update).toHaveBeenCalledWith({
+      where: { id: "conv_1" }, data: {
+        memoryVersion: { increment: 1 }, clarification: Prisma.DbNull,
+        editingActionId: null, lastActiveAt: now,
+      },
+    });
+    expect(mockedDb.assistantAction.updateMany).not.toHaveBeenCalled();
+  });
+  it("never deletes completed idempotency records when saving newer turns", async () => {
+    await saveTurn(scope, "r1", savedTurn);
+    expect(mockedDb.assistantTurn.deleteMany).not.toHaveBeenCalled();
+    expect(mockedDb.assistantTurn.findMany).not.toHaveBeenCalled();
+    mockedDb.assistantTurn.findUnique.mockResolvedValue(turnRow({ requestId: "old-request" }));
+    await expect(claimTurn(scope, "old-request")).resolves.toMatchObject({ requestId: "old-request", reply: "hi" });
+  });
+});
+
+describe("lease generations", () => {
+  it("captures the memory version only after the atomic lease acquisition", async () => {
+    mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue({ ...conversation, memoryVersion: 3 });
+    const claim = await claimTurnLease(scope, "r1");
+    expect(claim).toMatchObject({ status: "claimed", memoryVersion: 3, leaseToken: expect.any(String) });
+    expect(mockedDb.assistantConversation.updateMany).toHaveBeenCalledWith({
+      where: { id: "conv_1", OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lte: now } }] },
+      data: { leaseToken: expect.any(String), leaseExpiresAt: new Date(now.getTime() + 30_000), lastActiveAt: now },
+    });
+  });
+  it("gives a reclaimed request a new generation", async () => {
+    const first = await claimTurnLease(scope, "same-request");
+    const second = await claimTurnLease(scope, "same-request");
+    expect(first).toMatchObject({ status: "claimed" });
+    expect(second).toMatchObject({ status: "claimed" });
+    if (typeof first === "object" && "leaseToken" in first && typeof second === "object" && "leaseToken" in second) {
+      expect(first.leaseToken).not.toBe(second.leaseToken);
+    }
+  });
+  it("returns busy without writing a turn when acquisition loses", async () => {
+    mockedDb.assistantConversation.updateMany.mockResolvedValue({ count: 0 });
+    await expect(claimTurnLease(scope, "r1")).resolves.toBe("busy");
+    expect(mockedDb.assistantTurn.upsert).not.toHaveBeenCalled();
+  });
+  it("replays a completion that raced the initial lookup", async () => {
+    mockedDb.assistantTurn.findUnique.mockResolvedValueOnce(null).mockResolvedValueOnce(turnRow());
+    await expect(claimTurnLease(scope, "r1")).resolves.toMatchObject({ reply: "hi" });
+    expect(mockedDb.assistantTurn.upsert).not.toHaveBeenCalled();
+  });
+  it("fences stale completions after reset or reacquisition", async () => {
+    mockedDb.assistantConversation.updateMany.mockResolvedValue({ count: 0 });
+    await expect(saveTurn(scope, "r1", savedTurn)).rejects.toMatchObject({ code: "ASSISTANT_TURN_STALE" });
+    expect(mockedDb.assistantTurn.updateMany).not.toHaveBeenCalled();
+    expect(mockedDb.assistantConversation.updateMany).toHaveBeenCalledWith({
+      where: { id: "conv_1", leaseToken: "generation-1", memoryVersion: 2, leaseExpiresAt: { gt: now } },
+      data: { lastActiveAt: now },
+    });
+  });
+  it("stores the exact reply only for its RUNNING generation", async () => {
+    const draft = { id: "draft-1", summary: "Invoice Tolu?", expiresAt: "2026-11-05T12:00:00Z", status: "PENDING" as const };
+    await saveTurn(scope, "r1", { ...savedTurn, draft });
+    expect(mockedDb.assistantTurn.updateMany).toHaveBeenCalledWith({
+      where: { conversationId: "conv_1", requestId: "r1", memoryVersion: 2, state: "RUNNING" },
+      data: { userText: "sales?", transcript: null, toolRecords: [], reply: { text: "NGN 45,000", draft, result: null }, state: "DONE" },
+    });
+  });
+  it("cannot release the newer generation for a retried request", async () => {
+    await releaseTurn(scope, "same-request", "old-generation");
+    expect(mockedDb.assistantConversation.updateMany).toHaveBeenCalledWith({
+      where: { id: "conv_1", leaseToken: "old-generation" },
+      data: { leaseToken: null, leaseExpiresAt: null },
+    });
+  });
+});
