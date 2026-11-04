@@ -1,5 +1,21 @@
 import { z } from "zod";
 
+const nonblank = z.string().min(1).max(255).refine((value) => value.trim().length > 0, "A name cannot be blank");
+const safeInteger = z.number().int().min(0).max(2_147_483_647);
+const dueDateSchema = z.string().max(30).refine((value) => {
+  if (/^(today|tomorrow|sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/i.test(value)) return true;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}, "Use an exact Lagos date, today, tomorrow or a weekday");
+
+/** Patch keys remain strings in the public type; the boundary enforces the allowed set. */
+function patchProblem(value: Record<string, unknown> & { fields: string[] }, allowed: string[], nullable: string[]): boolean {
+  return new Set(value.fields).size === value.fields.length &&
+    value.fields.every((key) => allowed.includes(key) && (nullable.includes(key) || value[key] !== null)) &&
+    allowed.every((key) => value.fields.includes(key) || value[key] === null);
+}
+
 export const priceEvidenceSchema = z
   .object({
     quote: z.string().min(1).max(120),
@@ -18,7 +34,7 @@ export const customerRef = z.discriminatedUnion("kind", [
   z
     .object({
       kind: z.literal("new"),
-      name: z.string().min(1).max(255),
+      name: nonblank,
       phone: z.string().max(50).nullable(),
       email: z.string().email().max(255).nullable(),
     })
@@ -29,12 +45,15 @@ export type CustomerRef = z.infer<typeof customerRef>;
 export const line = z
   .object({
     kind: z.enum(["service", "product", "custom"]),
-    id: z.string().nullable(),
-    name: z.string().nullable(),
+    id: z.string().min(1).max(255).nullable(),
+    name: nonblank.nullable(),
     quantity: z.number().int().min(1).max(999),
     priceOverride: priceEvidenceSchema.nullable(),
   })
-  .strict();
+  .strict()
+  .refine((value) => value.kind === "custom"
+    ? value.id === null && value.name !== null && value.priceOverride !== null
+    : value.id !== null, "Catalog lines require an owned id; custom lines require a name and price with no id");
 export type DraftLine = z.infer<typeof line>;
 
 export const createInvoiceRequestSchema = z
@@ -42,7 +61,7 @@ export const createInvoiceRequestSchema = z
     kind: z.literal("create_invoice"),
     customer: customerRef,
     lines: z.array(line).min(1).max(30),
-    dueDate: z.string().nullable(),
+    dueDate: dueDateSchema.nullable(),
     notes: z.string().max(2000).nullable(),
   })
   .strict();
@@ -56,10 +75,11 @@ export const createReceiptRequestSchema = z
     amount: priceEvidenceSchema.nullable(),
     method: z.enum(["CASH", "BANK_TRANSFER"]),
     fulfilment: z.enum(["PICKUP", "DELIVERY"]).nullable(),
-    deliveryAddress: z.string().max(1000).nullable(),
+    deliveryAddress: z.string().max(500).nullable(),
     notes: z.string().max(2000).nullable(),
   })
-  .strict();
+  .strict()
+  .refine((value) => (value.lines.length > 0) !== (value.amount !== null), "A receipt needs either lines or an amount, never both");
 export type CreateReceiptRequest = z.infer<typeof createReceiptRequestSchema>;
 
 export const recordInvoicePaymentRequestSchema = z
@@ -103,7 +123,7 @@ export const adjustStockRequestSchema = z
     kind: z.literal("adjust_stock"),
     optionId: z.string().min(1),
     mode: z.enum(["add", "remove", "set"]),
-    quantity: z.number().int().min(0),
+    quantity: safeInteger,
   })
   .strict()
   .refine(
@@ -117,7 +137,7 @@ export const updateBookingRequestSchema = z
     kind: z.literal("update_booking"),
     bookingId: z.string().min(1),
     status: z.enum(["CONFIRMED", "CANCELLED", "COMPLETED"]).nullable(),
-    startTime: z.string().nullable(),
+    startTime: z.iso.datetime({ offset: true }).nullable(),
   })
   .strict()
   .refine(
@@ -130,14 +150,14 @@ export const productOptionDraftSchema = z
   .object({
     name: z.string().min(0).max(255),
     price: priceEvidenceSchema.nullable(),
-    stock: z.number().int().min(0).nullable(),
+    stock: safeInteger.nullable(),
   })
   .strict();
 
 export const createProductRequestSchema = z
   .object({
     kind: z.literal("create_product"),
-    name: z.string().min(1).max(255),
+    name: nonblank,
     description: z.string().max(1000).nullable(),
     price: priceEvidenceSchema,
     tracksStock: z.boolean(),
@@ -151,7 +171,7 @@ export const updateProductOptionDraftSchema = z
     optionId: z.string().nullable(),
     name: z.string().min(0).max(255),
     price: priceEvidenceSchema.nullable(),
-    stock: z.number().int().min(0).nullable(),
+    stock: safeInteger.nullable(),
   })
   .strict();
 
@@ -159,7 +179,7 @@ export const updateProductRequestSchema = z
   .object({
     kind: z.literal("update_product"),
     productId: z.string().min(1),
-    name: z.string().min(1).max(255).nullable(),
+    name: nonblank.nullable(),
     description: z.string().max(1000).nullable(),
     price: priceEvidenceSchema.nullable(),
     isActive: z.boolean().nullable(),
@@ -167,16 +187,17 @@ export const updateProductRequestSchema = z
     options: z.array(updateProductOptionDraftSchema).min(1).max(20).nullable(),
     fields: z.array(z.string()).min(1),
   })
-  .strict();
+  .strict()
+  .refine((value) => patchProblem(value, ["name", "description", "price", "isActive", "tracksStock", "options"], ["description"]), "Invalid patch fields or missing values");
 export type UpdateProductRequest = z.infer<typeof updateProductRequestSchema>;
 
 export const createServiceRequestSchema = z
   .object({
     kind: z.literal("create_service"),
-    name: z.string().min(1).max(255),
+    name: nonblank,
     description: z.string().max(1000).nullable(),
     price: priceEvidenceSchema,
-    duration: z.number().int().min(1),
+    duration: z.number().int().min(1).max(2_147_483_647),
     bookingMode: z.enum(["SLOT", "NIGHTLY", "DAILY"]),
     availableFrom: z
       .string()
@@ -192,7 +213,7 @@ export const createServiceRequestSchema = z
       .string()
       .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "checkOutTime must be HH:mm")
       .nullable(),
-    minUnits: z.number().int().min(1),
+    minUnits: z.number().int().min(1).max(90),
     maxUnits: z.number().int().min(1).max(90),
   })
   .strict();
@@ -202,27 +223,28 @@ export const updateServiceRequestSchema = z
   .object({
     kind: z.literal("update_service"),
     serviceId: z.string().min(1),
-    name: z.string().min(1).max(255).nullable(),
+    name: nonblank.nullable(),
     description: z.string().max(1000).nullable(),
     price: priceEvidenceSchema.nullable(),
     isActive: z.boolean().nullable(),
-    duration: z.number().int().min(1).nullable(),
+    duration: z.number().int().min(1).max(2_147_483_647).nullable(),
     bookingMode: z.enum(["SLOT", "NIGHTLY", "DAILY"]).nullable(),
     availableFrom: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
     availableTo: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
     checkInTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
     checkOutTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).nullable(),
-    minUnits: z.number().int().min(1).nullable(),
+    minUnits: z.number().int().min(1).max(90).nullable(),
     maxUnits: z.number().int().min(1).max(90).nullable(),
     fields: z.array(z.string()).min(1),
   })
-  .strict();
+  .strict()
+  .refine((value) => patchProblem(value, ["name", "description", "price", "isActive", "duration", "bookingMode", "availableFrom", "availableTo", "checkInTime", "checkOutTime", "minUnits", "maxUnits"], ["description", "checkInTime", "checkOutTime"]), "Invalid patch fields or missing values");
 export type UpdateServiceRequest = z.infer<typeof updateServiceRequestSchema>;
 
 export const createCustomerRequestSchema = z
   .object({
     kind: z.literal("create_customer"),
-    name: z.string().min(1).max(255),
+    name: nonblank,
     phone: z.string().max(50).nullable(),
     email: z.string().email().max(255).nullable(),
     address: z.string().max(1000).nullable(),
@@ -235,14 +257,15 @@ export const updateCustomerRequestSchema = z
   .object({
     kind: z.literal("update_customer"),
     customerId: z.string().min(1),
-    name: z.string().min(1).max(255).nullable(),
+    name: nonblank.nullable(),
     phone: z.string().max(50).nullable(),
     email: z.string().email().max(255).nullable(),
     address: z.string().max(1000).nullable(),
     notes: z.string().max(2000).nullable(),
     fields: z.array(z.string()).min(1),
   })
-  .strict();
+  .strict()
+  .refine((value) => patchProblem(value, ["name", "phone", "email", "address", "notes"], ["phone", "email", "address", "notes"]), "Invalid patch fields or missing values");
 export type UpdateCustomerRequest = z.infer<typeof updateCustomerRequestSchema>;
 
 export const draftRequestSchema = z.discriminatedUnion("kind", [

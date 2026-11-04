@@ -116,3 +116,29 @@ describe("verifyOwnerPrice", () => {
     ).toThrow("Please state the price you want to use.");
   });
 });
+
+describe("whole amount evidence", () => {
+  it.each(["and", "one one", "twenty thirty", "one thousand and", "million", "one thousand million", "12,34", "1.234k", "two hundred hundred", "one point five five five"])("rejects malformed amount grammar: %s", (value) => {
+    expect(parseEnglishAmount(value)).toBeNull();
+  });
+
+  it.each([
+    ["one point five zero", 150],
+    ["zero point zero five", 5],
+    ["125 thousand", 12_500_000],
+    ["one million two hundred and fifty thousand", 125_000_000],
+  ])("parses complete currency expression %s", (value, minor) => {
+    expect(parseEnglishAmount(String(value))).toBe(minor);
+  });
+
+  it.each([
+    ["two", 200, "Invoice Tolu for two wigs"],
+    ["5", 500, "Set the price to 45,000"],
+    ["45", 4500, "Set the price to 45,000"],
+    ["five thousand", 500000, "Use forty-five thousand"],
+    ["500", 50000, "Phone 08035550000"],
+    ["45,000", 4500000, "Use -45,000"],
+  ])("cannot take %s out of another amount or token", (quote, minor, text) => {
+    expect(() => verifyOwnerPrice({ quote: String(quote), amountMinor: Number(minor) }, { text: String(text), recentOwnerTexts: [], selectedIds: [] })).toThrow("price");
+  });
+});

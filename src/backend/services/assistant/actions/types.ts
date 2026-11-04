@@ -2,6 +2,9 @@ import type { Prisma } from "@prisma/client";
 
 import type { DraftRequest } from "./schemas";
 
+/** Trusted stored owner turns/recorded choices, never deserialized from model arguments.
+ * The resolver copies this into snapshot.ownerEvidence for the full 24h draft lifetime.
+ */
 export type OwnerEvidence = {
   text: string;
   recentOwnerTexts: string[];
@@ -14,6 +17,10 @@ export type Clarification = {
   originalRequest: DraftRequest;
 };
 
+/** snapshot always includes businessId/businessCurrency/businessName, originalRequest,
+ * ownerEvidence and resolvedAt. Payload fields are defined by ResolvedPayloadByKind.
+ * Invoice snapshots also carry resolvedRequest to freeze relative due dates.
+ */
 export type PreparedAction<
   K extends DraftRequest["kind"] = DraftRequest["kind"],
 > = {
