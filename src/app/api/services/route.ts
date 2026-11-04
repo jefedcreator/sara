@@ -6,7 +6,6 @@ import {
 } from "@/backend/middleware";
 import { cloudinaryService } from "@/backend/services/cloudinary";
 import {
-  bookingSetupProblem,
   serviceQueryValidatorSchema,
   serviceValidatorSchema,
   type ServiceQueryValidatorSchema,
@@ -14,14 +13,13 @@ import {
 } from "@/backend/validators/service.validator";
 import { db } from "@/server/db";
 import {
-  BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
 } from "@/utils/exceptions";
 import { Prisma, type Service } from "@prisma/client";
 import { NextResponse } from "next/server";
-import slugify from "slugify";
+import { serviceService } from "@/backend/services/service";
 import type { ApiResponse, ServiceListItem, PaginatedApiResponse } from "types";
 
 /**
@@ -47,67 +45,11 @@ export const POST = withMiddleware<ServiceValidatorSchema>(
         );
       }
 
-      const problem = bookingSetupProblem(payload);
-      if (problem) throw new BadRequestException(problem);
-
-      const serviceResult = await db.$transaction(async (tx) => {
-        let slug = slugify(`${payload.name}`, {
-          lower: true,
-          strict: true,
-        });
-
-        // Ensure uniqueness
-        let isUnique = false;
-        let attempts = 0;
-        while (!isUnique && attempts < 10) {
-          const existing = await tx.service.findUnique({
-            where: { slug },
-          });
-          if (!existing) {
-            isUnique = true;
-          } else {
-            slug = `${slug}-${Math.random().toString(36).substring(2, 7)}`;
-            attempts++;
-          }
-        }
-
-        const data: Prisma.ServiceCreateInput = {
-          business: {
-            connect: {
-              id: business.id,
-            },
-          },
-          slug,
-          name: payload.name,
-          description: payload.description,
-          price: payload.price,
-          duration: payload.duration,
-          availableFrom: payload.availableFrom,
-          availableTo: payload.availableTo,
-          isActive: payload.isActive,
-          bookingMode: payload.bookingMode,
-          checkInTime: payload.bookingMode === "NIGHTLY" ? payload.checkInTime : null,
-          checkOutTime: payload.bookingMode === "NIGHTLY" ? payload.checkOutTime : null,
-          minUnits: payload.minUnits,
-          maxUnits: payload.maxUnits,
-        };
-
-        if (payload.image instanceof File) {
-          const uploadResult = await cloudinaryService.uploadFile(
-            payload.image,
-            {
-              folder: `sara/${business.id}/services`,
-            },
-          );
-          data.image = uploadResult.secure_url;
-        }
-
-        const service = await tx.service.create({
-          data,
-        });
-
-        return service;
-      });
+      const { image, ...input } = payload;
+      const imageUrl = image instanceof File
+        ? (await cloudinaryService.uploadFile(image, { folder: `sara/${business.id}/services` })).secure_url
+        : null;
+      const serviceResult = await serviceService.create(business.id, input, imageUrl);
 
       const response: ApiResponse<Service> = {
         status: 201,

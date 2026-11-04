@@ -6,9 +6,8 @@ import {
 } from "@/backend/middleware";
 import { availabilityService } from "@/backend/services/availability";
 import { cloudinaryService } from "@/backend/services/cloudinary";
-import { activeBookingWhere } from "@/backend/services/booking/conflicts";
+import { serviceService } from "@/backend/services/service";
 import {
-  bookingSetupProblem,
   serviceDetailQueryValidatorSchema,
   updateServiceValidatorSchema,
   type ServiceDetailQueryValidatorSchema,
@@ -16,15 +15,13 @@ import {
 } from "@/backend/validators/service.validator";
 import { db } from "@/server/db";
 import {
-  BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
 } from "@/utils/exceptions";
-import { type Service, type Prisma } from "@prisma/client";
+import { type Service } from "@prisma/client";
 import { addDays } from "@/utils/format";
 import { NextResponse } from "next/server";
-import slugify from "slugify";
 import type { ApiResponse, ServiceDetail, TimeSlot } from "types";
 
 /**
@@ -42,101 +39,15 @@ export const PUT = withMiddleware<UpdateServiceValidatorSchema>(
       const { slug } = params;
       const business = user.business;
 
-      const service = await db.service.findUnique({
-        where: { slug },
-        include: { business: { select: { ownerId: true, name: true } } },
-      });
-
-      if (!business) {
-        throw new NotFoundException("Business not found");
+      if (!business) throw new NotFoundException("Business not found");
+      if (business.ownerId !== user.id) {
+        throw new ForbiddenException("You are not authorized to update this service");
       }
-
-      if (!service) {
-        throw new NotFoundException("Service not found");
-      }
-
-      if (service.business.ownerId !== user.id) {
-        throw new ForbiddenException(
-          "You are not authorized to update this service",
-        );
-      }
-
-      const merged = {
-        bookingMode: payload.bookingMode ?? service.bookingMode,
-        checkInTime: payload.checkInTime !== undefined ? payload.checkInTime : service.checkInTime,
-        checkOutTime: payload.checkOutTime !== undefined ? payload.checkOutTime : service.checkOutTime,
-        minUnits: payload.minUnits ?? service.minUnits,
-        maxUnits: payload.maxUnits ?? service.maxUnits,
-      };
-      const problem = bookingSetupProblem(merged);
-      if (problem) throw new BadRequestException(problem);
-
-      if (merged.bookingMode !== service.bookingMode) {
-        const upcoming = await db.booking.count({
-          where: { serviceId: service.id, endTime: { gt: new Date() }, AND: [activeBookingWhere()] },
-        });
-        if (upcoming > 0) throw new BadRequestException("Finish or cancel the upcoming bookings first.");
-      }
-
-      const updatedService = await db.$transaction(async (tx) => {
-        const data: Prisma.ServiceUpdateInput = {};
-
-        if (payload.name) {
-          data.name = payload.name;
-
-          let newSlug = slugify(`${service.business.name}-${payload.name}`, {
-            lower: true,
-            strict: true,
-          });
-
-          // Ensure uniqueness if slug actually changed
-          if (newSlug !== service.slug) {
-            let isUnique = false;
-            let attempts = 0;
-            while (!isUnique && attempts < 10) {
-              const existing = await tx.service.findUnique({
-                where: { slug: newSlug },
-              });
-              if (!existing) {
-                isUnique = true;
-              } else {
-                newSlug = `${newSlug}-${Math.random().toString(36).substring(2, 7)}`;
-                attempts++;
-              }
-            }
-            data.slug = newSlug;
-          }
-        }
-
-        if (payload.description !== undefined)
-          data.description = payload.description;
-        if (payload.image instanceof File) {
-          const uploadResult = await cloudinaryService.uploadFile(
-            payload.image,
-            {
-              folder: `sara/${business.id}/services`,
-            },
-          );
-          data.image = uploadResult.secure_url;
-        }
-        if (payload.price !== undefined) data.price = payload.price;
-        if (payload.duration !== undefined) data.duration = payload.duration;
-        if (payload.availableFrom !== undefined)
-          data.availableFrom = payload.availableFrom;
-        if (payload.availableTo !== undefined)
-          data.availableTo = payload.availableTo;
-        if (payload.isActive !== undefined) data.isActive = payload.isActive;
-        if (payload.bookingMode !== undefined) data.bookingMode = payload.bookingMode;
-        if (payload.checkInTime !== undefined) data.checkInTime = payload.checkInTime;
-        if (payload.checkOutTime !== undefined) data.checkOutTime = payload.checkOutTime;
-        if (payload.minUnits !== undefined) data.minUnits = payload.minUnits;
-        if (payload.maxUnits !== undefined) data.maxUnits = payload.maxUnits;
-
-        return await tx.service.update({
-          where: { id: service.id },
-          data,
-        });
-      });
+      const { image, ...patch } = payload;
+      const imageUrl = image instanceof File
+        ? (await cloudinaryService.uploadFile(image, { folder: `sara/${business.id}/services` })).secure_url
+        : undefined;
+      const updatedService = await serviceService.update(business.id, slug, patch, imageUrl);
 
       const response: ApiResponse<Service> = {
         status: 200,

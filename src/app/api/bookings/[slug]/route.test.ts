@@ -78,18 +78,23 @@ const EXISTING_BOOKING = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockedEmail.sendBookingCancellationEmail.mockResolvedValue({ success: true });
+  mockedEmail.sendBookingRescheduledEmail.mockResolvedValue({ success: true });
+  mockedCalendar.updateEvent.mockResolvedValue(undefined);
+  mockedCalendar.deleteEvent.mockResolvedValue(undefined);
   mockAuthenticatedSession(mockedDb, { user: USER, business: BUSINESS });
   mockedDb.booking.findUnique.mockResolvedValue(EXISTING_BOOKING);
-  mockedDb.booking.findFirst.mockResolvedValue(null);
+  mockedDb.booking.findFirst.mockImplementation(async ({ where }: any) => where.slug ? EXISTING_BOOKING : null);
 });
 
 describe("PUT /api/bookings/[slug]", () => {
   beforeEach(() => {
     mockedDb.booking.update.mockImplementation(
-      async (args: { data: Record<string, unknown> }) => ({
-        ...EXISTING_BOOKING,
-        ...args.data,
-      }),
+      async (args: { data: Record<string, unknown> }) => {
+        const updated = { ...EXISTING_BOOKING, ...args.data };
+        mockedDb.booking.findUnique.mockResolvedValue(updated);
+        return updated;
+      },
     );
   });
 
@@ -114,12 +119,12 @@ describe("PUT /api/bookings/[slug]", () => {
         where: expect.objectContaining({ businessId: BUSINESS.id }),
       }),
     );
-    const calledWhere = mockedDb.booking.findFirst.mock.calls[0]![0].where;
+    const calledWhere = mockedDb.booking.findFirst.mock.calls[1]![0].where;
     expect(calledWhere).not.toHaveProperty("serviceId");
   });
 
   it("rejects the reschedule when it overlaps a booking on a different service of the same business", async () => {
-    mockedDb.booking.findFirst.mockResolvedValue({ id: "other_bkg" });
+    mockedDb.booking.findFirst.mockResolvedValueOnce(EXISTING_BOOKING).mockResolvedValueOnce({ id: "other_bkg" });
 
     const request = createMockRequest({
       method: "PUT",
@@ -141,7 +146,7 @@ describe("PUT /api/bookings/[slug]", () => {
 
   it("moves a stay by its check-in date, keeping its nights, against this apartment only", async () => {
     const checkIn = addDays(todayIso(), 10);
-    mockedDb.booking.findUnique.mockResolvedValue({
+    mockedDb.booking.findFirst.mockResolvedValueOnce({
       ...EXISTING_BOOKING,
       units: 3,
       service: { ...EXISTING_BOOKING.service, bookingMode: "NIGHTLY", price: 85000, duration: 1440, checkInTime: "14:00", checkOutTime: "12:00" },
@@ -156,7 +161,7 @@ describe("PUT /api/bookings/[slug]", () => {
     const response = await PUT(request, { params: Promise.resolve({ slug: EXISTING_BOOKING.slug }) });
 
     expect(response.status).toBe(200);
-    const where = mockedDb.booking.findFirst.mock.calls[0]![0].where;
+    const where = mockedDb.booking.findFirst.mock.calls[1]![0].where;
     expect(where.serviceId).toBe(EXISTING_BOOKING.service.id);
     expect(where.id).toEqual({ not: EXISTING_BOOKING.id });
     expect(mockedDb.booking.update).toHaveBeenCalledWith(
@@ -292,10 +297,9 @@ describe("PUT /api/bookings/[slug]", () => {
 
 describe("DELETE /api/bookings/[slug]", () => {
   beforeEach(() => {
-    mockedDb.booking.update.mockResolvedValue({
-      ...EXISTING_BOOKING,
-      status: "CANCELLED",
-    });
+    const cancelled = { ...EXISTING_BOOKING, status: "CANCELLED" };
+    mockedDb.booking.update.mockResolvedValue(cancelled);
+    mockedDb.booking.findUnique.mockResolvedValue(cancelled);
   });
 
   it("sends a cancellation email on successful cancellation", async () => {
