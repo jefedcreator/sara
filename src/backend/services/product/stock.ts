@@ -1,5 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
+import { BadRequestException, NotFoundException } from "@/utils/exceptions";
+
 /** One option and how many of it an order wants. */
 export type StockLine = { productOptionId: string; quantity: number };
 
@@ -78,6 +80,69 @@ export async function availableStock(
   }
 
   return available;
+}
+
+/**
+ * Assert that all requested lines are available right now. Duplicates are
+ * summed, options must belong to products owned by the business and be active,
+ * and tracked products must have sufficient available stock (taking active holds
+ * into account).
+ */
+export async function requireAvailableStock(
+  tx: Prisma.TransactionClient,
+  businessId: string,
+  lines: StockLine[],
+  now: Date,
+): Promise<void> {
+  const quantities = combineLines(lines);
+  if (quantities.size === 0) return;
+
+  const optionIds = [...quantities.keys()];
+  const options = await tx.productOption.findMany({
+    where: { id: { in: optionIds } },
+    select: {
+      id: true,
+      stock: true,
+      isActive: true,
+      product: {
+        select: {
+          id: true,
+          businessId: true,
+          tracksStock: true,
+          isActive: true,
+        },
+      },
+    },
+  });
+
+  const optionsById = new Map(options.map((option) => [option.id, option]));
+
+  for (const optionId of optionIds) {
+    const option = optionsById.get(optionId);
+    if (!option || option.product.businessId !== businessId) {
+      throw new NotFoundException("Product option not found");
+    }
+    if (option.isActive === false || option.product.isActive === false) {
+      throw new BadRequestException("Product option is inactive");
+    }
+  }
+
+  const trackedOptionIds = options
+    .filter((option) => option.product.tracksStock)
+    .map((option) => option.id);
+
+  if (trackedOptionIds.length > 0) {
+    const available = await availableStock(tx, trackedOptionIds, now);
+    for (const optionId of trackedOptionIds) {
+      const left = available.get(optionId);
+      const requested = quantities.get(optionId) ?? 0;
+      if (left !== null && left !== undefined && left < requested) {
+        throw new BadRequestException(
+          `Not enough stock available for option ${optionId}`,
+        );
+      }
+    }
+  }
 }
 
 /**

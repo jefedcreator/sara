@@ -1,6 +1,7 @@
 import type { Prisma, Product, ProductOption } from "@prisma/client";
 import slugify from "slugify";
 
+import { withSerializable } from "@/backend/services/assistant/transaction";
 import { MAX_PHOTOS } from "@/backend/validators/product.validator";
 import { db } from "@/server/db";
 import { BadRequestException, NotFoundException } from "@/utils/exceptions";
@@ -137,13 +138,16 @@ function normaliseOptions(options: ProductOptionInput[]): NormalisedOption[] {
 }
 
 /** Turn a product name into a slug no other product already uses. */
-async function uniqueSlug(name: string): Promise<string> {
+async function uniqueSlug(
+  client: Prisma.TransactionClient,
+  name: string,
+): Promise<string> {
   let slug = slugify(name, { lower: true, strict: true }) || "product";
   let isUnique = false;
   let attempts = 0;
 
   while (!isUnique && attempts < 10) {
-    const existing = await db.product.findUnique({ where: { slug } });
+    const existing = await client.product.findUnique({ where: { slug } });
 
     if (!existing) {
       isUnique = true;
@@ -157,7 +161,8 @@ async function uniqueSlug(name: string): Promise<string> {
 }
 
 class ProductService {
-  async create(
+  async createInTransaction(
+    tx: Prisma.TransactionClient,
     businessId: string,
     input: ProductInput,
     photos: string[],
@@ -166,9 +171,9 @@ class ProductService {
     validatePrice(input.price);
     validatePhotos(photos);
     const options = normaliseOptions(input.options);
-    const slug = await uniqueSlug(name);
+    const slug = await uniqueSlug(tx, name);
 
-    return db.product.create({
+    return tx.product.create({
       data: {
         businessId,
         slug,
@@ -192,17 +197,28 @@ class ProductService {
     });
   }
 
+  async create(
+    businessId: string,
+    input: ProductInput,
+    photos: string[],
+  ): Promise<ProductWithOptions> {
+    return withSerializable((tx) =>
+      this.createInTransaction(tx, businessId, input, photos),
+    );
+  }
+
   /**
    * Edit a product. Options in the patch are updated (by id) or created, and
    * every option the patch leaves out is deactivated instead of deleted, so
    * past orders keep pointing at it.
    */
-  async update(
+  async updateInTransaction(
+    tx: Prisma.TransactionClient,
     businessId: string,
     slug: string,
     patch: ProductUpdateInput,
   ): Promise<ProductWithOptions> {
-    const product = await db.product.findFirst({
+    const product = await tx.product.findFirst({
       where: { slug, businessId },
       include: { options: { select: { id: true } } },
     });
@@ -268,11 +284,21 @@ class ProductService {
       };
     }
 
-    return db.product.update({
+    return tx.product.update({
       where: { id: product.id },
       data,
       include: activeOptions,
     });
+  }
+
+  async update(
+    businessId: string,
+    slug: string,
+    patch: ProductUpdateInput,
+  ): Promise<ProductWithOptions> {
+    return withSerializable((tx) =>
+      this.updateInTransaction(tx, businessId, slug, patch),
+    );
   }
 
   async list(
@@ -310,12 +336,13 @@ class ProductService {
    * goes below zero, and products that don't track stock have no stock to
    * change.
    */
-  async adjustStock(
+  async adjustStockInTransaction(
+    tx: Prisma.TransactionClient,
     businessId: string,
     optionId: string,
     change: StockChange,
   ): Promise<ProductOption> {
-    const option = await db.productOption.findFirst({
+    const option = await tx.productOption.findFirst({
       where: { id: optionId, product: { businessId } },
       include: { product: { select: { tracksStock: true } } },
     });
@@ -333,10 +360,20 @@ class ProductService {
       throw new BadRequestException("Stock can't go below zero");
     }
 
-    return db.productOption.update({
+    return tx.productOption.update({
       where: { id: option.id },
       data: { stock: next },
     });
+  }
+
+  async adjustStock(
+    businessId: string,
+    optionId: string,
+    change: StockChange,
+  ): Promise<ProductOption> {
+    return withSerializable((tx) =>
+      this.adjustStockInTransaction(tx, businessId, optionId, change),
+    );
   }
 }
 

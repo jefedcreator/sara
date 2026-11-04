@@ -86,7 +86,13 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockedDb.customer.findFirst.mockReset();
   mockedDb.customer.findFirst.mockResolvedValue(null);
+  mockedDb.customer.findUnique.mockReset();
+  mockedDb.customer.findUnique.mockResolvedValue(null);
   mockedDb.customer.findMany.mockResolvedValue([]);
+  mockedDb.customer.create.mockReset();
+  mockedDb.customer.create.mockImplementation(async ({ data }: any) =>
+    makeCustomer(data),
+  );
   mockedDb.customer.update.mockReset();
   mockedDb.customer.update.mockImplementation(async ({ data }: any) =>
     makeCustomer(data),
@@ -1021,5 +1027,223 @@ describe("customerService.merge", () => {
       customerService.merge("biz_1", "cus_keep", "cus_other"),
     ).rejects.toBeInstanceOf(NotFoundException);
     expect(mockedDb.customer.delete).not.toHaveBeenCalled();
+  });
+});
+
+describe("customerService.createInTransaction", () => {
+  let tx: any;
+
+  beforeEach(() => {
+    tx = {
+      customer: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockImplementation(async ({ data }: any) =>
+          makeCustomer(data),
+        ),
+      },
+    };
+  });
+
+  it("normalizes name, phone, email and creates customer", async () => {
+    const result = await customerService.createInTransaction(tx, {
+      businessId: "biz_1",
+      name: "  Tolu Adeyemi  ",
+      phone: "0803 555 0142",
+      email: " Tolu@Example.COM ",
+      address: " 12 Admiralty Way ",
+    });
+
+    expect(tx.customer.findUnique).toHaveBeenCalledWith({
+      where: {
+        businessId_phone: { businessId: "biz_1", phone: "+2348035550142" },
+      },
+    });
+    expect(tx.customer.findUnique).toHaveBeenCalledWith({
+      where: {
+        businessId_email: { businessId: "biz_1", email: "tolu@example.com" },
+      },
+    });
+    expect(tx.customer.create).toHaveBeenCalledWith({
+      data: {
+        businessId: "biz_1",
+        name: "Tolu Adeyemi",
+        nameKey: "tolu adeyemi",
+        phone: "+2348035550142",
+        email: "tolu@example.com",
+        address: "12 Admiralty Way",
+      },
+    });
+    expect(result.name).toBe("Tolu Adeyemi");
+  });
+
+  it("throws ConflictException when phone already exists for this business", async () => {
+    tx.customer.findUnique.mockResolvedValueOnce(
+      makeCustomer({ phone: "+2348035550142" }),
+    );
+
+    await expect(
+      customerService.createInTransaction(tx, {
+        businessId: "biz_1",
+        phone: "08035550142",
+      }),
+    ).rejects.toThrow("Customer already exists with this phone or email");
+    expect(tx.customer.create).not.toHaveBeenCalled();
+  });
+
+  it("throws ConflictException when email already exists for this business", async () => {
+    tx.customer.findUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(makeCustomer({ email: "tolu@example.com" }));
+
+    await expect(
+      customerService.createInTransaction(tx, {
+        businessId: "biz_1",
+        phone: "08035550142",
+        email: "tolu@example.com",
+      }),
+    ).rejects.toThrow("Customer already exists with this phone or email");
+    expect(tx.customer.create).not.toHaveBeenCalled();
+  });
+
+  it("throws ConflictException on unique constraint collision during create", async () => {
+    tx.customer.create.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["businessId", "phone"] },
+      }),
+    );
+
+    await expect(
+      customerService.createInTransaction(tx, {
+        businessId: "biz_1",
+        name: "Tolu",
+        phone: "08035550142",
+      }),
+    ).rejects.toThrow("Customer already exists with this phone or email");
+  });
+
+  it("throws BadRequestException when no name or contact is provided", async () => {
+    await expect(
+      customerService.createInTransaction(tx, {
+        businessId: "biz_1",
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe("customerService.updateInTransaction", () => {
+  let tx: any;
+
+  beforeEach(() => {
+    tx = {
+      customer: {
+        findFirst: vi.fn().mockResolvedValue(
+          makeCustomer({
+            id: "cus_1",
+            phone: "+2348035550142",
+            email: "tolu@example.com",
+          }),
+        ),
+        findUnique: vi.fn().mockResolvedValue(null),
+        update: vi.fn().mockImplementation(async ({ data }: any) =>
+          makeCustomer(data),
+        ),
+      },
+    };
+  });
+
+  it("verifies ownership and throws NotFoundException when customer not found", async () => {
+    tx.customer.findFirst.mockResolvedValue(null);
+
+    await expect(
+      customerService.updateInTransaction(tx, "biz_1", "cus_missing", {
+        name: "New Name",
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(tx.customer.update).not.toHaveBeenCalled();
+  });
+
+  it("normalizes updated fields and updates customer", async () => {
+    const result = await customerService.updateInTransaction(
+      tx,
+      "biz_1",
+      "cus_1",
+      {
+        name: "  Tolu A.  ",
+        phone: "0803 555 9999",
+        address: " 20 Victoria Island ",
+      },
+    );
+
+    expect(tx.customer.findFirst).toHaveBeenCalledWith({
+      where: { id: "cus_1", businessId: "biz_1" },
+    });
+    expect(tx.customer.findUnique).toHaveBeenCalledWith({
+      where: {
+        businessId_phone: { businessId: "biz_1", phone: "+2348035559999" },
+      },
+    });
+    expect(tx.customer.update).toHaveBeenCalledWith({
+      where: { id: "cus_1" },
+      data: {
+        name: "Tolu A.",
+        nameKey: "tolu a.",
+        phone: "+2348035559999",
+        address: "20 Victoria Island",
+      },
+    });
+    expect(result.name).toBe("Tolu A.");
+  });
+
+  it("throws ConflictException when updated phone belongs to another customer", async () => {
+    tx.customer.findUnique.mockResolvedValue({
+      id: "cus_other",
+      phone: "+2348035559999",
+    });
+
+    await expect(
+      customerService.updateInTransaction(tx, "biz_1", "cus_1", {
+        phone: "08035559999",
+      }),
+    ).rejects.toThrow("Another customer already has this phone number");
+    expect(tx.customer.update).not.toHaveBeenCalled();
+  });
+
+  it("throws ConflictException when updated email belongs to another customer", async () => {
+    tx.customer.findUnique.mockResolvedValue({
+      id: "cus_other",
+      email: "other@example.com",
+    });
+
+    await expect(
+      customerService.updateInTransaction(tx, "biz_1", "cus_1", {
+        email: "other@example.com",
+      }),
+    ).rejects.toThrow("Another customer already has this email address");
+    expect(tx.customer.update).not.toHaveBeenCalled();
+  });
+
+  it("does not check conflict when phone is unchanged", async () => {
+    await customerService.updateInTransaction(tx, "biz_1", "cus_1", {
+      phone: "0803 555 0142",
+    });
+
+    expect(tx.customer.findUnique).not.toHaveBeenCalled();
+    expect(tx.customer.update).toHaveBeenCalled();
+  });
+
+  it("throws ConflictException on unique constraint collision during update", async () => {
+    tx.customer.update.mockRejectedValue(
+      Object.assign(new Error("Unique constraint failed"), {
+        code: "P2002",
+        meta: { target: ["businessId", "phone"] },
+      }),
+    );
+
+    await expect(
+      customerService.updateInTransaction(tx, "biz_1", "cus_1", {
+        phone: "08035559999",
+      }),
+    ).rejects.toThrow("Another customer already has this phone number");
   });
 });

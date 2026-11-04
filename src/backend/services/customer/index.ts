@@ -1,5 +1,6 @@
 import type { Customer, Prisma } from "@prisma/client";
 
+import { withSerializable } from "@/backend/services/assistant/transaction";
 import { UNPAID_STATUSES } from "@/backend/services/dashboard";
 import { db } from "@/server/db";
 import {
@@ -39,7 +40,7 @@ export type CustomerListOptions = {
 const SIMILAR_LIMIT = 5;
 
 export type UpdateCustomerInput = {
-  name?: string;
+  name?: string | null;
   phone?: string | null;
   email?: string | null;
   address?: string | null;
@@ -132,6 +133,75 @@ function fillMissing(
 }
 
 class CustomerService {
+  /**
+   * Create a customer within an active transaction. Normalizes name, phone,
+   * and email. Checks if a customer already exists for this business with
+   * matching normalized phone or email. If found, throws ConflictException.
+   */
+  async createInTransaction(
+    tx: Prisma.TransactionClient,
+    input: CustomerInput,
+  ): Promise<Customer> {
+    const phone = normalizePhone(input.phone);
+    const email = normalizeEmail(input.email);
+    // `||`: blank text counts as none.
+    /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
+    const name = input.name?.trim() || null;
+    const address = input.address?.trim() || null;
+    /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
+
+    if (phone) {
+      const existing = await tx.customer.findUnique({
+        where: { businessId_phone: { businessId: input.businessId, phone } },
+      });
+      if (existing) {
+        throw new ConflictException(
+          "Customer already exists with this phone or email",
+        );
+      }
+    }
+
+    if (email) {
+      const existing = await tx.customer.findUnique({
+        where: { businessId_email: { businessId: input.businessId, email } },
+      });
+      if (existing) {
+        throw new ConflictException(
+          "Customer already exists with this phone or email",
+        );
+      }
+    }
+
+    const displayName = name ?? phone ?? email;
+    if (!displayName) {
+      throw new BadRequestException("Customer name or contact details required");
+    }
+
+    try {
+      return await tx.customer.create({
+        data: {
+          businessId: input.businessId,
+          name: displayName,
+          nameKey: nameKey(displayName),
+          phone,
+          email,
+          address,
+        },
+      });
+    } catch (error) {
+      if (isUniqueConflict(error)) {
+        throw new ConflictException(
+          "Customer already exists with this phone or email",
+        );
+      }
+      throw error;
+    }
+  }
+
+  async create(input: CustomerInput): Promise<Customer> {
+    return withSerializable((tx) => this.createInTransaction(tx, input));
+  }
+
   /**
    * Find or create the customer a record describes. Phone wins over email,
    * and a name only matches when the record is name-only or the one customer
@@ -494,37 +564,94 @@ class CustomerService {
     };
   }
 
+  /**
+   * Update a customer within an active transaction. Verifies ownership via
+   * tx.customer.findFirst. If phone or email is updated, checks for conflicts.
+   * Updates with tx.customer.update.
+   */
+  async updateInTransaction(
+    tx: Prisma.TransactionClient,
+    businessId: string,
+    id: string,
+    patch: UpdateCustomerInput | Partial<CustomerInput>,
+  ): Promise<Customer> {
+    const existing = await tx.customer.findFirst({
+      where: { id, businessId },
+    });
+
+    if (!existing) {
+      throw new NotFoundException("Customer not found");
+    }
+
+    const data: Prisma.CustomerUpdateInput = {};
+
+    if (patch.name !== undefined) {
+      const name = (patch.name ?? "").trim();
+      data.name = name;
+      data.nameKey = nameKey(name);
+    }
+
+    let phone: string | null | undefined = undefined;
+    if (patch.phone !== undefined) {
+      phone = normalizePhone(patch.phone);
+      data.phone = phone;
+    }
+
+    let email: string | null | undefined = undefined;
+    if (patch.email !== undefined) {
+      email = normalizeEmail(patch.email);
+      data.email = email;
+    }
+
+    // `||`: blank text clears the field.
+    /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
+    if (patch.address !== undefined) {
+      data.address = patch.address?.trim() || null;
+    }
+    if ("notes" in patch && patch.notes !== undefined) {
+      data.notes = patch.notes?.trim() || null;
+    }
+    /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
+
+    if (phone !== undefined && phone !== null && phone !== existing.phone) {
+      const conflict = await tx.customer.findUnique({
+        where: { businessId_phone: { businessId, phone } },
+      });
+      if (conflict && conflict.id !== id) {
+        throw new ConflictException(
+          "Another customer already has this phone number",
+        );
+      }
+    }
+
+    if (email !== undefined && email !== null && email !== existing.email) {
+      const conflict = await tx.customer.findUnique({
+        where: { businessId_email: { businessId, email } },
+      });
+      if (conflict && conflict.id !== id) {
+        throw new ConflictException(
+          "Another customer already has this email address",
+        );
+      }
+    }
+
+    try {
+      return await tx.customer.update({ where: { id }, data });
+    } catch (error) {
+      if (!isUniqueConflict(error)) throw error;
+      throw new ConflictException(uniqueConflictMessage(error, patch));
+    }
+  }
+
   /** Edit contact details, normalising the matching fields that changed. */
   async update(
     businessId: string,
     id: string,
     patch: UpdateCustomerInput,
   ): Promise<Customer> {
-    await this.requireOwned(db, businessId, id);
-
-    const data: Prisma.CustomerUpdateInput = {};
-
-    if (patch.name !== undefined) {
-      const name = patch.name.trim();
-      data.name = name;
-      data.nameKey = nameKey(name);
-    }
-    if (patch.phone !== undefined) data.phone = normalizePhone(patch.phone);
-    if (patch.email !== undefined) data.email = normalizeEmail(patch.email);
-    // `||`: blank text clears the field.
-    /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
-    if (patch.address !== undefined) {
-      data.address = patch.address?.trim() || null;
-    }
-    if (patch.notes !== undefined) data.notes = patch.notes?.trim() || null;
-    /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
-
-    try {
-      return await db.customer.update({ where: { id }, data });
-    } catch (error) {
-      if (!isUniqueConflict(error)) throw error;
-      throw new ConflictException(uniqueConflictMessage(error, patch));
-    }
+    return withSerializable((tx) =>
+      this.updateInTransaction(tx, businessId, id, patch),
+    );
   }
 
   /**

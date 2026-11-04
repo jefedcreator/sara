@@ -17,6 +17,7 @@ vi.mock("@/server/db", () => {
       update: vi.fn(),
     },
   };
+  db.$transaction = vi.fn(async (cb: (tx: typeof db) => unknown) => cb(db));
   return { db };
 });
 
@@ -76,6 +77,7 @@ function makeInput(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.resetAllMocks();
+  mockedDb.$transaction.mockImplementation(async (cb: any) => cb(mockedDb));
   mockedDb.product.findUnique.mockResolvedValue(null);
   mockedDb.product.findFirst.mockResolvedValue(null);
   mockedDb.product.findMany.mockResolvedValue([]);
@@ -361,5 +363,108 @@ describe("productService.adjustStock", () => {
     await expect(
       productService.adjustStock("biz_2", "opt_1", { add: 1 }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe("productService transaction methods", () => {
+  let tx: any;
+
+  beforeEach(() => {
+    tx = {
+      product: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue(makeProductWithOptions()),
+        update: vi.fn().mockResolvedValue(makeProductWithOptions()),
+      },
+      productOption: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        update: vi.fn().mockImplementation(async ({ data }: any) => ({
+          ...makeOption(),
+          ...data,
+        })),
+      },
+    };
+  });
+
+  it("createInTransaction uses the supplied transaction client", async () => {
+    const input = makeInput({
+      name: "Custom Wig",
+      options: [{ name: "Standard", stock: 5 }],
+    });
+
+    const result = await productService.createInTransaction(
+      tx,
+      "biz_1",
+      input,
+      [],
+    );
+
+    expect(tx.product.findUnique).toHaveBeenCalledWith({
+      where: { slug: "custom-wig" },
+    });
+    expect(tx.product.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          businessId: "biz_1",
+          name: "Custom Wig",
+          slug: "custom-wig",
+        }),
+      }),
+    );
+    expect(mockedDb.product.create).not.toHaveBeenCalled();
+    expect(result.id).toBe("prd_1");
+  });
+
+  it("updateInTransaction uses the supplied transaction client", async () => {
+    tx.product.findFirst.mockResolvedValue({
+      ...makeProduct(),
+      options: [{ id: "opt_1" }],
+    });
+
+    const result = await productService.updateInTransaction(
+      tx,
+      "biz_1",
+      "frontal-wig",
+      { name: "Updated Wig" },
+    );
+
+    expect(tx.product.findFirst).toHaveBeenCalledWith({
+      where: { slug: "frontal-wig", businessId: "biz_1" },
+      include: { options: { select: { id: true } } },
+    });
+    expect(tx.product.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "prd_1" },
+        data: expect.objectContaining({ name: "Updated Wig" }),
+      }),
+    );
+    expect(mockedDb.product.update).not.toHaveBeenCalled();
+    expect(result.id).toBe("prd_1");
+  });
+
+  it("adjustStockInTransaction uses the supplied transaction client", async () => {
+    tx.productOption.findFirst.mockResolvedValue({
+      ...makeOption({ id: "opt_1", stock: 10 }),
+      product: { tracksStock: true },
+    });
+
+    const result = await productService.adjustStockInTransaction(
+      tx,
+      "biz_1",
+      "opt_1",
+      { add: 3 },
+    );
+
+    expect(tx.productOption.findFirst).toHaveBeenCalledWith({
+      where: { id: "opt_1", product: { businessId: "biz_1" } },
+      include: { product: { select: { tracksStock: true } } },
+    });
+    expect(tx.productOption.update).toHaveBeenCalledWith({
+      where: { id: "opt_1" },
+      data: { stock: 13 },
+    });
+    expect(mockedDb.productOption.update).not.toHaveBeenCalled();
+    expect(result.stock).toBe(13);
   });
 });

@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { mockShelf } from "@/backend/test-utils/shelf";
+import { BadRequestException, NotFoundException } from "@/utils/exceptions";
 
 import {
   activeHoldsWhere,
   availableStock,
+  requireAvailableStock,
   returnStock,
   takeStock,
 } from "./stock";
@@ -177,5 +179,164 @@ describe("returnStock", () => {
       where: { id: "opt_1" },
       data: { stock: { increment: 2 } },
     });
+  });
+});
+
+describe("requireAvailableStock", () => {
+  it("throws if available stock < requested (including held checkout stock)", async () => {
+    tx.productOption.findMany.mockResolvedValue([
+      { id: "opt_1", stock: 3, product: { businessId: "biz_1", tracksStock: true } },
+    ]);
+    tx.orderLine.groupBy.mockResolvedValue([
+      { productOptionId: "opt_1", _sum: { quantity: 2 } },
+    ]);
+
+    await expect(
+      requireAvailableStock(
+        tx,
+        "biz_1",
+        [{ productOptionId: "opt_1", quantity: 2 }],
+        NOW,
+      ),
+    ).rejects.toThrow("stock");
+  });
+
+  it("allows order when stock is sufficient", async () => {
+    tx.productOption.findMany.mockResolvedValue([
+      { id: "opt_1", stock: 5, product: { businessId: "biz_1", tracksStock: true } },
+    ]);
+    tx.orderLine.groupBy.mockResolvedValue([
+      { productOptionId: "opt_1", _sum: { quantity: 1 } },
+    ]);
+
+    await expect(
+      requireAvailableStock(
+        tx,
+        "biz_1",
+        [{ productOptionId: "opt_1", quantity: 3 }],
+        NOW,
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("allows order when tracksStock is false", async () => {
+    tx.productOption.findMany.mockResolvedValue([
+      { id: "opt_free", stock: 0, product: { businessId: "biz_1", tracksStock: false } },
+    ]);
+
+    await expect(
+      requireAvailableStock(
+        tx,
+        "biz_1",
+        [{ productOptionId: "opt_free", quantity: 10 }],
+        NOW,
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("handles duplicate option lines by summing quantities", async () => {
+    tx.productOption.findMany.mockResolvedValue([
+      { id: "opt_1", stock: 3, product: { businessId: "biz_1", tracksStock: true } },
+    ]);
+    tx.orderLine.groupBy.mockResolvedValue([]);
+
+    // Two lines of 2 each = 4 requested, stock is 3 -> throws
+    await expect(
+      requireAvailableStock(
+        tx,
+        "biz_1",
+        [
+          { productOptionId: "opt_1", quantity: 2 },
+          { productOptionId: "opt_1", quantity: 2 },
+        ],
+        NOW,
+      ),
+    ).rejects.toThrow("stock");
+
+    // Two lines of 1 each = 2 requested, stock is 3 -> succeeds
+    await expect(
+      requireAvailableStock(
+        tx,
+        "biz_1",
+        [
+          { productOptionId: "opt_1", quantity: 1 },
+          { productOptionId: "opt_1", quantity: 1 },
+        ],
+        NOW,
+      ),
+    ).resolves.toBeUndefined();
+  });
+
+  it("rejects nonexistent option", async () => {
+    tx.productOption.findMany.mockResolvedValue([]);
+
+    await expect(
+      requireAvailableStock(
+        tx,
+        "biz_1",
+        [{ productOptionId: "opt_missing", quantity: 1 }],
+        NOW,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("rejects foreign option", async () => {
+    tx.productOption.findMany.mockResolvedValue([
+      { id: "opt_foreign", stock: 10, product: { businessId: "biz_other", tracksStock: true } },
+    ]);
+
+    await expect(
+      requireAvailableStock(
+        tx,
+        "biz_1",
+        [{ productOptionId: "opt_foreign", quantity: 1 }],
+        NOW,
+      ),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("rejects inactive option or product", async () => {
+    tx.productOption.findMany.mockResolvedValueOnce([
+      {
+        id: "opt_inactive",
+        isActive: false,
+        stock: 10,
+        product: { businessId: "biz_1", tracksStock: true, isActive: true },
+      },
+    ]);
+
+    await expect(
+      requireAvailableStock(
+        tx,
+        "biz_1",
+        [{ productOptionId: "opt_inactive", quantity: 1 }],
+        NOW,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    tx.productOption.findMany.mockResolvedValueOnce([
+      {
+        id: "opt_2",
+        isActive: true,
+        stock: 10,
+        product: { businessId: "biz_1", tracksStock: true, isActive: false },
+      },
+    ]);
+
+    await expect(
+      requireAvailableStock(
+        tx,
+        "biz_1",
+        [{ productOptionId: "opt_2", quantity: 1 }],
+        NOW,
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("returns immediately if lines list is empty", async () => {
+    await expect(
+      requireAvailableStock(tx, "biz_1", [], NOW),
+    ).resolves.toBeUndefined();
+    expect(tx.productOption.findMany).not.toHaveBeenCalled();
   });
 });
