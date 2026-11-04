@@ -21,6 +21,7 @@ export type CustomerInput = {
   phone?: string | null;
   email?: string | null;
   address?: string | null;
+  notes?: string | null;
 };
 
 /**
@@ -134,9 +135,9 @@ function fillMissing(
 
 class CustomerService {
   /**
-   * Create a customer within an active transaction. Normalizes name, phone,
-   * and email. Checks if a customer already exists for this business with
-   * matching normalized phone or email. If found, throws ConflictException.
+   * Create a customer within an active transaction. Normalizes the supplied
+   * fields and rejects an existing normalized name, phone or email in the
+   * business without changing that customer's contact details.
    */
   async createInTransaction(
     tx: Prisma.TransactionClient,
@@ -144,11 +145,23 @@ class CustomerService {
   ): Promise<Customer> {
     const phone = normalizePhone(input.phone);
     const email = normalizeEmail(input.email);
+    if (
+      input.notes !== undefined &&
+      input.notes !== null &&
+      typeof input.notes !== "string"
+    ) {
+      throw new BadRequestException("Customer notes must be text");
+    }
     // `||`: blank text counts as none.
     /* eslint-disable @typescript-eslint/prefer-nullish-coalescing */
     const name = input.name?.trim() || null;
     const address = input.address?.trim() || null;
+    const notes = input.notes?.trim() || null;
     /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
+
+    if (notes && notes.length > 2000) {
+      throw new BadRequestException("notes cannot exceed 2000 characters");
+    }
 
     if (phone) {
       const existing = await tx.customer.findUnique({
@@ -177,15 +190,25 @@ class CustomerService {
       throw new BadRequestException("Customer name or contact details required");
     }
 
+    const normalizedName = nameKey(displayName);
+    const existingName = await tx.customer.findFirst({
+      where: { businessId: input.businessId, nameKey: normalizedName },
+      select: { id: true },
+    });
+    if (existingName) {
+      throw new ConflictException("Customer already exists with this name");
+    }
+
     try {
       return await tx.customer.create({
         data: {
           businessId: input.businessId,
           name: displayName,
-          nameKey: nameKey(displayName),
+          nameKey: normalizedName,
           phone,
           email,
           address,
+          notes,
         },
       });
     } catch (error) {

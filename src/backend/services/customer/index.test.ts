@@ -1037,9 +1037,11 @@ describe("customerService.createInTransaction", () => {
     tx = {
       customer: {
         findUnique: vi.fn().mockResolvedValue(null),
+        findFirst: vi.fn().mockResolvedValue(null),
         create: vi.fn().mockImplementation(async ({ data }: any) =>
           makeCustomer(data),
         ),
+        update: vi.fn(),
       },
     };
   });
@@ -1071,10 +1073,124 @@ describe("customerService.createInTransaction", () => {
         phone: "+2348035550142",
         email: "tolu@example.com",
         address: "12 Admiralty Way",
+        notes: null,
       },
     });
     expect(result.name).toBe("Tolu Adeyemi");
   });
+
+  it("rejects a same-business name-only duplicate after normalizing case and whitespace", async () => {
+    tx.customer.findFirst.mockResolvedValue(makeCustomer());
+
+    await expect(
+      customerService.createInTransaction(tx, {
+        businessId: "biz_1",
+        name: "  TOLU   Adeyemi\t ",
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    expect(tx.customer.findFirst).toHaveBeenCalledWith({
+      where: { businessId: "biz_1", nameKey: "tolu adeyemi" },
+      select: { id: true },
+    });
+    expect(tx.customer.create).not.toHaveBeenCalled();
+    expect(tx.customer.update).not.toHaveBeenCalled();
+    expect(mockedDb.customer.findFirst).not.toHaveBeenCalled();
+  });
+
+  it("rejects the same name with new contact details without editing the existing customer", async () => {
+    tx.customer.findFirst.mockResolvedValue(makeCustomer());
+
+    await expect(
+      customerService.createInTransaction(tx, {
+        businessId: "biz_1",
+        name: "Tolu Adeyemi",
+        phone: "08035550199",
+        email: "new@example.com",
+        notes: "Newly approved notes",
+      }),
+    ).rejects.toThrow("Customer already exists with this name");
+
+    expect(tx.customer.create).not.toHaveBeenCalled();
+    expect(tx.customer.update).not.toHaveBeenCalled();
+  });
+
+  it("allows a normalized name that exists only in another business", async () => {
+    const otherBusinessCustomer = makeCustomer({ businessId: "biz_other" });
+    tx.customer.findFirst.mockImplementation(
+      async ({ where }: { where: { businessId: string; nameKey: string } }) =>
+        otherBusinessCustomer.businessId === where.businessId &&
+        otherBusinessCustomer.nameKey === where.nameKey
+          ? otherBusinessCustomer
+          : null,
+    );
+
+    const result = await customerService.createInTransaction(tx, {
+      businessId: "biz_1",
+      name: "  TOLU   Adeyemi ",
+    });
+
+    expect(result.businessId).toBe("biz_1");
+    expect(result.nameKey).toBe(otherBusinessCustomer.nameKey);
+    expect(tx.customer.create).toHaveBeenCalledTimes(1);
+    expect(tx.customer.update).not.toHaveBeenCalled();
+  });
+
+  it("persists approved notes with trimmed edges and preserves their internal formatting", async () => {
+    const result = await customerService.createInTransaction(tx, {
+      businessId: "biz_1",
+      name: "Zainab",
+      notes: "  Prefers Saturdays.\nCall  before delivery.  ",
+    });
+
+    expect(result.notes).toBe("Prefers Saturdays.\nCall  before delivery.");
+    expect(tx.customer.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        notes: "Prefers Saturdays.\nCall  before delivery.",
+      }),
+    });
+    expect(tx.customer.update).not.toHaveBeenCalled();
+  });
+
+  it.each([undefined, null, " \t\n "])(
+    "stores absent or blank creation notes as null (%s)",
+    async (notes) => {
+      const result = await customerService.createInTransaction(tx, {
+        businessId: "biz_1",
+        name: "Zainab",
+        notes,
+      });
+
+      expect(result.notes).toBeNull();
+    },
+  );
+
+  it("accepts 2,000 characters of notes after trimming", async () => {
+    const notes = "a".repeat(2000);
+    const result = await customerService.createInTransaction(tx, {
+      businessId: "biz_1",
+      name: "Zainab",
+      notes: `  ${notes}  `,
+    });
+
+    expect(result.notes).toBe(notes);
+  });
+
+  it.each(["a".repeat(2001), 123 as unknown as string])(
+    "rejects invalid creation notes without creating or editing a customer",
+    async (notes) => {
+      await expect(
+        customerService.createInTransaction(tx, {
+          businessId: "biz_1",
+          name: "Zainab",
+          notes,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(tx.customer.create).not.toHaveBeenCalled();
+      expect(tx.customer.update).not.toHaveBeenCalled();
+    },
+  );
 
   it("throws ConflictException when phone already exists for this business", async () => {
     tx.customer.findUnique.mockResolvedValueOnce(
