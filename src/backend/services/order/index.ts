@@ -1,4 +1,6 @@
 import { holdExpiresFrom, isSerializationFailure } from "@/backend/services/booking/conflicts";
+import { withSerializable } from "@/backend/services/assistant/transaction";
+import type { Effect } from "@/backend/services/assistant/types";
 import { customerService } from "@/backend/services/customer";
 import { emailService } from "@/backend/services/email";
 import { paystackService } from "@/backend/services/paystack";
@@ -539,15 +541,25 @@ class OrderService {
     slug: string,
     to: OrderStatusChange,
   ): Promise<OrderSummary> {
-    const order = await db.order.findFirst({
+    const result = await withSerializable((tx) =>
+      this.setStatusInTransaction(tx, businessId, slug, to),
+    );
+    for (const effect of result.effects) await this.finalizeStatus(effect.id);
+    return result.order;
+  }
+
+  /** Status validation, guarded transition and stock return share the supplied transaction. */
+  async setStatusInTransaction(
+    tx: Prisma.TransactionClient,
+    businessId: string,
+    slug: string,
+    to: OrderStatusChange,
+  ): Promise<{ order: OrderSummary; effects: Effect[] }> {
+    const order = await tx.order.findFirst({
       where: { slug, businessId },
-      include: orderActionInclude,
+      include: orderSummaryInclude,
     });
-
-    if (!order) {
-      throw new NotFoundException("Order not found");
-    }
-
+    if (!order) throw new NotFoundException("Order not found");
     if (!ALLOWED_TRANSITIONS[order.status].includes(to)) {
       throw new BadRequestException(
         `An order that is ${STATUS_WORD[order.status]} can't be marked ${STATUS_ACTION_WORD[to]}`,
@@ -560,66 +572,63 @@ class OrderService {
     if (to === "COMPLETED") data.completedAt = now;
     if (to === "CANCELLED") data.cancelledAt = now;
 
-    const updated = await db.$transaction(async (tx) => {
-      // Only move the order from the status it was read in: two taps on
-      // Cancel (or a cancel racing a complete) must not both apply, or the
-      // stock would go back twice.
-      const where: Prisma.OrderWhereInput = { id: order.id, status: order.status };
-      const moved = await tx.order.updateMany({ where, data });
-      if (moved.count === 0) {
-        throw new ConflictException("This order just changed. Refresh to see where it is now.");
-      }
-
-      const result = await tx.order.findUniqueOrThrow({
-        where: { id: order.id },
-        include: orderSummaryInclude,
-      });
-
-      if (to === "CANCELLED") {
-        await returnStock(
-          tx,
-          order.lines
-            .filter((line) => line.productOptionId !== null)
-            .map((line) => ({
-              productOptionId: line.productOptionId!,
-              quantity: line.quantity,
-            })),
-        );
-      }
-
-      return result;
+    const moved = await tx.order.updateMany({
+      where: { id: order.id, status: order.status },
+      data,
     });
-
-    // Best effort: the customer's address is a snapshot on the order, so an
-    // email failure must never undo the status change.
-    if (order.clientEmail) {
-      try {
-        await emailService.sendOrderEmail({
-          kind: EMAIL_KIND[to],
-          to: order.clientEmail,
-          business: order.business,
-          orderNumber: order.orderNumber ?? order.slug,
-          lines: order.lines.map((line) => ({
-            name: line.name,
-            quantity: line.quantity,
-            total: Number(line.total),
-          })),
-          total: Number(updated.total),
-          currency: updated.currency,
-          fulfilment: updated.fulfilment,
-          deliveryAddress: updated.deliveryAddress,
-          pickupAddress: order.business.address ?? null,
-          receiptUrl: order.receipt
-            ? publicLink("receipt", order.receipt.publicId)
-            : null,
-          orderUrl: publicLink("order", order.publicId),
-        });
-      } catch (error) {
-        console.warn("[Orders] Status email failed:", error);
-      }
+    if (moved.count === 0) {
+      throw new ConflictException("This order just changed. Refresh to see where it is now.");
     }
+    if (to === "CANCELLED") {
+      await returnStock(
+        tx,
+        order.lines
+          .filter((line) => line.productOptionId !== null)
+          .map((line) => ({
+            productOptionId: line.productOptionId!,
+            quantity: line.quantity,
+          })),
+      );
+    }
+    const updated = await tx.order.findUniqueOrThrow({
+      where: { id: order.id },
+      include: orderSummaryInclude,
+    });
+    return {
+      order: updated,
+      effects: order.clientEmail ? [{ kind: "order_email", id: order.id }] : [],
+    };
+  }
 
-    return updated;
+  /** Reload committed state for best-effort customer email; never captures a transaction. */
+  async finalizeStatus(id: string): Promise<void> {
+    try {
+      const order = await db.order.findUnique({
+        where: { id },
+        include: orderActionInclude,
+      });
+      if (!order?.clientEmail || !(order.status in EMAIL_KIND)) return;
+      await emailService.sendOrderEmail({
+        kind: EMAIL_KIND[order.status as OrderStatusChange],
+        to: order.clientEmail,
+        business: order.business,
+        orderNumber: order.orderNumber ?? order.slug,
+        lines: order.lines.map((line) => ({
+          name: line.name,
+          quantity: line.quantity,
+          total: Number(line.total),
+        })),
+        total: Number(order.total),
+        currency: order.currency,
+        fulfilment: order.fulfilment,
+        deliveryAddress: order.deliveryAddress,
+        pickupAddress: order.business.address ?? null,
+        receiptUrl: order.receipt ? publicLink("receipt", order.receipt.publicId) : null,
+        orderUrl: publicLink("order", order.publicId),
+      });
+    } catch (error) {
+      console.warn("[Orders] Status email failed:", error);
+    }
   }
 
   /**

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Prisma } from "@prisma/client";
 import {
   authenticatedCookies,
   createMockRequest,
@@ -8,7 +9,7 @@ import {
 vi.mock("@/server/db", () => {
   const db: any = {
     session: { findUnique: vi.fn(), delete: vi.fn() },
-    invoice: { findUnique: vi.fn(), update: vi.fn() },
+    invoice: { findUnique: vi.fn(), findFirst: vi.fn(), update: vi.fn() },
     order: { findUnique: vi.fn() },
   };
   db.$transaction = vi.fn(async (cb: (tx: typeof db) => unknown) => cb(db));
@@ -31,6 +32,8 @@ vi.mock("@/backend/services/order", () => ({
   orderService: {
     createFromInvoice: vi.fn().mockResolvedValue(null),
     setStatus: vi.fn().mockResolvedValue({}),
+    setStatusInTransaction: vi.fn().mockResolvedValue({ order: { slug: "tobi-hair-abc", status: "CANCELLED" }, effects: [] }),
+    finalizeStatus: vi.fn().mockResolvedValue(undefined),
   },
 }));
 
@@ -49,9 +52,9 @@ function invoice(status: string, amountPaid = 0, total = 30000) {
     slug: "inv-1",
     businessId: "biz_1",
     status,
-    total,
-    amountPaid,
-    business: { ownerId: "user_1" },
+    total: new Prisma.Decimal(total),
+    amountPaid: new Prisma.Decimal(amountPaid),
+    business: { id: "biz_1", ownerId: "user_1", name: "Tobi Beauty" },
   };
 }
 
@@ -71,22 +74,30 @@ function put(body: unknown) {
 beforeEach(() => {
   vi.clearAllMocks();
   mockAuthenticatedSession(mockedDb, { user: USER, business: BUSINESS });
-  mockedDb.invoice.update.mockImplementation(async ({ data }: any) => ({
-    id: "inv_1",
-    invoiceNumber: "INV-1001",
-    status: data.status ?? "PARTIALLY_PAID",
-    currency: "NGN",
-    subtotal: 30000,
-    taxAmount: 0,
-    discount: 0,
-    total: 30000,
-    amountPaid: data.amountPaid ?? 0,
-    clientName: "Ada",
-    clientEmail: "ada@example.com",
-    business: { id: "biz_1", name: "Tobi Beauty" },
-    lines: [],
-    ...data,
-  }));
+  mockedDb.invoice.findFirst.mockImplementation(async ({ where }: any) => {
+    return mockedDb.invoice.findUnique({ where });
+  });
+  mockedDb.invoice.update.mockImplementation(async ({ data }: any) => {
+    const updated = {
+      id: "inv_1",
+      invoiceNumber: "INV-1001",
+      status: data.status ?? "PARTIALLY_PAID",
+      currency: "NGN",
+      subtotal: new Prisma.Decimal(30000),
+      taxAmount: new Prisma.Decimal(0),
+      discount: new Prisma.Decimal(0),
+      total: new Prisma.Decimal(30000),
+      amountPaid: new Prisma.Decimal(data.amountPaid ?? 0),
+      clientName: "Ada",
+      clientEmail: "ada@example.com",
+      business: { id: "biz_1", name: "Tobi Beauty" },
+      lines: [],
+      ...data,
+    };
+    mockedDb.invoice.findUnique.mockResolvedValue(updated);
+    mockedDb.invoice.findFirst.mockResolvedValue(updated);
+    return updated;
+  });
 });
 
 describe("PUT /api/invoices/[slug]", () => {
@@ -202,7 +213,8 @@ describe("PUT /api/invoices/[slug] orders", () => {
     expect(mockedDb.order.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { invoiceId: "inv_1" } }),
     );
-    expect(orderService.setStatus).toHaveBeenCalledWith(
+    expect(orderService.setStatusInTransaction).toHaveBeenCalledWith(
+      mockedDb,
       "biz_1",
       "tobi-hair-abc",
       "CANCELLED",
@@ -216,7 +228,7 @@ describe("PUT /api/invoices/[slug] orders", () => {
     const response = await put({ status: "VOID" });
 
     expect(response.status).toBe(200);
-    expect(orderService.setStatus).not.toHaveBeenCalled();
+    expect(orderService.setStatusInTransaction).not.toHaveBeenCalled();
   });
 
   it("leaves a completed order alone even when asked to cancel it", async () => {
@@ -226,7 +238,7 @@ describe("PUT /api/invoices/[slug] orders", () => {
     const response = await put({ status: "VOID", cancelOrder: true });
 
     expect(response.status).toBe(200);
-    expect(orderService.setStatus).not.toHaveBeenCalled();
+    expect(orderService.setStatusInTransaction).not.toHaveBeenCalled();
   });
 
   it("voids an invoice that never made an order", async () => {
@@ -236,6 +248,6 @@ describe("PUT /api/invoices/[slug] orders", () => {
     const response = await put({ status: "VOID", cancelOrder: true });
 
     expect(response.status).toBe(200);
-    expect(orderService.setStatus).not.toHaveBeenCalled();
+    expect(orderService.setStatusInTransaction).not.toHaveBeenCalled();
   });
 });

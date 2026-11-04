@@ -8,26 +8,16 @@ import {
   type UpdateInvoiceValidatorSchema,
 } from "@/backend/validators/invoice.validator";
 import { invoiceOrderSelect, publicBusinessSelect } from "@/backend/selects";
-import { customerService } from "@/backend/services/customer";
 import { db } from "@/server/db";
-import { generateInvoicePdf } from "@/backend/services/pdf";
-import { cloudinaryService } from "@/backend/services/cloudinary";
-import { emailInvoice } from "@/backend/services/email/documents";
-import { resolveDocumentLines } from "@/backend/services/lines";
-import { orderService } from "@/backend/services/order";
+import { invoiceMutations } from "@/backend/services/invoice/mutations";
 import { type ApiResponse, type InvoiceListItem } from "types";
 import {
-  BadRequestException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
 } from "@/utils/exceptions";
-import { type Invoice, type Prisma } from "@prisma/client";
+import { type Invoice } from "@prisma/client";
 import { NextResponse } from "next/server";
-
-// What a part-paid invoice may still change: take payments, or be voided
-// (cancelOrder rides along with the void).
-const PAYMENT_FIELDS = new Set(["status", "amountPaid", "paidAt", "cancelOrder"]);
 
 /**
  * @body UpdateInvoiceValidatorSchema
@@ -58,191 +48,16 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
         );
       }
 
-      // A paid invoice is final. A part-paid one can still take payments
-      // (status, amountPaid, paidAt) but nothing else about it can change.
-      if (invoice.status === "PAID") {
-        throw new BadRequestException("Invoice cannot be updated");
-      }
-      if (
-        invoice.status === "PARTIALLY_PAID" &&
-        Object.keys(payload).some((key) => !PAYMENT_FIELDS.has(key))
-      ) {
-        throw new BadRequestException(
-          "A part-paid invoice can only record further payments",
-        );
-      }
-      const total = payload.total ?? Number(invoice.total);
-      if (payload.amountPaid !== undefined && payload.amountPaid > total) {
-        throw new BadRequestException("amountPaid cannot exceed the invoice total");
-      }
-
-      const data: Prisma.InvoiceUpdateInput = {};
-
-      if (payload.name) data.clientName = payload.name;
-      if (payload.email !== undefined) data.clientEmail = payload.email ?? null;
-      if (payload.phone !== undefined) data.clientPhone = payload.phone ?? null;
-      if (payload.status) data.status = payload.status;
-      if (payload.currency) data.currency = payload.currency;
-      if (payload.subtotal !== undefined) data.subtotal = payload.subtotal;
-      if (payload.taxAmount !== undefined) data.taxAmount = payload.taxAmount;
-      if (payload.discount !== undefined) data.discount = payload.discount;
-      if (payload.total !== undefined) data.total = payload.total;
-      if (payload.amountPaid !== undefined)
-        data.amountPaid = payload.amountPaid;
-      if (payload.dueAt !== undefined) data.dueAt = payload.dueAt ?? null;
-      if (payload.sentAt !== undefined) data.sentAt = payload.sentAt ?? null;
-      if (payload.paidAt !== undefined) data.paidAt = payload.paidAt ?? null;
-      if (payload.notes !== undefined) data.notes = payload.notes ?? null;
-
-      if (payload.bookingId !== undefined) {
-        data.booking = payload.bookingId
-          ? { connect: { id: payload.bookingId } }
-          : { disconnect: true };
-      }
-
-      if (payload.customerId !== undefined) {
-        if (payload.customerId) {
-          await customerService.ownedBy(
-            db,
-            invoice.businessId,
-            payload.customerId,
-          );
-          data.customer = { connect: { id: payload.customerId } };
-        } else {
-          data.customer = { disconnect: true };
-        }
-      }
-
-      if (payload.lines) {
-        const resolvedLines = await resolveDocumentLines(
-          db,
-          invoice.businessId,
-          payload.lines,
-        );
-        data.lines = {
-          deleteMany: {},
-          create: resolvedLines,
-        };
-      }
-
-      // The first money against an invoice that lists products makes the
-      // order and takes the stock, in the same transaction as the payment.
-      const firstPayment =
-        Number(invoice.amountPaid) === 0 &&
-        payload.amountPaid !== undefined &&
-        payload.amountPaid > 0;
-
-      const invoiceRecord = await db.$transaction(async (tx) => {
-        const updated = await tx.invoice.update({
-          where: { slug },
-          data,
-          include: {
-            business: true,
-            lines: { include: { service: true }, orderBy: { position: "asc" } },
-          },
-        });
-
-        if (firstPayment) {
-          await orderService.createFromInvoice(tx, updated.id);
-        }
-
-        return updated;
-      });
-
-      // Voiding can cancel the invoice's order too, which puts its stock back.
-      // An order that is already completed or cancelled is left alone.
-      if (payload.status === "VOID" && payload.cancelOrder) {
-        const order = await db.order.findUnique({
-          where: { invoiceId: invoice.id },
-          select: { slug: true, status: true },
-        });
-        if (order && (order.status === "NEW" || order.status === "READY")) {
-          await orderService.setStatus(
-            invoice.businessId,
-            order.slug,
-            "CANCELLED",
-          );
-        }
-      }
-
-      if (!invoiceRecord.business) {
-        throw new InternalServerErrorException(
-          "Failed to retrieve business details for the invoice",
-        );
-      }
-
-      let pdfUrl: string | null = null;
-      try {
-        const pdfBuffer = await generateInvoicePdf({
-          invoiceNumber: invoiceRecord.invoiceNumber,
-          status: invoiceRecord.status,
-          currency: invoiceRecord.currency,
-          subtotal: invoiceRecord.subtotal.toString(),
-          taxAmount: invoiceRecord.taxAmount.toString(),
-          discount: invoiceRecord.discount.toString(),
-          total: invoiceRecord.total.toString(),
-          amountPaid: invoiceRecord.amountPaid.toString(),
-          dueAt: invoiceRecord.dueAt,
-          sentAt: invoiceRecord.sentAt,
-          paidAt: invoiceRecord.paidAt,
-          notes: invoiceRecord.notes,
-          business: {
-            name: invoiceRecord.business.name,
-            email: invoiceRecord.business.email,
-            phone: invoiceRecord.business.phone,
-            city: invoiceRecord.business.city,
-            state: invoiceRecord.business.state,
-            country: invoiceRecord.business.country,
-            logoUrl: invoiceRecord.business.logoUrl,
-          },
-          client: {
-            name: invoiceRecord.clientName,
-            email: invoiceRecord.clientEmail,
-            phone: invoiceRecord.clientPhone,
-          },
-          items: invoiceRecord.lines.map((item) => ({
-            description: item.description || item.name,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice.toString(),
-            total: item.total.toString(),
-          })),
-        });
-
-        const uploadResult = await cloudinaryService.uploadImage(pdfBuffer, {
-          filename: `${invoiceRecord.invoiceNumber}.pdf`,
-          folder: `sara/businesses/${invoiceRecord.business.id}/invoices`,
-          mime_type: "application/pdf",
-          public_id: invoiceRecord.id,
-          resource_type: "raw",
-        });
-
-        pdfUrl = uploadResult.secure_url;
-      } catch (error) {
-        console.error(`Failed to generate or upload invoice PDF for ${invoiceRecord.id}:`, error);
-      }
-
-      // Update the invoice with the Cloudinary URL (if it changed or to ensure it's set)
-      const finalInvoice = pdfUrl
-        ? await db.invoice.update({
-            where: { id: invoiceRecord.id },
-            data: { url: pdfUrl },
-          })
-        : invoiceRecord;
-
-      const updatedInvoicedata = { invoice: finalInvoice, business: invoiceRecord.business };
-
-      // Email customer when invoice is SENT or OVERDUE.
-      const shouldEmail =
-        updatedInvoicedata.invoice.status === "SENT" ||
-        updatedInvoicedata.invoice.status === "OVERDUE";
-      if (shouldEmail && updatedInvoicedata.invoice.clientEmail) {
-        await emailInvoice(updatedInvoicedata.invoice, updatedInvoicedata.business);
-      }
+      const updatedInvoice = await invoiceMutations.update(
+        invoice.businessId,
+        slug,
+        payload,
+      );
 
       const response: ApiResponse<Invoice> = {
         status: 200,
         message: "Invoice updated successfully",
-        data: updatedInvoicedata.invoice,
+        data: updatedInvoice,
       };
 
       return NextResponse.json(response);

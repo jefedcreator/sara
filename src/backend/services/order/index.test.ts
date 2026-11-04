@@ -729,6 +729,56 @@ describe("orderService.setStatus", () => {
   });
 });
 
+describe("orderService.setStatusInTransaction", () => {
+  it("transitions order status in the transaction, returns stock on cancel, and yields order_email effect", async () => {
+    mockedDb.order.findFirst.mockResolvedValue(makeOrder({ status: "READY" }));
+
+    const result = await orderService.setStatusInTransaction(
+      mockedDb,
+      "biz_1",
+      "tobi-hair-abc",
+      "CANCELLED",
+    );
+
+    expect(result.order.status).toBe("CANCELLED");
+    expect(result.effects).toEqual([{ kind: "order_email", id: "ord_1" }]);
+    expect(shelf.stockOf("opt_1")).toBe(12);
+    expect(mockedEmail.sendOrderEmail).not.toHaveBeenCalled();
+  });
+
+  it("yields empty effects when customer has no email", async () => {
+    mockedDb.order.findFirst.mockResolvedValue(
+      makeOrder({ status: "NEW", clientEmail: null }),
+    );
+
+    const result = await orderService.setStatusInTransaction(
+      mockedDb,
+      "biz_1",
+      "tobi-hair-abc",
+      "READY",
+    );
+
+    expect(result.order.status).toBe("READY");
+    expect(result.effects).toEqual([]);
+    expect(mockedEmail.sendOrderEmail).not.toHaveBeenCalled();
+  });
+
+  it("rejects invalid status transitions in transaction", async () => {
+    mockedDb.order.findFirst.mockResolvedValue(
+      makeOrder({ status: "CANCELLED" }),
+    );
+
+    await expect(
+      orderService.setStatusInTransaction(
+        mockedDb,
+        "biz_1",
+        "tobi-hair-abc",
+        "READY",
+      ),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
 describe("orderService.setFulfilment", () => {
   const invoiceOrder = (patch: Record<string, unknown> = {}) =>
     makeOrder({
