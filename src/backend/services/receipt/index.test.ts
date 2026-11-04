@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi, type MockInstance } from "vitest"
 
 vi.mock("@/server/db", () => {
   const db: any = {
-    receipt: { findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
+    receipt: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
     payment: { findFirst: vi.fn() },
     service: { findMany: vi.fn() },
     business: { findUnique: vi.fn() },
@@ -28,15 +28,26 @@ vi.mock("@/backend/services/customer", () => ({
 vi.mock("@/backend/services/paystack", () => ({ paystackService: {} }));
 vi.mock("@/backend/services/email", () => ({ emailService: {} }));
 
+import { cloudinaryService } from "@/backend/services/cloudinary";
 import { customerService } from "@/backend/services/customer";
 import { orderService } from "@/backend/services/order";
+import { generateReceiptPdf } from "@/backend/services/pdf";
 import { db } from "@/server/db";
 import { BadRequestException } from "@/utils/exceptions";
-import { receiptService } from "./index";
+import { receiptService, type CreateReceiptInput } from "./index";
 
 const mockedDb = db as any;
 const mockedCustomer = customerService as any;
 const BUSINESS = { id: "biz_1", name: "Acme Salon", email: null, phone: null, city: null, state: null, country: null, logoUrl: null };
+
+const DOCUMENT = {
+  publicId: "public_receipt_1",
+  paymentId: null,
+  id: "rcp_1", slug: "acme-salon-rcp-1001", receiptNumber: "RCP-1001",
+  business: BUSINESS, lines: [], currency: "NGN", subtotal: 5000, taxAmount: 0,
+  discount: 0, total: 5000, amountPaid: 5000, paymentMethod: null, notes: "gele",
+  name: "Ada", email: null, phone: null, createdAt: new Date(),
+};
 
 let txMock: any;
 let createFromReceipt: MockInstance<typeof orderService.createFromReceipt>;
@@ -48,15 +59,12 @@ beforeEach(() => {
   mockedDb.business.findUnique.mockResolvedValue(BUSINESS);
   mockedDb.receipt.findFirst.mockResolvedValue(null);
   mockedDb.service.findMany.mockResolvedValue([]);
-  mockedDb.receipt.create.mockResolvedValue({
-    id: "rcp_1", slug: "acme-salon-rcp-1001", receiptNumber: "RCP-1001",
-    business: BUSINESS, lines: [], currency: "NGN", subtotal: 5000, taxAmount: 0,
-    discount: 0, total: 5000, amountPaid: 5000, paymentMethod: null, notes: "gele",
-    name: "Ada", email: null, phone: null, createdAt: new Date(),
-  });
-  mockedDb.receipt.update.mockResolvedValue({
-    id: "rcp_1", slug: "acme-salon-rcp-1001", receiptNumber: "RCP-1001",
-    url: "https://cdn.test/RCP-1001.pdf",
+  mockedDb.receipt.create.mockResolvedValue(DOCUMENT);
+  mockedDb.receipt.findUnique.mockResolvedValue(DOCUMENT);
+  mockedDb.receipt.update.mockImplementation(async ({ data }: { data: { url: string } }) => {
+    const updated = { ...DOCUMENT, ...data };
+    mockedDb.receipt.findUnique.mockResolvedValue(updated);
+    return updated;
   });
 
   txMock = {
@@ -65,12 +73,8 @@ beforeEach(() => {
     service: { findMany: vi.fn().mockResolvedValue([]) },
     receipt: {
       findFirst: vi.fn().mockResolvedValue(null),
-      create: vi.fn().mockResolvedValue({
-        id: "rcp_1", slug: "acme-salon-rcp-1001", receiptNumber: "RCP-1001",
-        business: BUSINESS, lines: [], currency: "NGN", subtotal: 5000, taxAmount: 0,
-        discount: 0, total: 5000, amountPaid: 5000, paymentMethod: null, notes: "gele",
-        name: "Ada", email: null, phone: null, createdAt: new Date(),
-      }),
+      findUniqueOrThrow: vi.fn().mockResolvedValue({ ...DOCUMENT, paymentId: "pay_sale_1" }),
+      create: vi.fn().mockResolvedValue(DOCUMENT),
       update: vi.fn().mockImplementation(() => {
         throw new Error(
           "Transaction API error: Transaction already closed: A query cannot be executed on an expired transaction.",
@@ -110,6 +114,9 @@ describe("receiptService.create", () => {
     expect(txMock.receipt.create).toHaveBeenCalled();
     expect(result.id).toBe("rcp_1");
     expect(result.receiptNumber).toBe("RCP-1001");
+    expect(result.publicId).toBe(DOCUMENT.publicId);
+    expect(txMock.receipt.create).toHaveBeenCalledTimes(1);
+    expect(mockedDb.receipt.update).not.toHaveBeenCalled();
   });
 
   it("links the receipt to the resolved customer", async () => {
@@ -243,5 +250,55 @@ describe("receiptService.create", () => {
       await expect(createFromReceipt.mock.results[0]!.value).resolves.toBeNull();
       expect(txMock.order).toBeUndefined();
     });
+  });
+});
+
+describe("receiptService.createInTransaction", () => {
+  const INPUT: CreateReceiptInput = {
+    businessId: "biz_1", name: "Tolu", currency: "NGN",
+    subtotal: 90000, taxAmount: 0, discount: 0, total: 90000, amountPaid: 90000,
+    lines: [{ productOptionId: "opt_1", quantity: 2, unitPrice: 45000, total: 90000 }],
+  };
+
+  it("creates a sale through the supplied transaction once and returns its linked payment", async () => {
+    const outer = {
+      ...txMock,
+      outerMarker: Symbol("approval transaction"),
+      productOption: { findMany: vi.fn().mockResolvedValue([{ id: "opt_1", name: '20"', product: { name: "Frontal wig" } }]) },
+    };
+    createFromReceipt.mockResolvedValue({ id: "ord_1" } as never);
+
+    const result = await receiptService.createInTransaction(outer, INPUT);
+
+    expect(mockedDb.$transaction).not.toHaveBeenCalled();
+    expect(mockedDb.business.findUnique).not.toHaveBeenCalled();
+    expect(mockedDb.receipt.findUnique).not.toHaveBeenCalled();
+    expect(cloudinaryService.uploadImage).not.toHaveBeenCalled();
+    expect(generateReceiptPdf).not.toHaveBeenCalled();
+    expect(mockedDb.receipt.create).not.toHaveBeenCalled();
+    expect(mockedDb.service.findMany).not.toHaveBeenCalled();
+    expect(mockedCustomer.resolve).toHaveBeenCalledWith(outer, expect.objectContaining({ businessId: "biz_1" }));
+    expect(outer.productOption.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { id: { in: ["opt_1"] }, isActive: true, product: { businessId: "biz_1", isActive: true } } }));
+    expect(createFromReceipt).toHaveBeenCalledTimes(1);
+    expect(createFromReceipt).toHaveBeenCalledWith(outer, expect.objectContaining({ id: "rcp_1", lines: [expect.objectContaining({ productOptionId: "opt_1" })] }), { fulfilment: "PICKUP" });
+    expect(result.paymentId).toBe("pay_sale_1");
+    expect(outer.receipt.findUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: "rcp_1" },
+      include: { business: true, lines: { include: { service: true }, orderBy: { position: "asc" } } },
+    });
+  });
+
+  it("copies invoice lines for an existing payment without creating another sale", async () => {
+    txMock.payment.findFirst.mockResolvedValue({
+      id: "pay_existing", receipt: null,
+      invoice: { lines: [{ name: "Consultation", description: null, serviceId: null, productOptionId: null, quantity: 1, unitPrice: 90000, total: 90000 }] },
+    });
+
+    await receiptService.createInTransaction(txMock, { ...INPUT, paymentId: "pay_existing", lines: [] });
+
+    expect(txMock.payment.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "pay_existing", businessId: "biz_1" } }));
+    expect(txMock.receipt.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ paymentId: "pay_existing", lines: { create: [expect.objectContaining({ name: "Consultation", position: 0 })] } }) }));
+    expect(createFromReceipt).not.toHaveBeenCalled();
+    expect(mockedDb.$transaction).not.toHaveBeenCalled();
   });
 });
