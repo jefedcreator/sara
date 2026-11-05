@@ -107,6 +107,19 @@ describe("strict boundary and money", () => {
     expectNoWrites();
   });
 
+  it.each([
+    ["1234", "Invoice Tolu for two bottles, product code 1234"],
+    ["1234", "Invoice number 1234"],
+    ["#1234", "Invoice #1234"],
+    ["#1234", "Product reference #1234"],
+  ])("does not use reference %s as a catalog price override", async (quote, text) => {
+    const trusted = { text, recentOwnerTexts: [], selectedIds: [customer.id, option.id] };
+    const override: DraftRequest = { ...invoiceRequest, lines: [{ ...invoiceRequest.lines[0]!, priceOverride: { quote, amountMinor: 123_400 } }] };
+    await expect(prepared(override, trusted)).rejects.toThrow("Please state the price");
+    expect((await prepared(invoiceRequest, trusted)).payload.totalMinor).toBe(9_000_000);
+    expectNoWrites();
+  });
+
   it("resolves Lagos relative dates independently of host timezone", async () => {
     expect((await prepared({ ...invoiceRequest, dueDate: "tomorrow" })).payload.dueDate).toBe("2026-11-05");
     expect((await prepared({ ...invoiceRequest, dueDate: "friday" })).payload.dueDate).toBe("2026-11-06");
@@ -196,7 +209,8 @@ describe("trusted document selection", () => {
   it("accepts a unique explicit document number or booking reference in trusted text", async () => {
     const references = [invoice.invoiceNumber, invoice.invoiceNumber, order.orderNumber, booking.publicId];
     for (const [index, request] of requests.entries()) {
-      const result = await prepared(request, { text: `Update ${references[index]} for 45,000`, recentOwnerTexts: [], selectedIds: [] });
+      const text = request.kind === "record_invoice_payment" ? `Record payment 45,000 on ${references[index]}` : `Update ${references[index]}`;
+      const result = await prepared(request, { text, recentOwnerTexts: [], selectedIds: [] });
       expect(result.kind).toBe(request.kind);
     }
     expectNoWrites();

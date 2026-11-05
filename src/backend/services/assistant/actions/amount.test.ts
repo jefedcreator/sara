@@ -118,6 +118,37 @@ describe("verifyOwnerPrice", () => {
 });
 
 describe("positive monetary evidence", () => {
+  it.each([
+    ["1234", 123_400, "Invoice Tolu for two bottles, product code 1234"],
+    ["1234", 123_400, "Invoice Tolu for two bottles product code 1234"],
+    ["1234", 123_400, "Invoice number 1234"],
+    ["1234", 123_400, "Receipt reference 1234"],
+    ["1234", 123_400, "Record payment, confirmation reference 1234"],
+    ["1234", 123_400, "Invoice Tolu, phone number 1234"],
+    ["2026", 202_600, "Invoice Tolu, delivery date 2026"],
+    ["1234", 123_400, "Invoice Tolu, quantity 1234"],
+    ["1234", 123_400, "Use code 1234"],
+    ["1234", 123_400, "Product code at 1234"],
+    ["1234", 123_400, "Phone at 1234"],
+    ["1234", 123_400, "Use 1234 as product code"],
+    ["1234", 123_400, "Use 1234 for invoice number"],
+    ["1234", 123_400, "Use 1234 for SKU"],
+    ["1234", 123_400, "Use 1234 for reference value"],
+    ["1234", 123_400, "Product code; use 1234"],
+    ["1234", 123_400, "Invoice Tolu; record 1234"],
+    ["1234", 123_400, "Price code 1234"],
+    ["1234", 123_400, "Set the price to 45000; reference 1234"],
+    ["#1234", 123_400, "Invoice #1234"],
+    ["1234", 123_400, "Invoice #1234"],
+    ["#1234", 123_400, "Order #1234"],
+    ["#1234", 123_400, "Product #1234"],
+    ["#1234", 123_400, "Product reference #1234"],
+    ["#1234", 123_400, "Use #1234"],
+    ["NGN1234", 123_400, "Product code NGN1234"],
+  ])("does not promote a labelled reference to a price: %s", (quote, minor, text) => {
+    expect(() => verifyOwnerPrice({ quote: String(quote), amountMinor: Number(minor) }, { text: String(text), recentOwnerTexts: [], selectedIds: [] })).toThrow("price");
+  });
+
   it.each(["bottles", "packs", "cartons", "bundles", "appointments", "people", "widgets", "unlisted-things"])("does not interpret an item count before %s as a price", (noun) => {
     const evidence = { text: `Invoice Amaka for two ${noun} shea butter`, recentOwnerTexts: [], selectedIds: [] };
     expect(() => verifyOwnerPrice({ quote: "two", amountMinor: 200 }, evidence)).toThrow("Please state the price");
@@ -146,6 +177,13 @@ describe("positive monetary evidence", () => {
     ["two naira", 200, "Charge two naira"],
     ["forty-five thousand", 4_500_000, "Invoice Amaka for two bottles at forty-five thousand each"],
     ["45000", 4_500_000, "Use 45000 for two packs"],
+    ["45,000", 4_500_000, "Invoice Tolu 45,000 for wig"],
+    ["45,000", 4_500_000, "Invoice Tolu for a wig at 45,000"],
+    ["5,000", 500_000, "Invoice Tolu for a wig at 45,000 and installation at 5,000"],
+    ["#45,000", 4_500_000, "The price is #45,000"],
+    ["₦45,000", 4_500_000, "Use ₦45,000"],
+    ["45,000 naira", 4_500_000, "Use 45,000 naira"],
+    ["45000", 4_500_000, "Product code 1234; the price is 45000"],
   ])("accepts an explicitly requested monetary value: %s", (quote, minor, text) => {
     expect(verifyOwnerPrice({ quote: String(quote), amountMinor: Number(minor) }, { text: String(text), recentOwnerTexts: [], selectedIds: [] })).toBe(minor);
   });
@@ -156,6 +194,7 @@ describe("positive monetary evidence", () => {
     expect(verifyOwnerPrice({ quote: "two", amountMinor: 200 }, { text: "Actually two", recentOwnerTexts: ["The price is three naira"], selectedIds: [] })).toBe(200);
     expect(() => verifyOwnerPrice(value, { text: "45000", recentOwnerTexts: ["Invoice Amaka for two bottles"], selectedIds: [] })).toThrow("price");
     expect(() => verifyOwnerPrice(value, { text: "45000", recentOwnerTexts: [], selectedIds: [] })).toThrow("price");
+    expect(() => verifyOwnerPrice(value, { text: "45000", recentOwnerTexts: ["The price code is 1234"], selectedIds: [] })).toThrow("price");
     // A later price-setting instruction must not promote an old quantity reply.
     expect(() => verifyOwnerPrice({ quote: "two", amountMinor: 200 }, { text: "Set the price to 45,000", recentOwnerTexts: ["two"], selectedIds: [] })).toThrow("price");
   });

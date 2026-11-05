@@ -127,31 +127,41 @@ function amountBody(text: string): string {
  * Accept positive financial language, never an open-ended list of item nouns.
  */
 function hasMonetaryContext(text: string, expression: AmountExpression, evidence: OwnerEvidence, isCurrentTurn: boolean): boolean {
-  if (/^(?:₦|ngn|#)|(?:naira|ngn)$/u.test(expression.text)) return true;
   const before = text.slice(0, expression.start);
   const after = text.slice(expression.end);
+  // Delimit the local clause without splitting numeric grouping/decimal marks.
+  const localBefore = before.split(/[,;.!?\n](?!\d)/u).at(-1)?.trim() ?? "";
+  // These are reference-field grammars, not item nouns. Neither a transaction
+  // elsewhere nor a bare "at" may turn a labelled identifier into a price.
+  const referencePrefix = /\b(?:code|number|reference|id|phone|telephone|date|quantity|count)\s*(?:(?:is|was|of|to|at|use)\s*)?[:=#]?\s*$/u;
+  if (referencePrefix.test(localBefore)) return false;
+  if (/^(?:₦|ngn)|(?:naira|ngn)$/u.test(expression.text)) return true;
   // An unknown following noun makes a bare number ambiguous, even after "use".
   const monetaryTail = /^\s*(?:(?:[.!?,;:]\s*)?$|(?:each|apiece|per|for|on|cash|and)\b|(?:in\s+cash|by\s+bank\s+transfer|bank\s+transfer)\b)/u.test(after);
   if (!monetaryTail) return false;
-  const pricePrefix = /\b(?:(?:price|cost|rate|amount|total|payment)(?:\s+(?:is|was|of|to|at|should\s+be|will\s+be))?|pay|paid|charge|charging)\s*[:=]?\s*$/u.test(before);
+  const pricePrefix = /\b(?:(?:price|cost|rate|amount|total|payment)(?:\s+(?:is|was|of|to|at|should\s+be|will\s+be))?|pay|paid|charge|charging)\s*[:=]?\s*$/u.test(localBefore);
   if (pricePrefix) return true;
+  // Legacy # currency notation also denotes document/product identifiers.
+  // Its currency meaning needs an explicit adjacent price/payment statement.
+  if (expression.text.startsWith("#")) return false;
 
-  // Larger/qualified amount forms still need a transaction, price-setting verb,
-  // or unit-price suffix. A scale alone cannot turn "two thousand bottles" into money.
+  // Match complete local command forms. A financial verb anywhere earlier in
+  // the turn supplies no evidence for the current number.
   const qualifiedAmount = /\d{3,}|\d[.,]\d|\dk\b|\b(?:hundred|thousand|million)\b/u.test(expression.text);
-  if (qualifiedAmount && (
-    /\b(?:use|at)\s*$/u.test(before) ||
-    /\b(?:invoice|receipt|payment|pay|paid|record|charge)\b/u.test(before) ||
-    /\b(?:inv|ord)[- ]\d/u.test(before) ||
-    /^\s*(?:each|apiece|per)\b/u.test(after)
-  )) return true;
+  const commandTail = /^\s*(?:[.!?,;:]?\s*$|(?:each|apiece|per|cash|in\s+cash|by\s+bank\s+transfer|bank\s+transfer)\b|for\s+(?:\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b)/u.test(after);
+  const amountCommand = /^\s*(?:please\s+)?(?:use|record)\s*$/u.test(before) && commandTail;
+  const directInvoice = /^(?:please\s+)?invoice\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,3}$/u.test(localBefore) && /^\s+for\s+\S/u.test(after);
+  const itemAtPrice = /^(?:please\s+)?invoice\s+[\p{L}'’-]+(?:\s+[\p{L}'’-]+){0,3}\s+for\s+.+\s+at$/u.test(localBefore);
+  const unitPrice = /^\s*(?:each|apiece|per)\b/u.test(after);
+  if (qualifiedAmount && (amountCommand || directInvoice || itemAtPrice || unitPrice)) return true;
 
   // Bare replies can correct a discussed price, but an old item count must not
   // acquire monetary meaning from a later turn. Small bare replies can also be
   // numbered choices, so require an explicit correction phrase for those.
   const correctionPrefix = /^\s*(?:actually|instead|correction|make\s+that|no[, ]+)\s*[:,]?\s*$/u.test(before);
   const standalone = /^\s*$/u.test(before) || correctionPrefix;
-  const priorPricing = evidence.recentOwnerTexts.some((turn) => /\b(?:price|cost|rate|payment|amount|total|pay|paid|charge)\b/iu.test(turn));
+  // Require a prior price/value statement, not the word "price" in a label.
+  const priorPricing = evidence.recentOwnerTexts.some((turn) => /\b(?:price|cost|rate|payment|amount|total)(?:\s+(?:is|was|of|to|at|should\s+be|will\s+be))?\s*[:=]?\s*(?:₦|ngn\b|#|\d|zero\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|twenty\b|thirty\b|forty\b|fifty\b|sixty\b|seventy\b|eighty\b|ninety\b)/iu.test(turn));
   return isCurrentTurn && standalone && /^\s*[.!?]?\s*$/u.test(after) && priorPricing && (qualifiedAmount || correctionPrefix);
 }
 
