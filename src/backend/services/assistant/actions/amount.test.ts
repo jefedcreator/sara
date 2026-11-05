@@ -74,7 +74,7 @@ describe("parseEnglishAmount", () => {
 describe("verifyOwnerPrice", () => {
   const dummyEvidence: OwnerEvidence = {
     text: "Please invoice Tolu 45,000 for wig",
-    recentOwnerTexts: ["Earlier I mentioned forty-five thousand"],
+    recentOwnerTexts: ["Earlier I mentioned the price of forty-five thousand"],
     selectedIds: [],
   };
 
@@ -114,6 +114,50 @@ describe("verifyOwnerPrice", () => {
         dummyEvidence,
       ),
     ).toThrow("Please state the price you want to use.");
+  });
+});
+
+describe("positive monetary evidence", () => {
+  it.each(["bottles", "packs", "cartons", "bundles", "appointments", "people", "widgets", "unlisted-things"])("does not interpret an item count before %s as a price", (noun) => {
+    const evidence = { text: `Invoice Amaka for two ${noun} shea butter`, recentOwnerTexts: [], selectedIds: [] };
+    expect(() => verifyOwnerPrice({ quote: "two", amountMinor: 200 }, evidence)).toThrow("Please state the price");
+  });
+
+  it.each([
+    ["two", 200, "Use two bottles at 45,000 each"],
+    ["two", 200, "Set the price for two packs"],
+    ["two thousand", 200_000, "Invoice Amaka for two thousand bottles"],
+    ["45000", 4_500_000, "Use 45000 bottles"],
+    ["two", 200, "two"],
+    ["two", 200, "Use two"],
+    ["two", 200, "Record two"],
+  ])("requires positive monetary context for %s", (quote, minor, text) => {
+    expect(() => verifyOwnerPrice({ quote: String(quote), amountMinor: Number(minor) }, { text: String(text), recentOwnerTexts: ["The price is 45,000"], selectedIds: [] })).toThrow("price");
+  });
+
+  it.each([
+    ["forty-five thousand", 4_500_000, "forty-five thousand each"],
+    ["NGN45000", 4_500_000, "Use NGN45000"],
+    ["45,000", 4_500_000, "Set the price to 45,000"],
+    ["45000", 4_500_000, "Use 45000"],
+    ["10000", 1_000_000, "Payment 10000 cash"],
+    ["45000", 4_500_000, "Record 45000"],
+    ["two", 200, "The price is two"],
+    ["two naira", 200, "Charge two naira"],
+    ["forty-five thousand", 4_500_000, "Invoice Amaka for two bottles at forty-five thousand each"],
+    ["45000", 4_500_000, "Use 45000 for two packs"],
+  ])("accepts an explicitly requested monetary value: %s", (quote, minor, text) => {
+    expect(verifyOwnerPrice({ quote: String(quote), amountMinor: Number(minor) }, { text: String(text), recentOwnerTexts: [], selectedIds: [] })).toBe(minor);
+  });
+
+  it("accepts a standalone monetary correction only with stored pricing context", () => {
+    const value = { quote: "45000", amountMinor: 4_500_000 };
+    expect(verifyOwnerPrice(value, { text: "45000", recentOwnerTexts: ["Set the price to 40,000"], selectedIds: [] })).toBe(value.amountMinor);
+    expect(verifyOwnerPrice({ quote: "two", amountMinor: 200 }, { text: "Actually two", recentOwnerTexts: ["The price is three naira"], selectedIds: [] })).toBe(200);
+    expect(() => verifyOwnerPrice(value, { text: "45000", recentOwnerTexts: ["Invoice Amaka for two bottles"], selectedIds: [] })).toThrow("price");
+    expect(() => verifyOwnerPrice(value, { text: "45000", recentOwnerTexts: [], selectedIds: [] })).toThrow("price");
+    // A later price-setting instruction must not promote an old quantity reply.
+    expect(() => verifyOwnerPrice({ quote: "two", amountMinor: 200 }, { text: "Set the price to 45,000", recentOwnerTexts: ["two"], selectedIds: [] })).toThrow("price");
   });
 });
 

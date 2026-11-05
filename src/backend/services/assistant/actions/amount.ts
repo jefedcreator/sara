@@ -91,7 +91,8 @@ const AMOUNT_WORDS = new Set([
 /** Expand to the complete adjacent expression, preserving signs/scales/decimals.
  * A sentence conjunction belongs to an amount only when it joins amount tokens.
  */
-function completeExpression(text: string, start: number, end: number): string {
+type AmountExpression = { text: string; start: number; end: number };
+function completeExpression(text: string, start: number, end: number): AmountExpression {
   const tokens = [...text.matchAll(/[\p{L}]+|\d(?:[\d,.]*\d)?k?|[₦#+−-]/gu)].map((match) => ({
     value: match[0], start: match.index, end: match.index + match[0].length,
   }));
@@ -101,7 +102,7 @@ function completeExpression(text: string, start: number, end: number): string {
   };
   let first = tokens.findIndex((token) => token.end > start);
   let last = tokens.findIndex((token) => token.end >= end);
-  if (first < 0 || last < 0) return "";
+  if (first < 0 || last < 0) return { text: "", start, end };
   const adjacent = (left: number, right: number) => /^\s*$/.test(text.slice(tokens[left]!.end, tokens[right]!.start));
   while (first > 0 && adjacent(first - 1, first)) {
     if (isAmount(first - 1)) first--;
@@ -113,11 +114,45 @@ function completeExpression(text: string, start: number, end: number): string {
     else if (tokens[last + 1]?.value === "and" && last + 2 < tokens.length && adjacent(last + 1, last + 2) && isAmount(last + 2)) last += 2;
     else break;
   }
-  return text.slice(tokens[first]!.start, tokens[last]!.end);
+  const expressionStart = tokens[first]!.start;
+  const expressionEnd = tokens[last]!.end;
+  return { text: text.slice(expressionStart, expressionEnd), start: expressionStart, end: expressionEnd };
 }
 
 function amountBody(text: string): string {
   return text.trim().replace(/^(?:₦|ngn|#)\s*/, "").replace(/\s*(?:naira|ngn)$/, "").trim();
+}
+
+/** Finding a complete number proves its value, not that the owner meant money.
+ * Accept positive financial language, never an open-ended list of item nouns.
+ */
+function hasMonetaryContext(text: string, expression: AmountExpression, evidence: OwnerEvidence, isCurrentTurn: boolean): boolean {
+  if (/^(?:₦|ngn|#)|(?:naira|ngn)$/u.test(expression.text)) return true;
+  const before = text.slice(0, expression.start);
+  const after = text.slice(expression.end);
+  // An unknown following noun makes a bare number ambiguous, even after "use".
+  const monetaryTail = /^\s*(?:(?:[.!?,;:]\s*)?$|(?:each|apiece|per|for|on|cash|and)\b|(?:in\s+cash|by\s+bank\s+transfer|bank\s+transfer)\b)/u.test(after);
+  if (!monetaryTail) return false;
+  const pricePrefix = /\b(?:(?:price|cost|rate|amount|total|payment)(?:\s+(?:is|was|of|to|at|should\s+be|will\s+be))?|pay|paid|charge|charging)\s*[:=]?\s*$/u.test(before);
+  if (pricePrefix) return true;
+
+  // Larger/qualified amount forms still need a transaction, price-setting verb,
+  // or unit-price suffix. A scale alone cannot turn "two thousand bottles" into money.
+  const qualifiedAmount = /\d{3,}|\d[.,]\d|\dk\b|\b(?:hundred|thousand|million)\b/u.test(expression.text);
+  if (qualifiedAmount && (
+    /\b(?:use|at)\s*$/u.test(before) ||
+    /\b(?:invoice|receipt|payment|pay|paid|record|charge)\b/u.test(before) ||
+    /\b(?:inv|ord)[- ]\d/u.test(before) ||
+    /^\s*(?:each|apiece|per)\b/u.test(after)
+  )) return true;
+
+  // Bare replies can correct a discussed price, but an old item count must not
+  // acquire monetary meaning from a later turn. Small bare replies can also be
+  // numbered choices, so require an explicit correction phrase for those.
+  const correctionPrefix = /^\s*(?:actually|instead|correction|make\s+that|no[, ]+)\s*[:,]?\s*$/u.test(before);
+  const standalone = /^\s*$/u.test(before) || correctionPrefix;
+  const priorPricing = evidence.recentOwnerTexts.some((turn) => /\b(?:price|cost|rate|payment|amount|total|pay|paid|charge)\b/iu.test(turn));
+  return isCurrentTurn && standalone && /^\s*[.!?]?\s*$/u.test(after) && priorPricing && (qualifiedAmount || correctionPrefix);
 }
 
 /** The quote must identify a whole amount in a stored owner turn. */
@@ -126,7 +161,7 @@ export function verifyOwnerPrice(
   evidence: OwnerEvidence,
 ): number {
   const quote = value.quote.trim().toLowerCase();
-  const found = quote.length > 0 && [evidence.text, ...evidence.recentOwnerTexts].some((text) => {
+  const found = quote.length > 0 && [evidence.text, ...evidence.recentOwnerTexts].some((text, turnIndex) => {
     const lower = text.toLowerCase();
     let from = 0;
     for (;;) {
@@ -134,11 +169,10 @@ export function verifyOwnerPrice(
       if (index < 0) return false;
       const before = lower.slice(0, index);
       const after = lower.slice(index + quote.length);
-      // A quoted item count is not an owner-stated price ("two wigs").
-      const isCount = /^\s+(?:units?|pieces?|items?|wigs?|products?|services?|customers?|orders?|nights?|days?|hours?|minutes?)\b/u.test(after);
       const expression = completeExpression(lower, index, index + quote.length);
-      if (!isCount && !/[\p{L}\p{N}.,+\-]$/u.test(before) && !/^(?:[\p{L}\p{N}]|[.,]\d|-[\p{L}\p{N}])/u.test(after) &&
-        amountBody(expression) === amountBody(quote) && parseEnglishAmount(expression) === value.amountMinor) return true;
+      if (!/[\p{L}\p{N}.,+\-]$/u.test(before) && !/^(?:[\p{L}\p{N}]|[.,]\d|-[\p{L}\p{N}])/u.test(after) &&
+        amountBody(expression.text) === amountBody(quote) && parseEnglishAmount(expression.text) === value.amountMinor &&
+        hasMonetaryContext(lower, expression, evidence, turnIndex === 0)) return true;
       from = index + 1;
     }
   });

@@ -98,6 +98,15 @@ describe("strict boundary and money", () => {
     await expect(prepared(overridden, { ...evidence, text: "Use catalog prices" })).rejects.toThrow("price");
   });
 
+  it.each(["bottles", "packs"])("does not let quantity-only %s evidence replace the catalog price", async (noun) => {
+    const trusted = { text: `Invoice Tolu for two ${noun} shea butter`, recentOwnerTexts: [], selectedIds: [customer.id, option.id] };
+    const override: DraftRequest = { ...invoiceRequest, lines: [{ ...invoiceRequest.lines[0]!, priceOverride: { quote: "two", amountMinor: 200 } }] };
+    await expect(prepared(override, trusted)).rejects.toThrow("Please state the price");
+    const catalogDraft = await prepared(invoiceRequest, trusted);
+    expect(catalogDraft.payload.lines).toEqual([expect.objectContaining({ quantity: 2, unitPriceMinor: 4_500_000, totalMinor: 9_000_000 })]);
+    expectNoWrites();
+  });
+
   it("resolves Lagos relative dates independently of host timezone", async () => {
     expect((await prepared({ ...invoiceRequest, dueDate: "tomorrow" })).payload.dueDate).toBe("2026-11-05");
     expect((await prepared({ ...invoiceRequest, dueDate: "friday" })).payload.dueDate).toBe("2026-11-06");
