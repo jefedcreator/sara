@@ -54,3 +54,6 @@ docs/
 
 # impeccable review screenshots (.impeccable/design.json stays tracked)
 .impeccable/review/
+
+# Local context handoff
+/.handoff.md
