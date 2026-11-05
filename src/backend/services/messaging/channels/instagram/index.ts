@@ -111,8 +111,9 @@ class InstagramAdapter implements ChannelAdapter {
     });
     if (!res.ok) {
       const raw = await res.text();
-      console.error(`[Instagram] send failed: ${res.status} ${raw}`);
-      return { ok: false, code: errorCode(raw) };
+      const code = errorCode(raw);
+      console.error("[Instagram] send_failed", { status: res.status, code });
+      return { ok: false, code };
     }
     return { ok: true };
   }

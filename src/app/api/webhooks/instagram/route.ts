@@ -1,8 +1,9 @@
 import { instagramAdapter } from "@/backend/services/messaging/channels/instagram";
-import { conversationEngine } from "@/backend/services/messaging/engine";
-import { NextResponse } from "next/server";
+import { processInboundBatch } from "@/backend/services/messaging/process";
+import { after, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 export async function GET(request: Request) {
   return instagramAdapter.verify(request);
@@ -18,18 +19,13 @@ export async function POST(request: Request) {
   try {
     const payload = JSON.parse(rawBody) as unknown;
     const messages = instagramAdapter.normalizeInbound(payload);
-    await Promise.all(
-      messages.map(async (message) => {
-        const reply = await conversationEngine.handle(message, {
-          onProgress: async (progressMsg) => {
-            await instagramAdapter.send(message.externalId, progressMsg);
-          },
-        });
-        if (reply) await instagramAdapter.send(message.externalId, reply);
-      }),
-    );
-  } catch (error: any) {
-    console.error("[Instagram Webhook] Error:", error?.message ?? error);
+    if (messages.length) {
+      after(async () => {
+        await processInboundBatch(instagramAdapter, messages);
+      });
+    }
+  } catch {
+    console.error("[Instagram Webhook] payload_rejected", { code: "INVALID_PAYLOAD" });
   }
 
   return NextResponse.json({ status: "ok" }, { status: 200 });

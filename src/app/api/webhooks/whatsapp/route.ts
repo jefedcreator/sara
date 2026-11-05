@@ -1,8 +1,9 @@
 import { whatsAppAdapter } from "@/backend/services/messaging/channels/whatsapp";
-import { conversationEngine } from "@/backend/services/messaging/engine";
-import { NextResponse } from "next/server";
+import { processInboundBatch } from "@/backend/services/messaging/process";
+import { after, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const maxDuration = 60;
 
 const MAX_LOGS = 30;
 type WebhookLog = {
@@ -46,8 +47,6 @@ export async function POST(request: Request) {
     });
     recordLog("auth_failed", {
       hasSignature: !!signature,
-      signaturePrefix: signature?.slice(0, 15),
-      bodyPreview: rawBody.slice(0, 100),
     });
     return NextResponse.json({ message: "Invalid webhook signature" }, { status: 403 });
   }
@@ -58,48 +57,22 @@ export async function POST(request: Request) {
 
     recordLog("inbound_received", {
       messageCount: messages.length,
-      messages: messages.map((m) => ({
-        from: m.externalId,
-        text: m.kind === "text" ? m.text : undefined,
-        id: m.messageId,
-      })),
-      rawPreview: rawBody.slice(0, 200),
+      messageIds: messages.map((message) => message.messageId),
     });
 
-    console.log(`[WhatsApp Webhook] Received ${messages.length} message(s)`);
-
-    await Promise.all(
-      messages.map(async (message) => {
-        console.log(`[WhatsApp Webhook] Handling message from ${message.externalId}: "${message.kind === "text" ? message.text : message.kind}"`);
-        const reply = await conversationEngine.handle(message, {
-          onProgress: async (progressMsg) => {
-            console.log(`[WhatsApp Webhook] Sending progress message to ${message.externalId}: "${progressMsg.text}"`);
-            await whatsAppAdapter.send(message.externalId, progressMsg);
-            recordLog("outbound_sent", {
-              to: message.externalId,
-              replyText: progressMsg.text,
-            });
-          },
+    if (messages.length) {
+      after(async () => {
+        const startedAt = Date.now();
+        await processInboundBatch(whatsAppAdapter, messages);
+        recordLog("batch_processed", {
+          messageCount: messages.length,
+          elapsedMs: Date.now() - startedAt,
         });
-        if (reply) {
-          console.log(`[WhatsApp Webhook] Sending reply to ${message.externalId}`);
-          await whatsAppAdapter.send(message.externalId, reply);
-          recordLog("outbound_sent", {
-            to: message.externalId,
-            replyText: reply.text,
-          });
-        } else {
-          recordLog("no_reply", {
-            from: message.externalId,
-            text: message.kind === "text" ? message.text : undefined,
-          });
-        }
-      }),
-    );
-  } catch (error: unknown) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    console.error("[WhatsApp Webhook] Error:", errorMsg);
-    recordLog("error", { error: errorMsg });
+      });
+    }
+  } catch {
+    console.error("[WhatsApp Webhook] payload_rejected", { code: "INVALID_PAYLOAD" });
+    recordLog("payload_rejected", { code: "INVALID_PAYLOAD" });
   }
 
   return NextResponse.json({ status: "ok" }, { status: 200 });

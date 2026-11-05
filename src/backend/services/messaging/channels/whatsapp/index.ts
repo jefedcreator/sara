@@ -181,7 +181,7 @@ class WhatsAppAdapter implements ChannelAdapter {
     });
   }
 
-  private async post(externalId: string, payload: unknown): Promise<SendResult> {
+  private async post(_externalId: string, payload: unknown): Promise<SendResult> {
     const phoneId = env.WHATSAPP_PHONE_NUMBER_ID || process.env.WHATSAPP_PHONE_NUMBER_ID;
     const token = env.WHATSAPP_TOKEN || process.env.WHATSAPP_TOKEN;
 
@@ -195,10 +195,11 @@ class WhatsAppAdapter implements ChannelAdapter {
     });
     if (!res.ok) {
       const raw = await res.text();
-      console.error(`[WhatsApp] send failed: ${res.status} ${raw}`);
-      return { ok: false, code: errorCode(raw) };
+      const code = errorCode(raw);
+      console.error("[WhatsApp] send_failed", { status: res.status, code });
+      return { ok: false, code };
     }
-    console.log(`[WhatsApp] Sent message to ${externalId}`);
+    console.info("[WhatsApp] message_sent", { status: res.status });
     return { ok: true };
   }
 }
