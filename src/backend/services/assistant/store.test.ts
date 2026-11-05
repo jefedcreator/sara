@@ -21,6 +21,7 @@ import { db } from "@/server/db";
 import {
   assertConversation, claimTurn, claimTurnLease, getAction, INTERRUPTED_TURN_REPLY, loadRecent,
   releaseTurn, resetMemory, saveTurn, assertTurnCurrent, loadTurnMemory, selectClarification,
+  saveClarification, saveReadPages, hasPendingClarification, hasPendingReadPage,
 } from "./store";
 import type { AssistantScope } from "./types";
 
@@ -284,6 +285,48 @@ describe("post-lock generation checks", () => {
     mockedDb.assistantConversation.findFirst.mockImplementation(async ({ where }: any) => where.channel === scope.channel ? liveConversation : null);
     await expect(loadTurnMemory({ ...scope, channel: "WEB" }, { conversationId: "conv_1", leaseToken: "generation-1", memoryVersion: 2 }, now)).rejects.toMatchObject({ code: "CONVERSATION_NOT_FOUND" });
     await expect(loadTurnMemory(scope, { conversationId: "conv_1", leaseToken: "generation-1", memoryVersion: 2 }, now)).resolves.toMatchObject({ clarification: null, editing: null });
+  });
+});
+
+describe("independent conversation context slots", () => {
+  it("preserves a real saved clarification through page writes, last-page consumption and independent expiry", async () => {
+    let row = { ...liveConversation, clarification: null as unknown };
+    mockedDb.assistantConversation.upsert.mockImplementation(async () => row);
+    mockedDb.assistantConversation.findFirst.mockImplementation(async () => row);
+    mockedDb.assistantConversation.update.mockImplementation(async ({ data }: any) => { row = { ...row, ...data }; return row; });
+    const fence = { conversationId: "conv_1", leaseToken: "generation-1", memoryVersion: 2 };
+    const request = { kind: "create_customer" as const, name: "Ada", phone: null, email: null, address: null, notes: null };
+    const evidence = { text: "Create Ada", recentOwnerTexts: ["Use Ada"], selectedIds: ["owned-a"] };
+    const clarification = { question: "What should I update?", choices: [], originalRequest: request };
+    const signal = new AbortController().signal;
+    await saveClarification(scope, fence, clarification, evidence, signal, { id: "owned-a", label: "Ada" });
+    await saveReadPages(scope, fence, ["First\n", "Last"], 1, signal);
+    const memory = await loadTurnMemory(scope, fence, now);
+    expect(memory.clarification).toMatchObject({ ...clarification, evidence, existingSelection: { id: "owned-a", label: "Ada" } });
+    expect(memory.readPages?.pages).toEqual(["First\n", "Last"]);
+    expect(await hasPendingClarification(scope, now)).toBe(true);
+    expect(await hasPendingReadPage(scope, now)).toBe(true);
+    await saveReadPages(scope, fence, ["First\n", "Last"], 2, signal);
+    expect((await loadTurnMemory(scope, fence, now)).clarification).toEqual(memory.clarification);
+    expect(await hasPendingReadPage(scope, now)).toBe(false);
+
+    // A later page save must not renew an older clarification's lifetime.
+    vi.setSystemTime(new Date(now.getTime() + 29 * 60_000));
+    row = { ...row, leaseExpiresAt: new Date(Date.now() + 30_000) };
+    await saveReadPages(scope, fence, ["New", "Page"], 1, signal);
+    const later = new Date(now.getTime() + 31 * 60_000);
+    row = { ...row, leaseExpiresAt: new Date(later.getTime() + 30_000) };
+    vi.setSystemTime(later);
+    expect(await hasPendingClarification(scope, later)).toBe(false);
+    expect(await hasPendingReadPage(scope, later)).toBe(true);
+    expect(await loadTurnMemory(scope, fence, later)).toMatchObject({ clarification: null, readPages: { pages: ["New", "Page"] } });
+  });
+  it("reads legacy single-slot clarification and page records", async () => {
+    const legacy = { question: "Which Ada?", choices: [], originalRequest: { kind: "create_customer", name: "Ada", phone: null, email: null, address: null, notes: null }, evidence: { text: "Ada", recentOwnerTexts: [], selectedIds: [] }, createdAt: now.toISOString() };
+    mockedDb.assistantConversation.upsert.mockResolvedValue({ ...liveConversation, clarification: legacy });
+    expect(await hasPendingClarification(scope, now)).toBe(true);
+    mockedDb.assistantConversation.upsert.mockResolvedValue({ ...liveConversation, clarification: { kind: "read_pages", pages: ["a", "b"], next: 1, createdAt: now.toISOString() } });
+    expect(await hasPendingReadPage(scope, now)).toBe(true);
   });
 });
 

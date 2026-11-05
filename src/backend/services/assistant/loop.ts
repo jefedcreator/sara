@@ -75,6 +75,7 @@ export async function runModelTurn(input: ModelTurnInput, dependencies?: ModelDe
   const readTexts: string[] = [];
   let hadError = false;
   let recovery = LOOKUP_REPLY;
+  let validationQuestion: string | undefined;
   for (let round = 0; round < MAX_ROUNDS; round += 1) {
     context.signal.throwIfAborted();
     await context.checkCurrent?.();
@@ -112,11 +113,12 @@ export async function runModelTurn(input: ModelTurnInput, dependencies?: ModelDe
       if (outcome.kind === "draft") return { reply: outcome.draft.summary, draft: outcome.draft, toolRecords };
       if (outcome.kind === "clarification") return { reply: clarificationText(outcome), draft: null, toolRecords };
       if (outcome.kind === "read") readTexts.push(outcome.text);
-      if (outcome.kind === "error") { hadError = true; recovery = outcome.question ?? outcome.message; }
+      if (outcome.kind === "error") { hadError = true; recovery = outcome.question ?? outcome.message; if (outcome.question) validationQuestion = outcome.question; }
     }
   }
   // The language model cannot write monetary facts or claim successful mutations.
   const greeting = /^(hi|hello|hey|thanks|thank you)[!.\s]*$/i.test(input.text.trim());
+  if (validationQuestion) return { reply: validationQuestion, draft: null, toolRecords };
   if (readTexts.length) {
     const pages = paginateReadText([...new Set(readTexts)].join("\n\n"));
     return { reply: pages?.length ? readPageText(pages, 0) : NARROW_REPORT_REPLY, draft: null, toolRecords,

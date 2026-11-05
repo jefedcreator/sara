@@ -154,6 +154,24 @@ describe("review regressions", () => {
     expect(saveClarification).toHaveBeenCalledWith(input.scope, claim, expect.objectContaining({ choices: [], originalRequest: request }), evidence, expect.any(AbortSignal), { id: "existing", label: "Ada" });
     expect(runModelTurn).not.toHaveBeenCalled();
   });
+  it("retains pending request and action barrier after a paginated read and its last page", async () => {
+    const originalRequest = { kind: "create_customer" as const, name: "Ada", phone: null, email: null, address: null, notes: null };
+    const clarification = { question: "What should I update?", choices: [], originalRequest,
+      evidence: { text: "Create Ada", recentOwnerTexts: [], selectedIds: ["existing"] },
+      existingSelection: { id: "existing", label: "Ada" }, createdAt: new Date().toISOString() };
+    let readPages: { kind: "read_pages"; pages: string[]; next: number; createdAt: string } | null = null;
+    vi.mocked(loadTurnMemory).mockImplementation(async () => ({ clarification, editing: null, readPages }));
+    vi.mocked(saveReadPages).mockImplementation(async (_scope, _fence, pages, next) => {
+      readPages = next < pages.length ? { kind: "read_pages", pages, next, createdAt: new Date().toISOString() } : null;
+    });
+    vi.mocked(runModelTurn).mockResolvedValueOnce({ reply: "First", draft: null, toolRecords: [], readPages: ["First", "Last"] })
+      .mockResolvedValueOnce({ reply: "What should I update?", draft: null, toolRecords: [] });
+    await assistantService.message({ ...input, input: { kind: "text", text: "Show the catalog" } });
+    expect((await assistantService.message({ ...input, requestId: "req2", input: { kind: "text", text: "next" } })).reply).toContain("Last");
+    await assistantService.message({ ...input, requestId: "req3", input: { kind: "text", text: "Change the phone" } });
+    expect(runModelTurn).toHaveBeenLastCalledWith(expect.objectContaining({ clarification, context: expect.objectContaining({ pendingClarification: clarification,
+      evidence: expect.objectContaining({ text: "Change the phone", recentOwnerTexts: expect.arrayContaining(["Create Ada"]) }) }) }));
+  });
   it("serves exact subsequent report pages without quota or model work", async () => {
     vi.mocked(loadTurnMemory).mockResolvedValue({ clarification: null, editing: null,
       readPages: { kind: "read_pages", pages: ["First fact\n", "Last fact: NGN 100."], next: 1, createdAt: new Date().toISOString() } });

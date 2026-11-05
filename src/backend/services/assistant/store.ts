@@ -555,17 +555,27 @@ export async function assertTurnCurrent(scope: AssistantScope, fence: TurnFence,
 const readPageSchema = z.object({ kind: z.literal("read_pages"), pages: z.array(z.string().max(3_500)).min(1).max(32),
   next: z.number().int().min(0), createdAt: z.iso.datetime() });
 export type StoredReadPages = z.infer<typeof readPageSchema>;
+// Older rows contain either state directly. New writes keep both independently.
+function contextSlots(value: unknown, now: Date): { clarification: StoredClarification | null; readPages: StoredReadPages | null } {
+  const envelope = isRecord(value) && value.kind === "assistant_context" ? value : null;
+  const clarification = clarificationStateSchema.safeParse(envelope ? envelope.clarification : value);
+  const pages = readPageSchema.safeParse(envelope ? envelope.readPages : value);
+  const fresh = (createdAt: string) => Date.parse(createdAt) > now.getTime() - RECENT_MS;
+  return {
+    clarification: clarification.success && fresh(clarification.data.createdAt) ? clarification.data : null,
+    readPages: pages.success && fresh(pages.data.createdAt) && pages.data.next < pages.data.pages.length ? pages.data : null,
+  };
+}
 export async function hasPendingReadPage(scope: AssistantScope, now = new Date()): Promise<boolean> {
   const current = await getConversation(scope);
-  const state = readPageSchema.safeParse(current.clarification);
-  return state.success && state.data.next < state.data.pages.length && Date.parse(state.data.createdAt) > now.getTime() - RECENT_MS;
+  return contextSlots(current.clarification, now).readPages !== null;
 }
 
 export async function saveReadPages(scope: AssistantScope, fence: TurnFence, pages: string[], next: number, signal: AbortSignal): Promise<void> {
-  await saveConversationContext(scope, fence, { kind: "read_pages", pages, next, createdAt: new Date().toISOString() }, signal);
+  await saveConversationContext(scope, fence, "readPages", next < pages.length ? { kind: "read_pages", pages, next, createdAt: new Date().toISOString() } : null, signal);
 }
 
-async function saveConversationContext(scope: AssistantScope, fence: TurnFence, state: unknown, signal: AbortSignal): Promise<void> {
+async function saveConversationContext(scope: AssistantScope, fence: TurnFence, slot: "clarification" | "readPages", state: unknown, signal: AbortSignal): Promise<void> {
   await db.$transaction(async (tx) => {
     await tx.assistantConversation.updateMany({ where: { id: fence.conversationId, ...scope }, data: { memoryVersion: { increment: 0 } } });
     const current = await tx.assistantConversation.findFirst({ where: { id: fence.conversationId, ...scope } });
@@ -573,8 +583,9 @@ async function saveConversationContext(scope: AssistantScope, fence: TurnFence, 
     signal.throwIfAborted();
     if (!current || current.leaseToken !== fence.leaseToken || current.memoryVersion !== fence.memoryVersion ||
         !current.leaseExpiresAt || current.leaseExpiresAt <= now) throw storeError("ASSISTANT_TURN_STALE");
+    const slots = { ...contextSlots(current.clarification, now), [slot]: state };
     await tx.assistantConversation.update({ where: { id: current.id }, data: {
-      clarification: state === null ? Prisma.DbNull : state as Prisma.InputJsonValue, lastActiveAt: now,
+      clarification: { kind: "assistant_context", ...slots } as Prisma.InputJsonValue, lastActiveAt: now,
     } });
     signal.throwIfAborted();
   });
@@ -583,15 +594,14 @@ async function saveConversationContext(scope: AssistantScope, fence: TurnFence, 
 /** Server-owned candidate ids; callers use this before routing menu numbers. */
 export async function hasPendingClarification(scope: AssistantScope, now = new Date()): Promise<boolean> {
   const conversation = await getConversation(scope);
-  const parsed = clarificationStateSchema.safeParse(conversation.clarification);
-  return parsed.success && Date.parse(parsed.data.createdAt) > now.getTime() - RECENT_MS;
+  return contextSlots(conversation.clarification, now).clarification !== null;
 }
 
 export async function saveClarification(
   scope: AssistantScope, fence: TurnFence, clarification: Clarification,
   evidence: OwnerEvidence, signal: AbortSignal, existingSelection?: { id: string; label: string },
 ): Promise<void> {
-  await saveConversationContext(scope, fence, { ...clarification, evidence, createdAt: new Date().toISOString(),
+  await saveConversationContext(scope, fence, "clarification", { ...clarification, evidence, createdAt: new Date().toISOString(),
     ...(existingSelection ? { existingSelection } : {}) }, signal);
 }
 
@@ -606,9 +616,7 @@ export async function loadTurnMemory(scope: AssistantScope, fence: TurnFence, no
       !conversation.leaseExpiresAt || conversation.leaseExpiresAt <= new Date()) {
     throw storeError("ASSISTANT_TURN_STALE");
   }
-  const parsed = clarificationStateSchema.safeParse(conversation.clarification);
-  const clarification = parsed.success && Date.parse(parsed.data.createdAt) > now.getTime() - RECENT_MS
-    ? parsed.data : null;
+  const { clarification, readPages } = contextSlots(conversation.clarification, now);
   let editing: TurnMemory["editing"] = null;
   if (conversation.editingActionId) {
     const action = await getAction(scope, conversation.editingActionId);
@@ -618,8 +626,7 @@ export async function loadTurnMemory(scope: AssistantScope, fence: TurnFence, no
       if (request.success && evidence.success) editing = { summary: action.summary, originalRequest: request.data, evidence: evidence.data };
     }
   }
-  const pages = readPageSchema.safeParse(conversation.clarification);
-  return { clarification, editing, readPages: pages.success && Date.parse(pages.data.createdAt) > now.getTime() - RECENT_MS ? pages.data : null };
+  return { clarification, editing, readPages };
 }
 
 /** Substitute only ids from the saved candidate set; never accept ids from owner/model JSON. */

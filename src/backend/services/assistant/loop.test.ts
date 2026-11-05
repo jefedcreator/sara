@@ -82,6 +82,16 @@ describe("reviewed loop continuations", () => {
     const result = await runModelTurn({ ...input, transport, dispatch });
     expect(result.reply).toBe(question); expect(result.reply).not.toContain("999,999");
   });
+  it.each(["What amount was paid?", "What date was paid?", "Which payment method?"])("returns %s after a successful read and invalid draft", async (question) => {
+    const transport = vi.fn<ResponsesTransport>().mockResolvedValueOnce({ output: [call()], usage: tokens })
+      .mockResolvedValueOnce({ output: [call("draft_record_invoice_payment")], usage: tokens })
+      .mockResolvedValueOnce({ output: [prose], usage: tokens });
+    const dispatch = vi.fn<ToolDispatcher>().mockResolvedValueOnce({ kind: "read", data: null, text: "Invoice: NGN 1,000" })
+      .mockResolvedValueOnce({ kind: "error", code: "INVALID_ARGUMENTS", message: "Invalid", question });
+    const result = await runModelTurn({ ...input, transport, dispatch });
+    expect(result.reply).toBe(question);
+    expect(result.readPages).toBeUndefined();
+  });
   it("includes original request, evidence and server candidates for free-text clarification answers", async () => {
     const clarification = { originalRequest: { kind: "create_customer" as const, name: "Ada", phone: null, email: null, address: null, notes: null },
       question: "What is the address?", choices: [], evidence: { text: "Create Ada", recentOwnerTexts: [], selectedIds: [] }, createdAt: new Date().toISOString() };
