@@ -64,3 +64,48 @@ describe("bounded Responses protocol", () => {
     expect(transport.mock.calls[0]?.[0].instructions).toContain("item description saying");
   });
 });
+
+describe("reviewed loop continuations", () => {
+  it("does not dispatch or pay for another response after reset during a completed paid round", async () => {
+    const checkCurrent = vi.fn().mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error("ASSISTANT_TURN_STALE"));
+    const transport = vi.fn<ResponsesTransport>().mockResolvedValue({ output: [call()], usage: tokens, requestId: "known-round" });
+    const dispatch = vi.fn<ToolDispatcher>();
+    await expect(runModelTurn({ ...input, context: { ...input.context, checkCurrent }, transport, dispatch })).rejects.toThrow("ASSISTANT_TURN_STALE");
+    expect(transport).toHaveBeenCalledTimes(1); expect(dispatch).not.toHaveBeenCalled();
+    expect(input.usage.inputTokens).toBe(20);
+  });
+  it.each([
+    ["amount", "How much was paid?"], ["date", "Which date and time should I use?"], ["method", "Was the payment cash or bank transfer?"],
+  ])("exposes the deterministic safe %s clarification and ignores financial model prose", async (_field, question) => {
+    const dispatch = vi.fn<ToolDispatcher>().mockResolvedValue({ kind: "error", code: "INVALID_ARGUMENTS", message: "Invalid request", question });
+    const transport = vi.fn<ResponsesTransport>().mockResolvedValueOnce({ output: [call("draft_record_invoice_payment")], usage: tokens }).mockResolvedValueOnce({ output: [prose], usage: tokens });
+    const result = await runModelTurn({ ...input, transport, dispatch });
+    expect(result.reply).toBe(question); expect(result.reply).not.toContain("999,999");
+  });
+  it("includes original request, evidence and server candidates for free-text clarification answers", async () => {
+    const clarification = { originalRequest: { kind: "create_customer" as const, name: "Ada", phone: null, email: null, address: null, notes: null },
+      question: "What is the address?", choices: [], evidence: { text: "Create Ada", recentOwnerTexts: [], selectedIds: [] }, createdAt: new Date().toISOString() };
+    const transport = vi.fn<ResponsesTransport>().mockResolvedValue({ output: [prose], usage: tokens });
+    await runModelTurn({ ...input, text: "24 Lagos Road", clarification, transport });
+    expect(JSON.stringify(transport.mock.calls[0]?.[0].input)).toContain("pendingClarification");
+    expect(JSON.stringify(transport.mock.calls[0]?.[0].input)).toContain("24 Lagos Road");
+    expect(JSON.stringify(transport.mock.calls[0]?.[0].input)).toContain("What is the address?");
+  });
+  it("paginates exact multiple read facts with room for the largest voice prefix", async () => {
+    const fact1 = `First report: NGN 1,000. ${"a".repeat(2900)}`;
+    const fact2 = `Second report: NGN 2,000. ${"b".repeat(2900)}`;
+    const transport = vi.fn<ResponsesTransport>().mockResolvedValueOnce({ output: [call(), call("list_items", "two")], usage: tokens }).mockResolvedValueOnce({ output: [prose], usage: tokens });
+    const dispatch = vi.fn<ToolDispatcher>().mockResolvedValueOnce({ kind: "read", data: null, text: fact1 }).mockResolvedValueOnce({ kind: "read", data: null, text: fact2 });
+    const result = await runModelTurn({ ...input, transport, dispatch });
+    expect(result.readPages?.join("")).toBe(`${fact1}\n\n${fact2}`);
+    expect(result.readPages).toHaveLength(2);
+    for (const page of result.readPages ?? []) expect(page.length + 407 + 60).toBeLessThanOrEqual(4096);
+    expect(result.reply).toContain("Reply next");
+  });
+  it("asks to narrow a fact line that cannot fit intact instead of dropping financial details", async () => {
+    const transport = vi.fn<ResponsesTransport>().mockResolvedValueOnce({ output: [call()], usage: tokens }).mockResolvedValueOnce({ output: [prose], usage: tokens });
+    const dispatch = vi.fn<ToolDispatcher>().mockResolvedValue({ kind: "read", data: null, text: `NGN 1,000 ${"x".repeat(3500)}` });
+    const result = await runModelTurn({ ...input, transport, dispatch });
+    expect(result.reply).toContain("choose one customer"); expect(result.readPages).toBeUndefined();
+  });
+});

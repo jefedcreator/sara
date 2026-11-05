@@ -20,7 +20,7 @@ vi.mock("@/server/db", () => ({
 import { db } from "@/server/db";
 import {
   assertConversation, claimTurn, claimTurnLease, getAction, INTERRUPTED_TURN_REPLY, loadRecent,
-  releaseTurn, resetMemory, saveTurn,
+  releaseTurn, resetMemory, saveTurn, assertTurnCurrent, loadTurnMemory, selectClarification,
 } from "./store";
 import type { AssistantScope } from "./types";
 
@@ -40,6 +40,8 @@ function turnRow(overrides: Record<string, unknown> = {}) {
     state: "DONE", createdAt: now, ...overrides,
   };
 }
+const liveConversation = { ...conversation, leaseToken: "generation-1", leaseExpiresAt: new Date(now.getTime() + 30_000) };
+function liveSave() { mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue(liveConversation); }
 const savedTurn = { userText: "sales?", reply: "NGN 45,000", memoryVersion: 2, leaseToken: "generation-1" };
 
 beforeEach(() => {
@@ -120,6 +122,7 @@ describe("bounded memory with durable replay", () => {
     expect(mockedDb.assistantAction.updateMany).not.toHaveBeenCalled();
   });
   it("never deletes completed idempotency records when saving newer turns", async () => {
+    liveSave();
     await saveTurn(scope, "r1", savedTurn);
     expect(mockedDb.assistantTurn.deleteMany).not.toHaveBeenCalled();
     expect(mockedDb.assistantTurn.findMany).not.toHaveBeenCalled();
@@ -189,12 +192,13 @@ describe("lease generations", () => {
     mockedDb.assistantConversation.updateMany.mockResolvedValue({ count: 0 });
     await expect(saveTurn(scope, "r1", savedTurn)).rejects.toMatchObject({ code: "ASSISTANT_TURN_STALE" });
     expect(mockedDb.assistantTurn.updateMany).not.toHaveBeenCalled();
+    expect(mockedDb.assistantConversation.updateMany).toHaveBeenCalledTimes(1);
     expect(mockedDb.assistantConversation.updateMany).toHaveBeenCalledWith({
-      where: { id: "conv_1", leaseToken: "generation-1", memoryVersion: 2, leaseExpiresAt: { gt: now } },
-      data: { lastActiveAt: now },
+      where: { id: "conv_1", ...scope }, data: { memoryVersion: { increment: 0 } },
     });
   });
   it("stores the exact reply only for its RUNNING generation", async () => {
+    liveSave();
     const draft = { id: "draft-1", summary: "Invoice Tolu?", expiresAt: "2026-11-05T12:00:00Z", status: "PENDING" as const };
     await saveTurn(scope, "r1", { ...savedTurn, draft });
     expect(mockedDb.assistantTurn.updateMany).toHaveBeenCalledWith({
@@ -208,5 +212,94 @@ describe("lease generations", () => {
       where: { id: "conv_1", leaseToken: "old-generation" },
       data: { leaseToken: null, leaseExpiresAt: null },
     });
+  });
+});
+
+describe("post-lock generation checks", () => {
+  function pauseLock() {
+    let release!: () => void;
+    let entered!: () => void;
+    const waiting = new Promise<void>((resolve) => { release = resolve; });
+    const locked = new Promise<void>((resolve) => { entered = resolve; });
+    mockedDb.assistantConversation.updateMany.mockImplementationOnce(async () => { entered(); await waiting; return { count: 1 }; });
+    return { release, locked };
+  }
+  it("uses fresh activity/context after a delayed claim lock without rewriting a stale snapshot", async () => {
+    const old = { ...conversation, lastActiveAt: new Date(now.getTime() - 31 * 60_000) };
+    mockedDb.assistantConversation.upsert.mockResolvedValue(old);
+    const gate = pauseLock();
+    const pending = claimTurnLease(scope, "r1");
+    await gate.locked;
+    const fresh = { ...conversation, lastActiveAt: now, editingActionId: "new-preview", clarification: { question: "new" } };
+    mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue(fresh);
+    gate.release(); await pending;
+    expect(mockedDb.assistantConversation.updateMany.mock.calls[0][0].data).toEqual({ memoryVersion: { increment: 0 } });
+    expect(mockedDb.assistantConversation.updateMany.mock.calls[1][0].data).not.toHaveProperty("clarification");
+    expect(mockedDb.assistantConversation.updateMany.mock.calls[1][0].data).not.toHaveProperty("editingActionId");
+  });
+  it("does not rewind activity when the locked conversation is busy", async () => {
+    mockedDb.assistantConversation.upsert.mockResolvedValue({ ...conversation, lastActiveAt: new Date(0) });
+    mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue(liveConversation);
+    await expect(claimTurnLease(scope, "r1")).resolves.toBe("busy");
+    expect(mockedDb.assistantConversation.updateMany).toHaveBeenCalledTimes(1);
+    expect(mockedDb.assistantConversation.updateMany).toHaveBeenCalledWith({
+      where: { id: conversation.id, ...scope }, data: { memoryVersion: { increment: 0 } },
+    });
+  });
+  it.each(["expiry", "token", "reset", "abort"])("rejects %s that arrives during a save lock wait", async (change) => {
+    liveSave();
+    const gate = pauseLock();
+    const controller = new AbortController();
+    const pending = saveTurn(scope, "r1", savedTurn, controller.signal);
+    const rejected = expect(pending).rejects.toThrow();
+    await gate.locked;
+    if (change === "expiry") vi.setSystemTime(liveConversation.leaseExpiresAt);
+    if (change === "token") mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue({ ...liveConversation, leaseToken: "new" });
+    if (change === "reset") mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue({ ...liveConversation, memoryVersion: 3 });
+    if (change === "abort") controller.abort();
+    gate.release(); await rejected;
+    expect(mockedDb.assistantTurn.updateMany).not.toHaveBeenCalled();
+  });
+  it("throws before transaction completion if the final turn write outlives cancellation", async () => {
+    liveSave();
+    const controller = new AbortController();
+    mockedDb.assistantTurn.updateMany.mockImplementation(async () => { controller.abort(); return { count: 1 }; });
+    await expect(saveTurn(scope, "r1", savedTurn, controller.signal)).rejects.toMatchObject({ name: "AbortError" });
+  });
+  it("checks the exact reservation and rechecks reset after its read", async () => {
+    mockedDb.assistantConversation.findFirst.mockResolvedValueOnce(liveConversation).mockResolvedValueOnce({ ...liveConversation, memoryVersion: 3 });
+    mockedDb.assistantUsage.findUnique.mockResolvedValue({ id: "usage1" });
+    await expect(assertTurnCurrent(scope, { conversationId: "conv_1", leaseToken: "generation-1", memoryVersion: 2 }, { id: "usage1", requestId: "r1" })).rejects.toMatchObject({ code: "ASSISTANT_TURN_STALE" });
+    expect(mockedDb.assistantUsage.findUnique).toHaveBeenCalledWith({ where: { conversationId_requestId: { conversationId: "conv_1", requestId: "r1" } }, select: { id: true } });
+  });
+  it("never treats free-text model ids as a saved candidate selection", () => {
+    const state = { question: "Which Ada?", choices: [{ id: "owned-a", label: "Ada · 0801" }],
+      originalRequest: { kind: "create_customer" as const, name: "Ada", phone: null, email: null, address: null, notes: null },
+      evidence: { text: "Create Ada", recentOwnerTexts: [], selectedIds: [] }, createdAt: now.toISOString() };
+    expect(selectClarification(state, "owned-a")).toBeNull();
+    expect(selectClarification(state, "Ada · 0801")?.evidence.selectedIds).toEqual(["owned-a"]);
+    expect(selectClarification(state, "1")?.evidence.text).toBe("Create Ada");
+  });
+  it("keeps WEB and WhatsApp history scoped at the memory boundary", async () => {
+    mockedDb.assistantConversation.findFirst.mockImplementation(async ({ where }: any) => where.channel === scope.channel ? liveConversation : null);
+    await expect(loadTurnMemory({ ...scope, channel: "WEB" }, { conversationId: "conv_1", leaseToken: "generation-1", memoryVersion: 2 }, now)).rejects.toMatchObject({ code: "CONVERSATION_NOT_FOUND" });
+    await expect(loadTurnMemory(scope, { conversationId: "conv_1", leaseToken: "generation-1", memoryVersion: 2 }, now)).resolves.toMatchObject({ clarification: null, editing: null });
+  });
+});
+
+describe("fresh claim clock", () => {
+  it("starts the full thirty-second lease after a delayed lock acquisition", async () => {
+    let release!: () => void;
+    let entered!: () => void;
+    const wait = new Promise<void>((resolve) => { release = resolve; });
+    const locked = new Promise<void>((resolve) => { entered = resolve; });
+    mockedDb.assistantConversation.updateMany.mockImplementationOnce(async () => { entered(); await wait; return { count: 1 }; });
+    const pending = claimTurnLease(scope, "r1");
+    await locked;
+    vi.setSystemTime(new Date(now.getTime() + 20_000));
+    release(); await pending;
+    expect(mockedDb.assistantConversation.updateMany).toHaveBeenNthCalledWith(2, expect.objectContaining({ data: expect.objectContaining({
+      lastActiveAt: new Date(now.getTime() + 20_000), leaseExpiresAt: new Date(now.getTime() + 50_000),
+    }) }));
   });
 });

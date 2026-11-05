@@ -25,8 +25,8 @@ const dateTime = new Intl.DateTimeFormat("en-GB", {
 });
 
 function result(data: JsonValue, text: string): ReadResult {
-  const suffix = "\nReply shortened. Narrow your request for more detail.";
-  return { data, text: text.length <= TEXT_LIMIT ? text : text.slice(0, TEXT_LIMIT - suffix.length) + suffix };
+  return { data, text: text.length <= TEXT_LIMIT ? text
+    : "That report is too large for chat. Please choose one customer, item or shorter period so I can show every detail." };
 }
 
 function listing(shown: number, total: number, noun: string): string {

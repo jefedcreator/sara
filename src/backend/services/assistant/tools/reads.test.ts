@@ -270,10 +270,11 @@ describe("executeRead", () => {
     await expect(executeRead(scope, { name: "share_link", kind, id: "foreign" }, now)).rejects.toThrow("Active item not found");
   });
 
-  it("caps text at 8000 characters with explicit truncation wording", async () => {
+  it("asks to narrow an oversized report without slicing names, money or other facts", async () => {
     vi.mocked(customerService.list).mockResolvedValue({ data: [{ ...customer, name: "A".repeat(10000) }], total: 1 });
     const output = await executeRead(scope, { name: "find_customers", query: "A" }, now);
-    expect(output.text).toHaveLength(8000);
-    expect(output.text).toContain("Reply shortened");
+    expect(output.text).toBe("That report is too large for chat. Please choose one customer, item or shorter period so I can show every detail.");
+    expect(output.text).not.toContain("AAA");
+    expect(output.data).toMatchObject({ total: 1, truncated: false, customers: [{ id: customer.id, name: "A".repeat(10000) }] });
   });
 });

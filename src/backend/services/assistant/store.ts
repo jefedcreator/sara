@@ -316,6 +316,7 @@ function replay(conversationId: string, row: AssistantTurn): AssistantReply {
 export async function claimTurnLease(
   scope: AssistantScope,
   requestId: string,
+  signal?: AbortSignal,
 ): Promise<TurnClaim> {
   if (requestId.startsWith("approve:")) {
     throw storeError("ASSISTANT_REQUEST_ID_RESERVED");
@@ -331,10 +332,11 @@ export async function claimTurnLease(
     // Acquire the scope lock before reading the clock: an UPDATE can wait.
     await tx.assistantConversation.updateMany({
       where: { id: conversation.id, ...scope },
-      data: { lastActiveAt: conversation.lastActiveAt },
+      data: { memoryVersion: { increment: 0 } },
     });
     const beforeClaim = await tx.assistantConversation.findUniqueOrThrow({ where: { id: conversation.id } });
     const now = new Date();
+    signal?.throwIfAborted();
     if (beforeClaim.leaseExpiresAt && beforeClaim.leaseExpiresAt > now) return "busy";
     const leaseToken = randomUUID();
     const claimed = await tx.assistantConversation.updateMany({
@@ -408,6 +410,7 @@ export async function claimTurnLease(
         toolRecords: [],
       },
     });
+    signal?.throwIfAborted();
     return {
       status: "claimed" as const,
       conversationId: conversation.id,
@@ -448,6 +451,7 @@ export async function saveTurn(
   scope: AssistantScope,
   requestId: string,
   turn: SaveTurnInput,
+  signal?: AbortSignal,
 ): Promise<void> {
   const conversation = await getConversation(scope);
   if (!turn.leaseToken || turn.memoryVersion === undefined) {
@@ -463,10 +467,11 @@ export async function saveTurn(
   const leaseToken = turn.leaseToken;
   await db.$transaction(async (tx) => {
     await tx.assistantConversation.updateMany({
-      where: { id: conversation.id, ...scope }, data: { lastActiveAt: conversation.lastActiveAt },
+      where: { id: conversation.id, ...scope }, data: { memoryVersion: { increment: 0 } },
     });
     const locked = await tx.assistantConversation.findUniqueOrThrow({ where: { id: conversation.id } });
     const now = new Date();
+    signal?.throwIfAborted();
     if (locked.leaseToken !== leaseToken || locked.memoryVersion !== memoryVersion ||
         !locked.leaseExpiresAt || locked.leaseExpiresAt <= now) throw storeError("ASSISTANT_TURN_STALE");
     const current = await tx.assistantConversation.updateMany({
@@ -495,6 +500,7 @@ export async function saveTurn(
       },
     });
     if (saved.count !== 1) throw storeError("ASSISTANT_TURN_STALE");
+    signal?.throwIfAborted();
   });
 }
 
@@ -525,9 +531,54 @@ const ownerEvidenceSchema = z.object({
 const clarificationStateSchema = z.object({
   question: z.string(), choices: z.array(z.object({ id: z.string(), label: z.string() })),
   originalRequest: draftRequestSchema, evidence: ownerEvidenceSchema, createdAt: z.iso.datetime(),
+  existingSelection: z.object({ id: z.string(), label: z.string() }).optional(),
 });
 export type StoredClarification = z.infer<typeof clarificationStateSchema>;
 export type TurnFence = Pick<TurnLease, "conversationId" | "leaseToken" | "memoryVersion">;
+
+/** Revalidate the current generation and the exact fresh reservation before paid work. */
+export async function assertTurnCurrent(scope: AssistantScope, fence: TurnFence,
+  reservation?: { id: string; requestId: string }): Promise<void> {
+  const current = await assertConversation(scope, fence.conversationId);
+  if (current.memoryVersion !== fence.memoryVersion || current.leaseToken !== fence.leaseToken ||
+      !current.leaseExpiresAt || current.leaseExpiresAt <= new Date()) throw storeError("ASSISTANT_TURN_STALE");
+  if (reservation) {
+    const usage = await db.assistantUsage.findUnique({ where: {
+      conversationId_requestId: { conversationId: fence.conversationId, requestId: reservation.requestId },
+    }, select: { id: true } });
+    if (usage?.id !== reservation.id) throw storeError("ASSISTANT_RESERVATION_STALE");
+    // A reset can race the reservation read too.
+    await assertTurnCurrent(scope, fence);
+  }
+}
+
+const readPageSchema = z.object({ kind: z.literal("read_pages"), pages: z.array(z.string().max(3_500)).min(1).max(32),
+  next: z.number().int().min(0), createdAt: z.iso.datetime() });
+export type StoredReadPages = z.infer<typeof readPageSchema>;
+export async function hasPendingReadPage(scope: AssistantScope, now = new Date()): Promise<boolean> {
+  const current = await getConversation(scope);
+  const state = readPageSchema.safeParse(current.clarification);
+  return state.success && state.data.next < state.data.pages.length && Date.parse(state.data.createdAt) > now.getTime() - RECENT_MS;
+}
+
+export async function saveReadPages(scope: AssistantScope, fence: TurnFence, pages: string[], next: number, signal: AbortSignal): Promise<void> {
+  await saveConversationContext(scope, fence, { kind: "read_pages", pages, next, createdAt: new Date().toISOString() }, signal);
+}
+
+async function saveConversationContext(scope: AssistantScope, fence: TurnFence, state: unknown, signal: AbortSignal): Promise<void> {
+  await db.$transaction(async (tx) => {
+    await tx.assistantConversation.updateMany({ where: { id: fence.conversationId, ...scope }, data: { memoryVersion: { increment: 0 } } });
+    const current = await tx.assistantConversation.findFirst({ where: { id: fence.conversationId, ...scope } });
+    const now = new Date();
+    signal.throwIfAborted();
+    if (!current || current.leaseToken !== fence.leaseToken || current.memoryVersion !== fence.memoryVersion ||
+        !current.leaseExpiresAt || current.leaseExpiresAt <= now) throw storeError("ASSISTANT_TURN_STALE");
+    await tx.assistantConversation.update({ where: { id: current.id }, data: {
+      clarification: state === null ? Prisma.DbNull : state as Prisma.InputJsonValue, lastActiveAt: now,
+    } });
+    signal.throwIfAborted();
+  });
+}
 
 /** Server-owned candidate ids; callers use this before routing menu numbers. */
 export async function hasPendingClarification(scope: AssistantScope, now = new Date()): Promise<boolean> {
@@ -538,31 +589,21 @@ export async function hasPendingClarification(scope: AssistantScope, now = new D
 
 export async function saveClarification(
   scope: AssistantScope, fence: TurnFence, clarification: Clarification,
-  evidence: OwnerEvidence, signal: AbortSignal,
+  evidence: OwnerEvidence, signal: AbortSignal, existingSelection?: { id: string; label: string },
 ): Promise<void> {
-  await db.$transaction(async (tx) => {
-    await tx.assistantConversation.updateMany({
-      where: { id: fence.conversationId, ...scope }, data: { lastActiveAt: new Date() },
-    });
-    const current = await tx.assistantConversation.findFirst({ where: { id: fence.conversationId, ...scope } });
-    const now = new Date();
-    signal.throwIfAborted();
-    if (!current || current.leaseToken !== fence.leaseToken || current.memoryVersion !== fence.memoryVersion ||
-        !current.leaseExpiresAt || current.leaseExpiresAt <= now) throw storeError("ASSISTANT_TURN_STALE");
-    await tx.assistantConversation.update({
-      where: { id: current.id },
-      data: { clarification: { ...clarification, evidence, createdAt: now.toISOString() } as unknown as Prisma.InputJsonValue },
-    });
-  });
+  await saveConversationContext(scope, fence, { ...clarification, evidence, createdAt: new Date().toISOString(),
+    ...(existingSelection ? { existingSelection } : {}) }, signal);
 }
 
 export type TurnMemory = {
   clarification: StoredClarification | null;
   editing: { summary: string; originalRequest: DraftRequest; evidence: OwnerEvidence } | null;
+  readPages?: StoredReadPages | null;
 };
 export async function loadTurnMemory(scope: AssistantScope, fence: TurnFence, now: Date): Promise<TurnMemory> {
   const conversation = await assertConversation(scope, fence.conversationId);
-  if (conversation.memoryVersion !== fence.memoryVersion || conversation.leaseToken !== fence.leaseToken) {
+  if (conversation.memoryVersion !== fence.memoryVersion || conversation.leaseToken !== fence.leaseToken ||
+      !conversation.leaseExpiresAt || conversation.leaseExpiresAt <= new Date()) {
     throw storeError("ASSISTANT_TURN_STALE");
   }
   const parsed = clarificationStateSchema.safeParse(conversation.clarification);
@@ -577,13 +618,15 @@ export async function loadTurnMemory(scope: AssistantScope, fence: TurnFence, no
       if (request.success && evidence.success) editing = { summary: action.summary, originalRequest: request.data, evidence: evidence.data };
     }
   }
-  return { clarification, editing };
+  const pages = readPageSchema.safeParse(conversation.clarification);
+  return { clarification, editing, readPages: pages.success && Date.parse(pages.data.createdAt) > now.getTime() - RECENT_MS ? pages.data : null };
 }
 
 /** Substitute only ids from the saved candidate set; never accept ids from owner/model JSON. */
-export function selectClarification(state: StoredClarification, text: string): { request: DraftRequest; evidence: OwnerEvidence } | null {
-  if (!/^[1-9]\d*$/.test(text.trim())) return null;
-  const selected = state.choices[Number(text.trim()) - 1];
+export function selectClarification(state: StoredClarification, text: string): { request: DraftRequest; evidence: OwnerEvidence; selected: { id: string; label: string } } | null {
+  const normalized = text.trim();
+  const matches = state.choices.filter((choice) => choice.label.toLocaleLowerCase() === normalized.toLocaleLowerCase());
+  const selected = /^[1-9]\d*$/.test(normalized) ? state.choices[Number(normalized) - 1] : matches.length === 1 ? matches[0] : undefined;
   if (!selected) return null;
   const candidates = new Set(state.choices.map((choice) => choice.id));
   const replace = (value: unknown): unknown => {
@@ -593,6 +636,7 @@ export function selectClarification(state: StoredClarification, text: string): {
     return value;
   };
   return {
+    selected,
     request: draftRequestSchema.parse(replace(state.originalRequest)),
     evidence: { ...state.evidence, selectedIds: [...new Set([...state.evidence.selectedIds, selected.id])] },
   };

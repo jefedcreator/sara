@@ -350,3 +350,24 @@ describe("draft expiry, editing and cancellation", () => {
     expect(state.actions[1].status).toBe("PENDING");
   });
 });
+
+describe("cancellation during final preview writes", () => {
+  it.each(["insert", "conversation-update"])("rolls back the new action, replacement and editing state when cancelled during %s", async (phase) => {
+    state.actions.push(action());
+    state.conversation.editingActionId = "draft-old";
+    const controller = new AbortController();
+    const target = phase === "insert" ? mocked.assistantAction.create : mocked.assistantConversation.update;
+    const write = target.getMockImplementation();
+    let entered!: () => void;
+    let release!: () => void;
+    const waiting = new Promise<void>((resolve) => { release = resolve; });
+    const writing = new Promise<void>((resolve) => { entered = resolve; });
+    target.mockImplementationOnce(async (args: unknown) => { entered(); await waiting; return write(args); });
+    const pending = createDraft(scope, prepared, 3, now, { ...publication, signal: controller.signal });
+    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    await writing;
+    controller.abort(); release(); await rejected;
+    expect(state.actions.map((row) => [row.id, row.status])).toEqual([["draft-old", "PENDING"]]);
+    expect(state.conversation.editingActionId).toBe("draft-old");
+  });
+});

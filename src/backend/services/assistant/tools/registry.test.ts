@@ -67,3 +67,62 @@ describe("curated registry", () => {
     expect(createDraft).not.toHaveBeenCalled();
   });
 });
+
+describe("safe validation and continuation fences", () => {
+  it.each([
+    [{ kind: "record_invoice_payment", invoiceId: "i1", amount: null, method: "CASH", createReceipt: false }, "amount"],
+    [{ kind: "record_invoice_payment", invoiceId: "i1", amount: { amountMinor: 100, quote: "paid 100" }, method: null, createReceipt: false }, "cash or bank transfer"],
+  ])("returns a focused code-written question for invalid request %o", async (args, expected) => {
+    // Both variants deliberately include an invalid field; no resolver/provider is called.
+    const outcome = await dispatchTool(context, "draft_record_invoice_payment", JSON.stringify(args));
+    expect(outcome).toMatchObject({ kind: "error", code: "INVALID_ARGUMENTS" });
+    if (outcome.kind === "error") expect(outcome.question?.toLowerCase()).toContain(expected);
+    expect(resolveDraft).not.toHaveBeenCalled();
+  });
+  it("maps only exact known domain failures to safe questions", async () => {
+    vi.mocked(resolveDraft).mockRejectedValue(new Error("Please state the receipt amount"));
+    expect(await dispatchTool(context, "draft_create_customer", JSON.stringify(request))).toMatchObject({ kind: "error", question: "How much was paid?" });
+    vi.mocked(resolveDraft).mockRejectedValue(new Error("private account body sk-secret"));
+    const unknown = await dispatchTool(context, "draft_create_customer", JSON.stringify(request));
+    expect(JSON.stringify(unknown)).not.toContain("sk-secret");
+  });
+  it("rejects unrelated previews while the original request needs clarification", async () => {
+    const outcome = await dispatchTool({ ...context, pendingClarification: { originalRequest: request } }, "draft_adjust_stock", "{}");
+    expect(outcome).toMatchObject({ code: "CLARIFICATION_PENDING" }); expect(resolveDraft).not.toHaveBeenCalled();
+  });
+  it("checks the server-owned current generation before any service dispatch", async () => {
+    const checkCurrent = vi.fn().mockRejectedValue(new Error("ASSISTANT_TURN_STALE"));
+    await expect(dispatchTool({ ...context, checkCurrent }, "orders_to_send", '{"name":"orders_to_send"}')).rejects.toThrow("ASSISTANT_TURN_STALE");
+    expect(executeRead).not.toHaveBeenCalled(); expect(resolveDraft).not.toHaveBeenCalled();
+  });
+  it("does not repeat an unchanged duplicate create after selecting the existing record", async () => {
+    const outcome = await dispatchTool({ ...context, pendingClarification: { originalRequest: request, existingSelection: { id: "c2", label: "Ada" } } }, "draft_create_customer", JSON.stringify(request));
+    expect(outcome).toMatchObject({ code: "NEW_NAME_REQUIRED" }); expect(resolveDraft).not.toHaveBeenCalled();
+  });
+});
+
+describe("offline full request continuation", () => {
+  it.each(["PICKUP", "DELIVERY"])("retains the original receipt while resolving the free-text %s answer", async (fulfilment) => {
+    const { runModelTurn } = await import("../loop");
+    const { UsageAccumulator } = await import("../usage");
+    const originalRequest = { kind: "create_receipt" as const, customer: null,
+      lines: [{ kind: "product" as const, id: "option-owned", name: null, quantity: 2, priceOverride: null }], amount: null,
+      method: "CASH" as const, fulfilment: null, deliveryAddress: null, notes: "Keep original notes" };
+    const answer = fulfilment === "PICKUP" ? "pickup" : "delivery to 24 Lagos Road";
+    const completed = { ...originalRequest, fulfilment, deliveryAddress: fulfilment === "DELIVERY" ? "24 Lagos Road" : null };
+    const draft = { id: "d1", summary: "Preview exact saved receipt", status: "PENDING" as const, expiresAt: "2026-11-06" };
+    vi.mocked(resolveDraft).mockResolvedValue({ kind: "create_receipt", payload: {}, snapshot: {} });
+    vi.mocked(createDraft).mockResolvedValue(draft);
+    const transport = vi.fn<import("../loop").ResponsesTransport>().mockImplementation(async (params) => {
+      expect(JSON.stringify(params.input)).toContain("option-owned");
+      expect(JSON.stringify(params.input)).toContain("Keep original notes");
+      expect(JSON.stringify(params.input)).toContain(answer);
+      return { output: [{ type: "function_call", name: "draft_create_receipt", call_id: "continue", arguments: JSON.stringify(completed) }], usage: null };
+    });
+    const clarification = { originalRequest, question: "Pickup or delivery?", choices: [], evidence: context.evidence, createdAt: new Date().toISOString() };
+    const result = await runModelTurn({ context: { ...context, pendingClarification: clarification }, text: answer,
+      clarification, business: { name: "Shop", currency: "NGN", sells: "PRODUCTS" }, usage: new UsageAccumulator(), transport, dispatch: dispatchTool });
+    expect(result.draft).toEqual(draft);
+    expect(resolveDraft).toHaveBeenCalledWith(expect.anything(), context.scope, completed, context.evidence, context.now);
+  });
+});

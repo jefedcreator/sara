@@ -61,6 +61,7 @@ function safeRequestId(value: unknown): string | undefined {
 export async function transcribeAudio(
   source: AudioInput | AudioLoader,
   signal: AbortSignal,
+  beforePaidCall?: () => Promise<void>,
 ): Promise<{ text: string; seconds: number; providerRequestId?: string }> {
   throwIfAudioAborted(signal);
   // This check also prevents a lazy loader from downloading when switched off.
@@ -93,6 +94,8 @@ export async function transcribeAudio(
       if (duration > MAX_AUDIO_SECONDS) throw new AudioError("AUDIO_TOO_LONG");
     }
     const file = await toFile(audio.bytes, filename, { type: mime === "video/webm" ? "audio/webm" : mime });
+    throwIfAudioAborted(signal);
+    await beforePaidCall?.();
     throwIfAudioAborted(signal);
     attempted = true;
     const { data: result, request_id } = await getOpenAI().audio.transcriptions.create({

@@ -110,10 +110,12 @@ export async function createDraft(
         summary, status: "PENDING", expiresAt,
       },
     });
+    publication.signal?.throwIfAborted();
     await tx.assistantConversation.update({
       where: { id: publication.conversationId },
       data: { editingActionId: null, clarification: Prisma.DbNull },
     });
+    publication.signal?.throwIfAborted();
     return dto(draft);
   });
 }

@@ -161,3 +161,20 @@ describe("transcriptPrefix", () => {
     expect(transcriptPrefix("😀".repeat(201))).toBe(`🎙️ "${"😀".repeat(199)}…"\n\n`);
   });
 });
+
+describe("server-owned paid-call fence", () => {
+  it.each(["download", "metadata"])("blocks Whisper when reset happens during %s", async (phase) => {
+    let stale = false;
+    const beforePaidCall = vi.fn(async () => { if (stale) throw new Error("ASSISTANT_TURN_STALE"); });
+    let release!: () => void;
+    let entered!: () => void;
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const started = new Promise<void>((resolve) => { entered = resolve; });
+    const loader = vi.fn(async () => { if (phase === "download") { entered(); await pending; } return ogg(); });
+    if (phase === "metadata") mocks.parse.mockImplementationOnce(async () => { entered(); await pending; return metadata(); });
+    const work = transcribeAudio(loader, signal(), beforePaidCall);
+    const rejected = expect(work).rejects.toMatchObject({ code: "AUDIO_UNREADABLE" });
+    await started; stale = true; release(); await rejected;
+    expect(beforePaidCall).toHaveBeenCalledTimes(1); expect(mocks.create).not.toHaveBeenCalled();
+  });
+});
