@@ -34,7 +34,7 @@ describe("POST /api/webhooks/whatsapp", () => {
   it("processes messages, sends replies, returns 200", async () => {
     mockedAdapter.isAuthentic.mockReturnValue(true);
     mockedAdapter.normalizeInbound.mockReturnValue([
-      { channel: "WHATSAPP", externalId: "234800", text: "1", messageId: "m1" },
+      { channel: "WHATSAPP", externalId: "234800", kind: "text", text: "1", messageId: "m1" },
     ]);
     mockedEngine.handle.mockResolvedValue({ text: "Customer's name?" });
     const res = await POST(postReq({ entry: [] }));
@@ -49,10 +49,29 @@ describe("POST /api/webhooks/whatsapp", () => {
     expect(res.status).toBe(200);
   });
 
+  it("passes audio metadata and button IDs to the engine and preserves outbound controls", async () => {
+    mockedAdapter.isAuthentic.mockReturnValue(true);
+    const messages = [
+      { channel: "WHATSAPP", externalId: "234800", kind: "voice", mediaId: "media1", mime: "audio/ogg; codecs=opus", messageId: "m-audio" },
+      { channel: "WHATSAPP", externalId: "234800", kind: "button", buttonId: "assistant:send:action_1", messageId: "m-button" },
+    ];
+    const reply = { text: "Create the invoice for NGN 45,000?", buttons: [
+      { id: "assistant:send:action_1", title: "Send it" },
+      { id: "assistant:change:action_1", title: "Change something" },
+    ] };
+    mockedAdapter.normalizeInbound.mockReturnValue(messages);
+    mockedEngine.handle.mockResolvedValue(reply);
+    const res = await POST(postReq({ entry: [] }));
+    expect(res.status).toBe(200);
+    for (const message of messages) expect(mockedEngine.handle).toHaveBeenCalledWith(message, expect.objectContaining({ onProgress: expect.any(Function) }));
+    expect(mockedAdapter.send).toHaveBeenCalledTimes(2);
+    expect(mockedAdapter.send).toHaveBeenCalledWith("234800", reply);
+  });
+
   it("passes onProgress and sends intermediate loading message", async () => {
     mockedAdapter.isAuthentic.mockReturnValue(true);
     mockedAdapter.normalizeInbound.mockReturnValue([
-      { channel: "WHATSAPP", externalId: "234800", text: "yes", messageId: "m1" },
+      { channel: "WHATSAPP", externalId: "234800", kind: "text", text: "yes", messageId: "m1" },
     ]);
 
     mockedEngine.handle.mockImplementation(async (_msg: any, options: any) => {

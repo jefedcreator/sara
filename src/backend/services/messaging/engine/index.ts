@@ -149,6 +149,9 @@ class ConversationEngine {
     message: InboundMessage,
     options?: HandleOptions,
   ): Promise<OutboundMessage | null> {
+    // Task 15 routes these to the assistant. Until then, never put a media or
+    // button id into a typed menu field or consume the menu's message claim.
+    if (message.kind !== "text") return null;
     const identity = await chatSessionService.findIdentity(
       message.channel,
       message.externalId,

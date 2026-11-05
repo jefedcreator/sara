@@ -60,7 +60,7 @@ export async function POST(request: Request) {
       messageCount: messages.length,
       messages: messages.map((m) => ({
         from: m.externalId,
-        text: m.text,
+        text: m.kind === "text" ? m.text : undefined,
         id: m.messageId,
       })),
       rawPreview: rawBody.slice(0, 200),
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
 
     await Promise.all(
       messages.map(async (message) => {
-        console.log(`[WhatsApp Webhook] Handling message from ${message.externalId}: "${message.text}"`);
+        console.log(`[WhatsApp Webhook] Handling message from ${message.externalId}: "${message.kind === "text" ? message.text : message.kind}"`);
         const reply = await conversationEngine.handle(message, {
           onProgress: async (progressMsg) => {
             console.log(`[WhatsApp Webhook] Sending progress message to ${message.externalId}: "${progressMsg.text}"`);
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
         } else {
           recordLog("no_reply", {
             from: message.externalId,
-            text: message.text,
+            text: message.kind === "text" ? message.text : undefined,
           });
         }
       }),

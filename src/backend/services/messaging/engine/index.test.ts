@@ -47,7 +47,7 @@ const mockedDispatch = intentDispatcher as any;
 const mockedCustomers = customerService as any;
 
 function inbound(text: string, messageId = "m1"): InboundMessage {
-  return { channel: "WHATSAPP", externalId: "234800", text, messageId };
+  return { channel: "WHATSAPP", externalId: "234800", kind: "text", text, messageId };
 }
 const IDENTITY = {
   id: "id_1", businessId: "biz_1",
@@ -100,6 +100,17 @@ describe("linking", () => {
 });
 
 describe("idempotency", () => {
+  it("leaves nontext input for future assistant routing without consuming a menu claim", async () => {
+    for (const message of [
+      { channel: "WHATSAPP" as const, externalId: "234800", messageId: "voice", kind: "voice" as const, mediaId: "media1", mime: "audio/ogg" },
+      { channel: "WHATSAPP" as const, externalId: "234800", messageId: "button", kind: "button" as const, buttonId: "assistant:send:a" },
+    ]) expect(await conversationEngine.handle(message)).toBeNull();
+    expect(mockedSession.findIdentity).not.toHaveBeenCalled();
+    expect(mockedSession.claimMessage).not.toHaveBeenCalled();
+    expect(mockedSession.save).not.toHaveBeenCalled();
+    expect(mockedDispatch.createInvoice).not.toHaveBeenCalled();
+  });
+
   it("drops a duplicate messageId", async () => {
     mockedSession.claimMessage.mockResolvedValue(false);
     const reply = await conversationEngine.handle(inbound("1", "m1"));

@@ -1,15 +1,21 @@
 import type { ChatChannel } from "@prisma/client";
 
-export type InboundMessage = {
+type InboundBase = {
   channel: ChatChannel;
   externalId: string;
-  text: string;
   messageId: string;
   displayName?: string;
 };
 
+export type InboundMessage = InboundBase & (
+  | { kind: "text"; text: string }
+  | { kind: "voice"; mediaId: string; mime: string | null }
+  | { kind: "button"; buttonId: string }
+);
+
 export type OutboundMessage = {
   text: string;
+  buttons?: { id: string; title: string }[];
 };
 
 /** `code` is the platform's error code (Meta's `error.code`), when it gave one. */

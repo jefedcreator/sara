@@ -86,14 +86,28 @@ class WhatsAppAdapter implements ChannelAdapter {
           | string
           | undefined;
         for (const msg of value?.messages ?? []) {
-          if (msg?.type !== "text" || !msg?.text?.body) continue;
-          out.push({
-            channel: "WHATSAPP",
-            externalId: String(msg.from),
-            text: String(msg.text.body),
-            messageId: String(msg.id),
-            displayName: contactName,
-          });
+          if (typeof msg?.from !== "string" || !msg.from ||
+              typeof msg?.id !== "string" || !msg.id) continue;
+          const base = {
+            channel: "WHATSAPP" as const,
+            externalId: msg.from as string,
+            messageId: msg.id as string,
+            ...(typeof contactName === "string" ? { displayName: contactName } : {}),
+          };
+          if (msg.type === "text" && typeof msg.text?.body === "string" && msg.text.body) {
+            out.push({ ...base, kind: "text", text: msg.text.body });
+          } else if (msg.type === "audio" && typeof msg.audio?.id === "string" && msg.audio.id) {
+            out.push({
+              ...base, kind: "voice", mediaId: msg.audio.id,
+              mime: typeof msg.audio.mime_type === "string" ? msg.audio.mime_type : null,
+            });
+          } else if (msg.type === "interactive" && msg.interactive?.type === "button_reply") {
+            const id: unknown = msg.interactive.button_reply?.id;
+            if (typeof id === "string" && id.length > 0 && id.length <= 256 &&
+                id.trim() === id && !/[\u0000-\u001f\u007f]/.test(id)) {
+              out.push({ ...base, kind: "button", buttonId: id });
+            }
+          }
         }
       }
     }
@@ -101,6 +115,28 @@ class WhatsAppAdapter implements ChannelAdapter {
   }
 
   async send(externalId: string, message: OutboundMessage): Promise<SendResult> {
+    const buttons = message.buttons;
+    if (buttons?.length) {
+      if (buttons.length > 3 || new Set(buttons.map(({ id }) => id)).size !== buttons.length ||
+          buttons.some(({ id, title }) => !id || id.length > 256 || id.trim() !== id ||
+            /[\u0000-\u001f\u007f]/.test(id) || !title.trim() || Array.from(title).length > 20)) {
+        throw new Error("WHATSAPP_INVALID_BUTTONS");
+      }
+      if (message.text.length > 4_096) throw new Error("WHATSAPP_MESSAGE_TOO_LONG");
+      let body = message.text;
+      if (body.length > 1_024) {
+        const summary = await this.send(externalId, { text: message.text });
+        if (!summary.ok) return summary;
+        body = "Use the summary above.";
+      }
+      return this.post(externalId, {
+        messaging_product: "whatsapp", to: externalId, type: "interactive",
+        interactive: {
+          type: "button", body: { text: body },
+          action: { buttons: buttons.map(({ id, title }) => ({ type: "reply", reply: { id, title } })) },
+        },
+      });
+    }
     // Meta builds the preview as it sends, and a card that comes late goes
     // out small: render it first so the card route answers from memory.
     const url = extractFirstUrl(message.text);
