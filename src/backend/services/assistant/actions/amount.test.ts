@@ -138,7 +138,25 @@ describe("whole amount evidence", () => {
     ["five thousand", 500000, "Use forty-five thousand"],
     ["500", 50000, "Phone 08035550000"],
     ["45,000", 4500000, "Use -45,000"],
+    ["five", 500, "Use forty five thousand"],
+    ["forty five", 4500, "Use forty five thousand"],
+    ["45", 4500, "Use 45 thousand"],
+    ["45,000", 4500000, "Use minus 45,000"],
+    ["45,000", 4500000, "Use negative 45,000"],
+    ["45,000", 4500000, "Use - 45,000"],
+    ["five", 500, "Use five point five"],
+    ["five", 500, "Use five point zero"],
+    ["five", 500, "Use one hundred and five"],
   ])("cannot take %s out of another amount or token", (quote, minor, text) => {
     expect(() => verifyOwnerPrice({ quote: String(quote), amountMinor: Number(minor) }, { text: String(text), recentOwnerTexts: [], selectedIds: [] })).toThrow("price");
+  });
+
+  it.each([
+    ["45,000", 4_500_000, "Use NGN 45,000."],
+    ["45,000", 4_500_000, "Use 45,000 naira and installation at 5,000"],
+    ["forty five thousand", 4_500_000, "Use forty five thousand"],
+    ["five point five", 550, "Use five point five naira"],
+  ])("accepts complete amount %s with currency or sentence punctuation", (quote, minor, text) => {
+    expect(verifyOwnerPrice({ quote: String(quote), amountMinor: Number(minor) }, { text: String(text), recentOwnerTexts: [], selectedIds: [] })).toBe(minor);
   });
 });

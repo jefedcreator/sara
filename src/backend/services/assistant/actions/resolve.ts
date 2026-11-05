@@ -1,7 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
-import { normalizeEmail, normalizePhone } from "@/backend/services/customer/normalize";
-import { availableStock } from "@/backend/services/product/stock";
+import { nameKey, normalizeEmail, normalizePhone } from "@/backend/services/customer/normalize";
+import { activeHoldsWhere, availableStock, requireAvailableStock } from "@/backend/services/product/stock";
 import { bookingTerms } from "@/backend/services/booking/terms";
 import { activeBookingWhere, blockingBookingsWhere } from "@/backend/services/booking/conflicts";
 import { updateCustomerValidatorSchema } from "@/backend/validators/customer.validator";
@@ -21,6 +21,8 @@ import type { Clarification, OwnerEvidence, PreparedAction, ResolvedPayloadByKin
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
 const DAY_MS = 86_400_000;
+// Prices, lines, documents and payments persist as Decimal(10,2).
+const MAX_PERSISTED_MINOR = 9_999_999_999;
 
 function resolveRelativeDate(text: string, now: Date): string {
   const lower = text.toLowerCase();
@@ -33,12 +35,16 @@ function resolveRelativeDate(text: string, now: Date): string {
 }
 
 function money(value: number): number {
-  if (!Number.isSafeInteger(value) || value < 0) throw new BadRequestException("The calculated amount is too large");
+  if (!Number.isSafeInteger(value) || value < 0 || value > MAX_PERSISTED_MINOR) throw new BadRequestException("The calculated amount is too large");
   return value;
 }
 
 function minorFromDecimal(value: { toNumber: () => number }): number {
   return money(Math.round(value.toNumber() * 100));
+}
+
+function ownerPrice(value: { quote: string; amountMinor: number }, evidence: OwnerEvidence): number {
+  return money(verifyOwnerPrice(value, evidence));
 }
 
 /** Convert known payloads and dates explicitly; never assert arbitrary data is JSON. */
@@ -74,6 +80,28 @@ function choose(request: DraftRequest, evidence: OwnerEvidence, id: string, cand
   return { question, choices: candidates.slice(0, 3).map((candidate) => ({ id: candidate.id, label: candidate.label })), originalRequest: request };
 }
 
+function chooseDocument(request: DraftRequest, evidence: OwnerEvidence, id: string,
+  candidates: Array<{ id: string; identifiers: string[]; label: string }>, question: string,
+): Clarification | null {
+  if (evidence.selectedIds.includes(id)) return null;
+  const texts = [evidence.text, ...evidence.recentOwnerTexts];
+  const explicit = candidates.filter((candidate) => candidate.identifiers.some((identifier) => mentioned(texts, identifier)));
+  if (explicit.length === 1 && explicit[0]?.id === id) return null;
+  return { question, choices: candidates.slice(0, 3).map(({ id: candidateId, label }) => ({ id: candidateId, label })), originalRequest: request };
+}
+
+async function chooseInvoice(tx: Prisma.TransactionClient, businessId: string, request: DraftRequest, evidence: OwnerEvidence, id: string): Promise<Clarification | null> {
+  const candidates = await tx.invoice.findMany({
+    where: { businessId },
+    select: { id: true, invoiceNumber: true, slug: true, publicId: true, clientName: true, status: true },
+    orderBy: { createdAt: "desc" },
+  });
+  return chooseDocument(request, evidence, id, candidates.map((row) => ({
+    id: row.id, identifiers: [row.invoiceNumber, row.slug, row.publicId, row.id],
+    label: `${row.invoiceNumber} · ${row.clientName} · ${row.status}`,
+  })), "Which invoice do you mean? Please select one or state its invoice number.");
+}
+
 const customerSelect = { id: true, name: true, phone: true, email: true, address: true, updatedAt: true } as const;
 function customerLabel(customer: { name: string | null; phone: string | null; email: string | null }): string {
   return [customer.name, customer.phone, customer.email].filter(Boolean).join(" · ");
@@ -99,6 +127,7 @@ async function resolveCustomerRef(tx: Prisma.TransactionClient, businessId: stri
   if (ref.phone?.trim() && !phone) throw new BadRequestException("Please provide a valid customer phone number");
   const matches = await tx.customer.findMany({ where: { businessId, OR: [
     ...(phone ? [{ phone }] : []), ...(email ? [{ email }] : []),
+    { nameKey: nameKey(ref.name) },
     { name: { contains: ref.name.trim(), mode: "insensitive" } },
   ] }, select: customerSelect });
   const selected = matches.find((row) => evidence.selectedIds.includes(row.id));
@@ -110,7 +139,7 @@ async function resolveCustomerRef(tx: Prisma.TransactionClient, businessId: stri
   return { resolved: { name: normalized.name ?? ref.name.trim(), phone, email, address: null }, willBeCreated: true, updatedAt: null };
 }
 
-type CatalogLine = { unitPriceMinor: number; isActive: boolean; productIsActive: boolean | null; tracksStock: boolean | null; id: string | null; kind: DraftLine["kind"]; updatedAt: string | null; productUpdatedAt: string | null; catalogPriceMinor: number | null; priceSource: "owner" | "catalog"; ownerQuote: string | null; availableStock: number | null };
+type CatalogLine = { unitPriceMinor: number; isActive: boolean; productIsActive: boolean | null; tracksStock: boolean | null; id: string | null; kind: DraftLine["kind"]; updatedAt: string | null; productUpdatedAt: string | null; optionName: string | null; optionPriceMinor: number | null; physicalStock: number | null; catalogPriceMinor: number | null; priceSource: "owner" | "catalog"; ownerQuote: string | null; availableStock: number | null };
 async function resolveLines(tx: Prisma.TransactionClient, businessId: string, lines: DraftLine[], evidence: OwnerEvidence, now: Date, request: DraftRequest): Promise<{
   lines: ResolvedPayloadByKind["create_invoice"]["lines"]; catalogLines: CatalogLine[]; stockBefore: Record<string, number | null>; stockAfter: Record<string, number | null>;
 } | Clarification> {
@@ -123,6 +152,9 @@ async function resolveLines(tx: Prisma.TransactionClient, businessId: string, li
     let updatedAt: string | null = null;
     let productUpdatedAt: string | null = null;
     let tracksStock: boolean | null = null;
+    let optionName: string | null = null;
+    let optionPriceMinor: number | null = null;
+    let physicalStock: number | null = null;
     if (line.kind === "custom") {
       if (!line.name || !line.priceOverride || line.id !== null) throw new BadRequestException("Custom lines need a name and price, with no catalog id");
       name = line.name.trim();
@@ -145,9 +177,11 @@ async function resolveLines(tx: Prisma.TransactionClient, businessId: string, li
       name = `${option.product.name}${option.name ? ` – ${option.name}` : ""}`;
       description = option.product.description;
       catalogPrice = minorFromDecimal(option.price ?? option.product.price);
-      updatedAt = option.updatedAt.toISOString(); productUpdatedAt = option.product.updatedAt.toISOString(); tracksStock = option.product.tracksStock;
+      // ProductOption has no timestamp; freeze its actual material fields instead.
+      productUpdatedAt = option.product.updatedAt.toISOString(); tracksStock = option.product.tracksStock;
+      optionName = option.name; optionPriceMinor = option.price === null ? null : minorFromDecimal(option.price); physicalStock = option.stock;
     }
-    const unitPriceMinor = line.priceOverride ? verifyOwnerPrice(line.priceOverride, evidence) : catalogPrice;
+    const unitPriceMinor = line.priceOverride ? ownerPrice(line.priceOverride, evidence) : catalogPrice;
     if (unitPriceMinor === null) throw new BadRequestException("Please state the price");
     const totalMinor = money(unitPriceMinor * line.quantity);
     // Existing shared line validator remains the second boundary layer.
@@ -155,7 +189,7 @@ async function resolveLines(tx: Prisma.TransactionClient, businessId: string, li
     const previous = resolved.find((row) => line.id !== null && row.kind === line.kind && row.id === line.id && row.unitPriceMinor === unitPriceMinor);
     if (previous) { previous.quantity += line.quantity; previous.totalMinor = money(previous.totalMinor + totalMinor); }
     else resolved.push({ kind: line.kind, id: line.id, name, description, quantity: line.quantity, unitPriceMinor, totalMinor, serviceId: line.kind === "service" ? line.id : null, productOptionId: line.kind === "product" ? line.id : null });
-    catalogLines.push({ unitPriceMinor, isActive: true, productIsActive: line.kind === "product" ? true : null, tracksStock, id: line.id, kind: line.kind, updatedAt, productUpdatedAt, catalogPriceMinor: catalogPrice, priceSource: line.priceOverride ? "owner" : "catalog", ownerQuote: line.priceOverride?.quote ?? null, availableStock: null });
+    catalogLines.push({ unitPriceMinor, isActive: true, productIsActive: line.kind === "product" ? true : null, tracksStock, id: line.id, kind: line.kind, updatedAt, productUpdatedAt, optionName, optionPriceMinor, physicalStock, catalogPriceMinor: catalogPrice, priceSource: line.priceOverride ? "owner" : "catalog", ownerQuote: line.priceOverride?.quote ?? null, availableStock: null });
   }
   const quantities = new Map<string, number>();
   for (const row of resolved) if (row.productOptionId) quantities.set(row.productOptionId, (quantities.get(row.productOptionId) ?? 0) + row.quantity);
@@ -183,19 +217,28 @@ function validateOptions(options: Array<{ name: string; optionId?: string | null
 
 async function stockChange(tx: Prisma.TransactionClient, businessId: string, lines: Array<{ productOptionId: string | null; name: string; quantity: number }>, now: Date, direction: 1 | -1) {
   const restockLines = lines.flatMap((line) => line.productOptionId ? [{ ...line, productOptionId: line.productOptionId }] : []);
-  const ids = restockLines.map((line) => line.productOptionId);
+  const ids = [...new Set(restockLines.map((line) => line.productOptionId))];
   const options = ids.length ? await tx.productOption.findMany({ where: { id: { in: ids }, product: { businessId } }, include: { product: true } }) : [];
   for (const id of ids) if (!options.some((row) => row.id === id)) throw new NotFoundException("Product option not found for this business");
-  const stockRows = options.map((row) => ({ id: row.id, updatedAt: row.updatedAt.toISOString(), productUpdatedAt: row.product.updatedAt.toISOString(), stock: row.stock, tracksStock: row.product.tracksStock, isActive: row.isActive, productIsActive: row.product.isActive }));
-  const available = await availableStock(tx, ids, now);
+  const held = ids.length ? await tx.orderLine.groupBy({
+    by: ["productOptionId"],
+    where: { productOptionId: { in: ids }, order: { businessId, ...activeHoldsWhere(now) } },
+    _sum: { quantity: true },
+  }) : [];
+  const heldByOption = new Map(held.map((row) => [row.productOptionId, row._sum.quantity ?? 0]));
+  const quantities = new Map<string, number>();
+  for (const line of restockLines) quantities.set(line.productOptionId, (quantities.get(line.productOptionId) ?? 0) + line.quantity);
+  const stockRows = options.map((row) => {
+    const heldQuantity = heldByOption.get(row.id) ?? 0;
+    const physicalStockAfter = row.product.tracksStock ? Math.max(0, row.stock + direction * (quantities.get(row.id) ?? 0)) : row.stock;
+    if (physicalStockAfter > 2_147_483_647) throw new BadRequestException("The resulting stock is too large");
+    return { id: row.id, name: row.name, priceMinor: row.price === null ? null : minorFromDecimal(row.price), productUpdatedAt: row.product.updatedAt.toISOString(), stock: row.stock, physicalStockAfter, heldQuantity, tracksStock: row.product.tracksStock, isActive: row.isActive, productIsActive: row.product.isActive };
+  });
   const stockBefore: Record<string, number | null> = {};
   const stockAfter: Record<string, number | null> = {};
-  for (const line of restockLines) {
-    if (!available.has(line.productOptionId)) throw new NotFoundException("Product stock not found");
-    const current = available.get(line.productOptionId) ?? null;
-    stockBefore[line.productOptionId] = current;
-    const previous = stockAfter[line.productOptionId] ?? current;
-    stockAfter[line.productOptionId] = previous === null ? null : Math.max(0, previous + direction * line.quantity);
+  for (const row of stockRows) {
+    stockBefore[row.id] = row.tracksStock ? Math.max(row.stock - row.heldQuantity, 0) : null;
+    stockAfter[row.id] = row.tracksStock ? Math.max(row.physicalStockAfter - row.heldQuantity, 0) : null;
   }
   return { restockLines, stockBefore, stockAfter, stockRows };
 }
@@ -295,7 +338,7 @@ export async function resolveDraft(
         }
       } else {
         if (!request.amount) throw new BadRequestException("Please state the receipt amount");
-        totalMinor = verifyOwnerPrice(request.amount, evidence);
+        totalMinor = ownerPrice(request.amount, evidence);
       }
 
       if (lines.some((row) => row.productOptionId !== null) && request.fulfilment) {
@@ -339,16 +382,19 @@ export async function resolveDraft(
         },
       });
       if (!invoice) throw new NotFoundException("Invoice not found");
+      const clarification = await chooseInvoice(tx, businessId, request, evidence, invoice.id);
+      if (clarification) return clarification;
       if (invoice.status === "PAID" || invoice.status === "VOID") {
         throw new BadRequestException("This invoice cannot record further payments");
       }
       const outstanding = minorFromDecimal(invoice.total) - minorFromDecimal(invoice.amountPaid);
-      const amount = verifyOwnerPrice(request.amount, evidence);
+      const amount = ownerPrice(request.amount, evidence);
       if (amount > outstanding) {
         throw new BadRequestException("Payment cannot exceed the outstanding balance");
       }
 
-      const createsOrder = !invoice.order && invoice.lines.some((line) => line.productOptionId !== null);
+      const createsOrder = minorFromDecimal(invoice.amountPaid) === 0 && !invoice.order && invoice.lines.some((line) => line.productOptionId !== null);
+      if (createsOrder) await requireAvailableStock(tx, businessId, invoice.lines.flatMap((line) => line.productOptionId ? [{ productOptionId: line.productOptionId, quantity: line.quantity }] : []), now);
       const saleStock = await stockChange(tx, businessId, createsOrder ? invoice.lines : [], now, -1);
       const payload: ResolvedPayloadByKind["record_invoice_payment"] = {
         invoiceId: invoice.id,
@@ -380,6 +426,8 @@ export async function resolveDraft(
         },
       });
       if (!invoice) throw new NotFoundException("Invoice not found");
+      const clarification = await chooseInvoice(tx, businessId, request, evidence, invoice.id);
+      if (clarification) return clarification;
       if (invoice.status === "PAID") {
         throw new BadRequestException("A paid invoice cannot be voided");
       }
@@ -420,6 +468,10 @@ export async function resolveDraft(
       });
       if (!order) throw new NotFoundException("Order not found");
 
+      const candidates = await tx.order.findMany({ where: { businessId }, select: { id: true, orderNumber: true, slug: true, publicId: true, clientName: true, status: true }, orderBy: { createdAt: "desc" } });
+      const clarification = chooseDocument(request, evidence, order.id, candidates.map((row) => ({ id: row.id, identifiers: [row.orderNumber, row.slug, row.publicId, row.id], label: `${row.orderNumber} · ${row.clientName} · ${row.status}` })), "Which order do you mean? Please select one or state its order number.");
+      if (clarification) return clarification;
+
       updateOrderValidatorSchema.parse({ status: request.status });
       if ((order.status !== "NEW" && order.status !== "READY") || (order.status === "READY" && request.status === "READY")) throw new BadRequestException("This order cannot move to that status");
       const restock = await stockChange(tx, businessId, request.status === "CANCELLED" ? order.lines : [], now, 1);
@@ -449,7 +501,7 @@ export async function resolveDraft(
       }
 
       stockAdjustValidatorSchema.parse({ optionId: request.optionId, ...(request.mode === "set" ? { set: request.quantity } : { add: request.mode === "remove" ? -request.quantity : request.quantity }) });
-      const candidates = await tx.productOption.findMany({ where: { productId: option.product.id, product: { businessId } }, include: { product: true } });
+      const candidates = await tx.productOption.findMany({ where: { product: { businessId, name: { contains: option.product.name.trim().split(/\s+/)[0] ?? option.product.name, mode: "insensitive" } } }, include: { product: true } });
       const clarification = choose(request, evidence, option.id, candidates.map((row) => ({ id: row.id, name: `${row.product.name} ${row.name}`.trim(), label: `${row.product.name} – ${row.name}` })), "Which product option should I adjust?");
       if (clarification) return clarification;
       const previous = option.stock;
@@ -475,7 +527,6 @@ export async function resolveDraft(
         optionName: option.name, productUpdatedAt: option.product.updatedAt.toISOString(), tracksStock: option.product.tracksStock,
         previousStock: previous,
         newStock,
-        updatedAt: option.updatedAt.toISOString(),
         ...baseSnapshot,
       };
       return { kind: "adjust_stock", payload: jsonObject(payload), snapshot };
@@ -489,6 +540,9 @@ export async function resolveDraft(
         },
       });
       if (!booking || booking.service.businessId !== businessId) throw new NotFoundException("Booking not found");
+      const candidates = await tx.booking.findMany({ where: { businessId }, select: { id: true, slug: true, publicId: true, clientName: true, startTime: true, service: { select: { name: true } } }, orderBy: { startTime: "desc" } });
+      const clarification = chooseDocument(request, evidence, booking.id, candidates.map((row) => ({ id: row.id, identifiers: [row.slug, row.publicId, row.id], label: `${row.clientName} · ${row.service.name} · ${row.startTime.toISOString()} · ${row.slug}` })), "Which booking do you mean? Please select one or state its booking reference.");
+      if (clarification) return clarification;
       const transitions: Record<string, string[]> = { PENDING: ["CONFIRMED", "CANCELLED"], CONFIRMED: ["COMPLETED", "CANCELLED"], COMPLETED: [], CANCELLED: [] };
       if (request.status && !transitions[booking.status]?.includes(request.status)) throw new BadRequestException("This booking cannot move to that status");
       updateBookingValidatorSchema.parse({ ...(request.status ? { status: request.status } : {}), ...(request.startTime ? { startTime: request.startTime } : {}) });
@@ -541,9 +595,9 @@ export async function resolveDraft(
       });
       if (existing) return { question: `A product named "${existing.name}" already exists. Should I update it, or use a different name?`, choices: [{ id: existing.id, label: existing.name }], originalRequest: request };
 
-      const priceMinor = verifyOwnerPrice(request.price, evidence);
+      const priceMinor = ownerPrice(request.price, evidence);
       const options = request.options.map((opt) => {
-        const optPrice = opt.price ? verifyOwnerPrice(opt.price, evidence) : null;
+        const optPrice = opt.price ? ownerPrice(opt.price, evidence) : null;
         if (request.tracksStock && opt.stock === null) throw new BadRequestException("State the stock for every tracked option");
         const stock = request.tracksStock ? opt.stock ?? 0 : 0;
         return { name: opt.name.trim(), priceMinor: optPrice, stock };
@@ -574,7 +628,7 @@ export async function resolveDraft(
       const candidates = await tx.product.findMany({ where: { businessId, name: { contains: product.name.trim().split(/\s+/)[0] ?? product.name, mode: "insensitive" } }, select: { id: true, name: true } });
       const clarification = choose(request, evidence, product.id, candidates.map((row) => ({ ...row, label: row.name })), "Which product should I update?");
       if (clarification) return clarification;
-      const priceMinor = request.price ? verifyOwnerPrice(request.price, evidence) : null;
+      const priceMinor = request.price ? ownerPrice(request.price, evidence) : null;
       let options: ResolvedPayloadByKind["update_product"]["options"] = null;
 
       if (request.options) {
@@ -583,7 +637,7 @@ export async function resolveDraft(
             const existingOpt = product.options.find((o) => o.id === opt.optionId);
             if (!existingOpt) throw new BadRequestException(`Unknown option id: ${opt.optionId}`);
           }
-          const optPrice = opt.price ? verifyOwnerPrice(opt.price, evidence) : null;
+          const optPrice = opt.price ? ownerPrice(opt.price, evidence) : null;
           const tracksStock = request.tracksStock ?? product.tracksStock;
           const previous = product.options.find((row) => row.id === opt.optionId);
           if (tracksStock && opt.stock === null && !previous) throw new BadRequestException("State the stock for every new tracked option");
@@ -620,7 +674,7 @@ export async function resolveDraft(
           id: o.id,
           name: o.name,
           price: o.price ? minorFromDecimal(o.price) : null,
-          stock: o.stock, updatedAt: o.updatedAt.toISOString(), isActive: o.isActive,
+          stock: o.stock, isActive: o.isActive,
         })),
         updatedAt: product.updatedAt.toISOString(),
         ...baseSnapshot,
@@ -635,7 +689,7 @@ export async function resolveDraft(
       });
       if (existing) return { question: `A service named "${existing.name}" already exists. Should I update it, or use a different name?`, choices: [{ id: existing.id, label: existing.name }], originalRequest: request };
 
-      const priceMinor = verifyOwnerPrice(request.price, evidence);
+      const priceMinor = ownerPrice(request.price, evidence);
       const setup = serviceValidatorSchema.parse({ ...request, name: request.name.trim(), price: priceMinor / 100 });
       const problem = bookingSetupProblem(setup);
       if (problem) throw new BadRequestException(problem);
@@ -664,7 +718,7 @@ export async function resolveDraft(
       });
       if (!service) throw new NotFoundException("Service not found");
 
-      const priceMinor = request.price ? verifyOwnerPrice(request.price, evidence) : null;
+      const priceMinor = request.price ? ownerPrice(request.price, evidence) : null;
       const candidates = await tx.service.findMany({ where: { businessId, name: { contains: service.name.trim().split(/\s+/)[0] ?? service.name, mode: "insensitive" } }, select: { id: true, name: true } });
       const clarification = choose(request, evidence, service.id, candidates.map((row) => ({ ...row, label: row.name })), "Which service should I update?");
       if (clarification) return clarification;
@@ -723,6 +777,7 @@ export async function resolveDraft(
           OR: [
             ...(normalizedPhone ? [{ phone: normalizedPhone }] : []),
             ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
+            { nameKey: nameKey(request.name) },
             { name: { contains: request.name.trim(), mode: "insensitive" as const } },
           ],
         },

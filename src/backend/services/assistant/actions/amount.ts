@@ -83,7 +83,44 @@ export function parseEnglishAmount(text: string): number | null {
   return Number.isSafeInteger(minor) && minor >= 0 ? minor : null;
 }
 
-/** The quote must be a whole amount in a stored owner turn, not part of another number. */
+const AMOUNT_WORDS = new Set([
+  ...Object.keys(SMALL), "hundred", "thousand", "million", "point", "dot",
+  "minus", "negative", "ngn", "naira", "k",
+]);
+
+/** Expand to the complete adjacent expression, preserving signs/scales/decimals.
+ * A sentence conjunction belongs to an amount only when it joins amount tokens.
+ */
+function completeExpression(text: string, start: number, end: number): string {
+  const tokens = [...text.matchAll(/[\p{L}]+|\d(?:[\d,.]*\d)?k?|[₦#+−-]/gu)].map((match) => ({
+    value: match[0], start: match.index, end: match.index + match[0].length,
+  }));
+  const isAmount = (index: number): boolean => {
+    const token = tokens[index]?.value ?? "";
+    return AMOUNT_WORDS.has(token) || /^\d/.test(token) || /^[₦#+−-]$/.test(token);
+  };
+  let first = tokens.findIndex((token) => token.end > start);
+  let last = tokens.findIndex((token) => token.end >= end);
+  if (first < 0 || last < 0) return "";
+  const adjacent = (left: number, right: number) => /^\s*$/.test(text.slice(tokens[left]!.end, tokens[right]!.start));
+  while (first > 0 && adjacent(first - 1, first)) {
+    if (isAmount(first - 1)) first--;
+    else if (tokens[first - 1]?.value === "and" && first > 1 && adjacent(first - 2, first - 1) && isAmount(first - 2)) first -= 2;
+    else break;
+  }
+  while (last + 1 < tokens.length && adjacent(last, last + 1)) {
+    if (isAmount(last + 1)) last++;
+    else if (tokens[last + 1]?.value === "and" && last + 2 < tokens.length && adjacent(last + 1, last + 2) && isAmount(last + 2)) last += 2;
+    else break;
+  }
+  return text.slice(tokens[first]!.start, tokens[last]!.end);
+}
+
+function amountBody(text: string): string {
+  return text.trim().replace(/^(?:₦|ngn|#)\s*/, "").replace(/\s*(?:naira|ngn)$/, "").trim();
+}
+
+/** The quote must identify a whole amount in a stored owner turn. */
 export function verifyOwnerPrice(
   value: { quote: string; amountMinor: number },
   evidence: OwnerEvidence,
@@ -99,7 +136,9 @@ export function verifyOwnerPrice(
       const after = lower.slice(index + quote.length);
       // A quoted item count is not an owner-stated price ("two wigs").
       const isCount = /^\s+(?:units?|pieces?|items?|wigs?|products?|services?|customers?|orders?|nights?|days?|hours?|minutes?)\b/u.test(after);
-      if (!isCount && !/[\p{L}\p{N}.,+\-]$/u.test(before) && !/^(?:[\p{L}\p{N}]|[.,]\d|-[\p{L}\p{N}])/u.test(after)) return true;
+      const expression = completeExpression(lower, index, index + quote.length);
+      if (!isCount && !/[\p{L}\p{N}.,+\-]$/u.test(before) && !/^(?:[\p{L}\p{N}]|[.,]\d|-[\p{L}\p{N}])/u.test(after) &&
+        amountBody(expression) === amountBody(quote) && parseEnglishAmount(expression) === value.amountMinor) return true;
       from = index + 1;
     }
   });
