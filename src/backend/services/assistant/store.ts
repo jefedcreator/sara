@@ -1,4 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { z } from "zod";
+
+import { draftRequestSchema, type DraftRequest } from "./actions/schemas";
+import type { Clarification, OwnerEvidence } from "./actions/types";
 
 import { Prisma } from "@prisma/client";
 import type {
@@ -324,7 +328,14 @@ export async function claimTurnLease(
   if (existing?.state === "DONE") return replay(conversation.id, existing);
 
   return db.$transaction(async (tx) => {
+    // Acquire the scope lock before reading the clock: an UPDATE can wait.
+    await tx.assistantConversation.updateMany({
+      where: { id: conversation.id, ...scope },
+      data: { lastActiveAt: conversation.lastActiveAt },
+    });
+    const beforeClaim = await tx.assistantConversation.findUniqueOrThrow({ where: { id: conversation.id } });
     const now = new Date();
+    if (beforeClaim.leaseExpiresAt && beforeClaim.leaseExpiresAt > now) return "busy";
     const leaseToken = randomUUID();
     const claimed = await tx.assistantConversation.updateMany({
       where: {
@@ -335,6 +346,8 @@ export async function claimTurnLease(
         leaseToken,
         leaseExpiresAt: new Date(now.getTime() + LEASE_MS),
         lastActiveAt: now,
+        ...(beforeClaim.lastActiveAt.getTime() <= now.getTime() - RECENT_MS
+          ? { clarification: Prisma.DbNull, editingActionId: null } : {}),
       },
     });
     if (claimed.count !== 1) return "busy";
@@ -449,7 +462,13 @@ export async function saveTurn(
   const memoryVersion = turn.memoryVersion;
   const leaseToken = turn.leaseToken;
   await db.$transaction(async (tx) => {
+    await tx.assistantConversation.updateMany({
+      where: { id: conversation.id, ...scope }, data: { lastActiveAt: conversation.lastActiveAt },
+    });
+    const locked = await tx.assistantConversation.findUniqueOrThrow({ where: { id: conversation.id } });
     const now = new Date();
+    if (locked.leaseToken !== leaseToken || locked.memoryVersion !== memoryVersion ||
+        !locked.leaseExpiresAt || locked.leaseExpiresAt <= now) throw storeError("ASSISTANT_TURN_STALE");
     const current = await tx.assistantConversation.updateMany({
       where: {
         id: conversation.id,
@@ -497,4 +516,92 @@ export async function getAction(
   });
   if (!action) throw storeError("ACTION_NOT_FOUND");
   return action;
+}
+
+
+const ownerEvidenceSchema = z.object({
+  text: z.string(), recentOwnerTexts: z.array(z.string()), selectedIds: z.array(z.string()),
+});
+const clarificationStateSchema = z.object({
+  question: z.string(), choices: z.array(z.object({ id: z.string(), label: z.string() })),
+  originalRequest: draftRequestSchema, evidence: ownerEvidenceSchema, createdAt: z.iso.datetime(),
+});
+export type StoredClarification = z.infer<typeof clarificationStateSchema>;
+export type TurnFence = Pick<TurnLease, "conversationId" | "leaseToken" | "memoryVersion">;
+
+/** Server-owned candidate ids; callers use this before routing menu numbers. */
+export async function hasPendingClarification(scope: AssistantScope, now = new Date()): Promise<boolean> {
+  const conversation = await getConversation(scope);
+  const parsed = clarificationStateSchema.safeParse(conversation.clarification);
+  return parsed.success && Date.parse(parsed.data.createdAt) > now.getTime() - RECENT_MS;
+}
+
+export async function saveClarification(
+  scope: AssistantScope, fence: TurnFence, clarification: Clarification,
+  evidence: OwnerEvidence, signal: AbortSignal,
+): Promise<void> {
+  await db.$transaction(async (tx) => {
+    await tx.assistantConversation.updateMany({
+      where: { id: fence.conversationId, ...scope }, data: { lastActiveAt: new Date() },
+    });
+    const current = await tx.assistantConversation.findFirst({ where: { id: fence.conversationId, ...scope } });
+    const now = new Date();
+    signal.throwIfAborted();
+    if (!current || current.leaseToken !== fence.leaseToken || current.memoryVersion !== fence.memoryVersion ||
+        !current.leaseExpiresAt || current.leaseExpiresAt <= now) throw storeError("ASSISTANT_TURN_STALE");
+    await tx.assistantConversation.update({
+      where: { id: current.id },
+      data: { clarification: { ...clarification, evidence, createdAt: now.toISOString() } as unknown as Prisma.InputJsonValue },
+    });
+  });
+}
+
+export type TurnMemory = {
+  clarification: StoredClarification | null;
+  editing: { summary: string; originalRequest: DraftRequest; evidence: OwnerEvidence } | null;
+};
+export async function loadTurnMemory(scope: AssistantScope, fence: TurnFence, now: Date): Promise<TurnMemory> {
+  const conversation = await assertConversation(scope, fence.conversationId);
+  if (conversation.memoryVersion !== fence.memoryVersion || conversation.leaseToken !== fence.leaseToken) {
+    throw storeError("ASSISTANT_TURN_STALE");
+  }
+  const parsed = clarificationStateSchema.safeParse(conversation.clarification);
+  const clarification = parsed.success && Date.parse(parsed.data.createdAt) > now.getTime() - RECENT_MS
+    ? parsed.data : null;
+  let editing: TurnMemory["editing"] = null;
+  if (conversation.editingActionId) {
+    const action = await getAction(scope, conversation.editingActionId);
+    if (action.status === "PENDING" && action.expiresAt > now && isRecord(action.snapshot)) {
+      const request = draftRequestSchema.safeParse(action.snapshot.resolvedRequest ?? action.snapshot.originalRequest);
+      const evidence = ownerEvidenceSchema.safeParse(action.snapshot.ownerEvidence);
+      if (request.success && evidence.success) editing = { summary: action.summary, originalRequest: request.data, evidence: evidence.data };
+    }
+  }
+  return { clarification, editing };
+}
+
+/** Substitute only ids from the saved candidate set; never accept ids from owner/model JSON. */
+export function selectClarification(state: StoredClarification, text: string): { request: DraftRequest; evidence: OwnerEvidence } | null {
+  if (!/^[1-9]\d*$/.test(text.trim())) return null;
+  const selected = state.choices[Number(text.trim()) - 1];
+  if (!selected) return null;
+  const candidates = new Set(state.choices.map((choice) => choice.id));
+  const replace = (value: unknown): unknown => {
+    if (typeof value === "string") return candidates.has(value) ? selected.id : value;
+    if (Array.isArray(value)) return value.map(replace);
+    if (isRecord(value)) return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, replace(entry)]));
+    return value;
+  };
+  return {
+    request: draftRequestSchema.parse(replace(state.originalRequest)),
+    evidence: { ...state.evidence, selectedIds: [...new Set([...state.evidence.selectedIds, selected.id])] },
+  };
+}
+
+/** Read-only adapter hint. Actual editing and publication still require the turn fence. */
+export async function hasEditingContext(scope: AssistantScope, now = new Date()): Promise<boolean> {
+  const conversation = await getConversation(scope);
+  if (!conversation.editingActionId || conversation.lastActiveAt.getTime() <= now.getTime() - RECENT_MS) return false;
+  const action = await getAction(scope, conversation.editingActionId);
+  return action.status === "PENDING" && action.expiresAt > now;
 }

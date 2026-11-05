@@ -13,6 +13,7 @@ const DRAFT_LIFETIME_MS = 24 * 60 * 60 * 1_000;
 export type DraftPublication = {
   conversationId: string;
   leaseToken: string;
+  signal?: AbortSignal;
 };
 
 function error(code: string): Error & { code: string } {
@@ -90,6 +91,7 @@ export async function createDraft(
       where: { id: publication.conversationId, ...scope },
     });
     const publishedAt = new Date();
+    publication.signal?.throwIfAborted();
     if (!current || current.memoryVersion !== memoryVersion ||
         current.leaseToken !== publication.leaseToken ||
         !current.leaseExpiresAt || current.leaseExpiresAt.getTime() <= publishedAt.getTime()) {
@@ -100,6 +102,7 @@ export async function createDraft(
       where: { ...scopedAction(scope, publication.conversationId), status: "PENDING" },
       data: { status: "REPLACED" },
     });
+    publication.signal?.throwIfAborted();
     const draft = await tx.assistantAction.create({
       data: {
         conversationId: publication.conversationId, businessId: scope.businessId,
