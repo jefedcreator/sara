@@ -3,8 +3,11 @@
 import { SignOut } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useRef, useState } from "react";
 
+import { AssistantPanel } from "@/components/assistant/assistant-panel";
 import { Wordmark } from "@/primitives";
+import { Button } from "@/primitives/Button";
 import { cn } from "@/utils/cn";
 
 /** Everything the chat menu does, plus the setup the chat can't do. */
@@ -75,31 +78,50 @@ export function AppChrome({
 }) {
   const pathname = usePathname();
   const items = navFor(sells);
+  const [assistantOpen, setAssistantOpen] = useState(false);
+  const assistantTrigger = useRef<HTMLButtonElement>(null);
 
   return (
-    <header className="bg-canvas/88 border-line sticky top-0 z-20 border-b backdrop-blur-md backdrop-saturate-140">
-      <div className="max-w-page mx-auto flex h-16 items-center gap-3 px-4 md:gap-6 md:px-8">
-        <Wordmark href="/dashboard" />
-        <NavLinks pathname={pathname} items={items} className="mx-auto hidden gap-1 min-[1200px]:flex" />
-        <p className="text-muted ml-auto max-w-[22ch] min-w-0 truncate text-sm font-medium min-[1200px]:ml-0">
-          {businessName}
-        </p>
-        <form action="/api/auth/logout" method="post">
-          <button
-            type="submit"
-            aria-label="Sign out"
-            title="Sign out"
-            className="bg-surface text-ink-2 hover:text-ink ease-out-expo grid size-10 cursor-pointer place-items-center rounded-full transition-[color,scale] duration-200 active:scale-96"
+    <>
+      <header className="bg-canvas/88 border-line sticky top-0 z-20 border-b backdrop-blur-md backdrop-saturate-140">
+        <div className="max-w-page mx-auto flex h-16 items-center gap-3 px-4 md:gap-6 md:px-8">
+          <Wordmark href="/dashboard" />
+          <NavLinks pathname={pathname} items={items} className="mx-auto hidden gap-1 min-[1200px]:flex" />
+          <p className="text-muted ml-auto max-w-[22ch] min-w-0 truncate text-sm font-medium min-[1200px]:ml-0">
+            {businessName}
+          </p>
+          <Button
+            ref={assistantTrigger}
+            variant="secondary"
+            size="sm"
+            aria-haspopup="dialog"
+            aria-expanded={assistantOpen}
+            onClick={() => setAssistantOpen(true)}
           >
-            <SignOut className="size-4" weight="bold" />
-          </button>
-        </form>
-      </div>
-      <NavLinks
-        pathname={pathname}
-        items={items}
-        className="-mt-1 flex gap-1 overflow-x-auto px-4 pb-2 [scrollbar-width:none] md:px-8 min-[1200px]:hidden [&::-webkit-scrollbar]:hidden"
+            Sara
+          </Button>
+          <form action="/api/auth/logout" method="post">
+            <button
+              type="submit"
+              aria-label="Sign out"
+              title="Sign out"
+              className="bg-surface text-ink-2 hover:text-ink ease-out-expo grid size-10 cursor-pointer place-items-center rounded-full transition-[color,scale] duration-200 active:scale-96"
+            >
+              <SignOut className="size-4" weight="bold" />
+            </button>
+          </form>
+        </div>
+        <NavLinks
+          pathname={pathname}
+          items={items}
+          className="-mt-1 flex gap-1 overflow-x-auto px-4 pb-2 [scrollbar-width:none] md:px-8 min-[1200px]:hidden [&::-webkit-scrollbar]:hidden"
+        />
+      </header>
+      <AssistantPanel
+        open={assistantOpen}
+        onOpenChange={setAssistantOpen}
+        returnFocus={() => assistantTrigger.current?.focus()}
       />
-    </header>
+    </>
   );
 }

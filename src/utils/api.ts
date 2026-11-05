@@ -1,4 +1,6 @@
 import type {
+  ApprovalReply,
+  AssistantReply,
   ApiResponse,
   BookingDto,
   BusinessClosureDto,
@@ -6,6 +8,7 @@ import type {
   CustomerDto,
   CustomerListItem,
   DashboardData,
+  DraftDto,
   InvoiceDto,
   OrderDto,
   Page,
@@ -29,6 +32,13 @@ import http from "./axios";
 
 /** A just-created invoice or receipt's customer link (/i/… or /r/…). */
 type SharedLink = { shareUrl: string };
+
+export type AssistantMessageInput = { requestId: string; conversationId?: string } & (
+  | { text: string }
+  | { audio: Blob; filename: string }
+);
+
+export type AssistantChangeReply = { conversationId: string; reply: string; draft: DraftDto };
 
 /*
  * Typed methods over the REST API. Every method resolves to the response's
@@ -270,6 +280,21 @@ function productFormData(
 }
 
 export const api = {
+  assistant: {
+    message: (input: AssistantMessageInput): Promise<AssistantReply> => {
+      if ("text" in input) return data<AssistantReply>(http.post("/assistant/messages", input));
+      const form = new FormData();
+      form.set("requestId", input.requestId);
+      if (input.conversationId) form.set("conversationId", input.conversationId);
+      form.set("audio", input.audio, input.filename);
+      // The browser supplies the multipart boundary through the existing client.
+      return data<AssistantReply>(http.post("/assistant/messages", form));
+    },
+    approve: (conversationId: string, actionId: string) =>
+      data<ApprovalReply>(http.post(`/assistant/drafts/${encodeURIComponent(actionId)}/approve`, { conversationId })),
+    change: (conversationId: string, actionId: string) =>
+      data<AssistantChangeReply>(http.post(`/assistant/drafts/${encodeURIComponent(actionId)}/change`, { conversationId })),
+  },
   public: {
     service: (slug: string, date: string) =>
       data<PublicServiceDto>(
