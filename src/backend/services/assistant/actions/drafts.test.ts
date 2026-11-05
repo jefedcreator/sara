@@ -45,6 +45,21 @@ function action(overrides: Record<string, unknown> = {}) {
   };
 }
 
+/** Hold the next row-lock write open so assertions exercise elapsed lock waits. */
+function pauseNextConversationLock() {
+  const acquire = mocked.assistantConversation.updateMany.getMockImplementation();
+  let release!: () => void;
+  let entered!: () => void;
+  const locked = new Promise<void>((resolve) => { entered = resolve; });
+  const waiting = new Promise<void>((resolve) => { release = resolve; });
+  mocked.assistantConversation.updateMany.mockImplementationOnce(async (args: unknown) => {
+    entered();
+    await waiting;
+    return acquire(args);
+  });
+  return { locked, release };
+}
+
 beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers();
@@ -95,7 +110,7 @@ describe("immutable draft publication", () => {
     expect(state.actions[1].snapshot).toEqual(prepared.snapshot);
     expect(state.conversation.editingActionId).toBeNull();
     expect(mocked.assistantConversation.updateMany).toHaveBeenCalledWith({
-      where: { id: publication.conversationId, ...scope, memoryVersion: 3, leaseToken: publication.leaseToken, leaseExpiresAt: { gt: now } }, data: { lastActiveAt: now },
+      where: { id: publication.conversationId, ...scope }, data: { lastActiveAt: now },
     });
   });
 
@@ -141,6 +156,51 @@ describe("immutable draft publication", () => {
     await expect(createDraft(scope, prepared, 3, now, publication)).rejects.toMatchObject({ code: "ASSISTANT_TURN_STALE" });
     expect(state.actions[0].status).toBe("PENDING");
     expect(mocked.assistantAction.create).not.toHaveBeenCalled();
+  });
+
+  it("refuses publication when the live lease reaches its exact expiry during the row-lock wait", async () => {
+    state.actions.push(action());
+    state.conversation.editingActionId = "draft-old";
+    state.conversation.clarification = { question: "Which customer?" };
+    const gate = pauseNextConversationLock();
+    const pending = createDraft(scope, prepared, 3, now, publication);
+    const rejected = expect(pending).rejects.toMatchObject({ code: "ASSISTANT_TURN_STALE" });
+    await gate.locked;
+    vi.setSystemTime(state.conversation.leaseExpiresAt);
+    gate.release();
+    await rejected;
+    expect(state.actions.map((row) => [row.id, row.status])).toEqual([["draft-old", "PENDING"]]);
+    expect(state.conversation.editingActionId).toBe("draft-old");
+    expect(state.conversation.clarification).toEqual({ question: "Which customer?" });
+    expect(mocked.assistantAction.updateMany).not.toHaveBeenCalled();
+    expect(mocked.assistantAction.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { leaseToken: "replacement-generation" },
+    { memoryVersion: 4 },
+  ])("re-reads publication fencing state after acquiring the row lock: %o", async (changes) => {
+    state.actions.push(action());
+    const gate = pauseNextConversationLock();
+    const pending = createDraft(scope, prepared, 3, now, publication);
+    const rejected = expect(pending).rejects.toMatchObject({ code: "ASSISTANT_TURN_STALE" });
+    await gate.locked;
+    Object.assign(state.conversation, changes);
+    gate.release();
+    await rejected;
+    expect(state.actions[0].status).toBe("PENDING");
+    expect(mocked.assistantAction.create).not.toHaveBeenCalled();
+  });
+
+  it("expires an older preview at the fresh publication clock after a lock wait", async () => {
+    state.actions.push(action({ expiresAt: new Date(now.getTime() + 1_000) }));
+    const gate = pauseNextConversationLock();
+    const pending = createDraft(scope, prepared, 3, now, publication);
+    await gate.locked;
+    vi.setSystemTime(new Date(now.getTime() + 1_000));
+    gate.release();
+    await pending;
+    expect(state.actions.map((row) => [row.id, row.status])).toEqual([["draft-old", "EXPIRED"], ["draft-1", "PENDING"]]);
   });
 
   it("copies inputs before yielding so stored data and summary cannot diverge", async () => {
@@ -197,6 +257,63 @@ describe("draft expiry, editing and cancellation", () => {
   it("refuses expired approvals even before the expiry sweep", async () => {
     state.actions.push(action({ expiresAt: now }));
     await expect(assertDraftApprovableInTransaction(mocked, scope, "draft-old", now)).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EXPIRED" });
+  });
+
+  it("refuses approval if the preview expires at the boundary while waiting for its row lock", async () => {
+    state.actions.push(action());
+    const gate = pauseNextConversationLock();
+    const pending = assertDraftApprovableInTransaction(mocked, scope, "draft-old", now);
+    const rejected = expect(pending).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EXPIRED" });
+    await gate.locked;
+    vi.setSystemTime(state.actions[0].expiresAt);
+    gate.release();
+    await rejected;
+  });
+
+  it("refuses approval when editing starts while waiting for the row lock", async () => {
+    state.actions.push(action());
+    const gate = pauseNextConversationLock();
+    const pending = assertDraftApprovableInTransaction(mocked, scope, "draft-old", now);
+    const rejected = expect(pending).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EDITING" });
+    await gate.locked;
+    state.conversation.editingActionId = "draft-old";
+    gate.release();
+    await rejected;
+  });
+
+  it("persists expiry instead of starting editing after a row-lock wait", async () => {
+    state.actions.push(action());
+    const gate = pauseNextConversationLock();
+    const pending = changeDraft(scope, "draft-old");
+    const rejected = expect(pending).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EXPIRED" });
+    await gate.locked;
+    vi.setSystemTime(state.actions[0].expiresAt);
+    gate.release();
+    await rejected;
+    expect(state.actions[0].status).toBe("EXPIRED");
+    expect(state.conversation.editingActionId).toBeNull();
+  });
+
+  it("does not return a preview that expires while waiting for the row lock", async () => {
+    state.actions.push(action());
+    const gate = pauseNextConversationLock();
+    const pending = getPendingDraft(scope, now);
+    await gate.locked;
+    vi.setSystemTime(state.actions[0].expiresAt);
+    gate.release();
+    expect(await pending).toBeNull();
+    expect(state.actions[0].status).toBe("EXPIRED");
+  });
+
+  it("keeps elapsed previews EXPIRED when cancellation waits past their expiry", async () => {
+    state.actions.push(action());
+    const gate = pauseNextConversationLock();
+    const pending = cancelDraft(scope, "draft-old");
+    await gate.locked;
+    vi.setSystemTime(state.actions[0].expiresAt);
+    gate.release();
+    await pending;
+    expect(state.actions[0].status).toBe("EXPIRED");
   });
 
   it.each([

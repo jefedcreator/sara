@@ -79,18 +79,23 @@ export async function createDraft(
   const summary = renderSummary(stable.kind, stable.payload, stable.snapshot);
   const expiresAt = new Date(now.getTime() + DRAFT_LIFETIME_MS);
   return db.$transaction(async (tx) => {
-    const publishedAt = new Date();
-    // A conditional write both fences stale generations and takes the row lock.
-    // Never replace another pending preview before this check has succeeded.
-    const current = await tx.assistantConversation.updateMany({
-      where: {
-        id: publication.conversationId, ...scope, memoryVersion,
-        leaseToken: publication.leaseToken, leaseExpiresAt: { gt: publishedAt },
-      },
-      data: { lastActiveAt: publishedAt },
+    // Lock by scope first: a bound clock captured before this write could expire
+    // while PostgreSQL waits for another lifecycle transaction to release it.
+    const locked = await tx.assistantConversation.updateMany({
+      where: { id: publication.conversationId, ...scope },
+      data: { lastActiveAt: now },
     });
-    if (current.count !== 1) throw error("ASSISTANT_TURN_STALE");
-    await expirePending(tx, scope, publication.conversationId, now);
+    if (locked.count !== 1) throw error("ASSISTANT_TURN_STALE");
+    const current = await tx.assistantConversation.findFirst({
+      where: { id: publication.conversationId, ...scope },
+    });
+    const publishedAt = new Date();
+    if (!current || current.memoryVersion !== memoryVersion ||
+        current.leaseToken !== publication.leaseToken ||
+        !current.leaseExpiresAt || current.leaseExpiresAt.getTime() <= publishedAt.getTime()) {
+      throw error("ASSISTANT_TURN_STALE");
+    }
+    await expirePending(tx, scope, publication.conversationId, publishedAt);
     await tx.assistantAction.updateMany({
       where: { ...scopedAction(scope, publication.conversationId), status: "PENDING" },
       data: { status: "REPLACED" },
@@ -115,9 +120,10 @@ export async function getPendingDraft(scope: AssistantScope, now: Date): Promise
   return db.$transaction(async (tx) => {
     const conversation = await lockConversation(tx, scope, now);
     if (!conversation) return null;
-    await expirePending(tx, scope, conversation.id, now);
+    const checkedAt = new Date(Math.max(now.getTime(), Date.now()));
+    await expirePending(tx, scope, conversation.id, checkedAt);
     const action = await tx.assistantAction.findFirst({
-      where: { ...scopedAction(scope, conversation.id), status: "PENDING", expiresAt: { gt: now } },
+      where: { ...scopedAction(scope, conversation.id), status: "PENDING", expiresAt: { gt: checkedAt } },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     });
     return action ? dto(action) : null;
@@ -134,8 +140,9 @@ export async function changeDraft(scope: AssistantScope, actionId: string): Prom
     });
     if (!action) throw error("ACTION_NOT_FOUND");
     if (action.status !== "PENDING") throw error("ASSISTANT_DRAFT_NOT_PENDING");
-    if (action.expiresAt.getTime() <= now.getTime()) {
-      await expirePending(tx, scope, conversation.id, now);
+    const checkedAt = new Date();
+    if (action.expiresAt.getTime() <= checkedAt.getTime()) {
+      await expirePending(tx, scope, conversation.id, checkedAt);
       return null;
     }
     await tx.assistantConversation.update({
@@ -163,7 +170,7 @@ export async function cancelDraft(scope: AssistantScope, actionId?: string): Pro
       if (action.status !== "PENDING" && action.status !== "CANCELLED" && action.status !== "EXPIRED") throw error("ASSISTANT_DRAFT_NOT_PENDING");
       clearContext = action.status === "PENDING" || conversation.editingActionId === actionId;
     }
-    await expirePending(tx, scope, conversation.id, now);
+    await expirePending(tx, scope, conversation.id, new Date());
     await tx.assistantAction.updateMany({
       where: { ...scopedAction(scope, conversation.id), ...(actionId ? { id: actionId } : {}), status: "PENDING" },
       data: { status: "CANCELLED" },
@@ -193,7 +200,9 @@ export async function assertDraftApprovableInTransaction(
   });
   if (!action) throw error("ACTION_NOT_FOUND");
   if (action.status !== "PENDING") throw error("ASSISTANT_DRAFT_NOT_PENDING");
-  if (action.expiresAt.getTime() <= now.getTime()) throw error("ASSISTANT_DRAFT_EXPIRED");
+  // The caller's timestamp may predate a lock wait; it is only a lower bound.
+  const checkedAt = new Date(Math.max(now.getTime(), Date.now()));
+  if (action.expiresAt.getTime() <= checkedAt.getTime()) throw error("ASSISTANT_DRAFT_EXPIRED");
   if (conversation.editingActionId === action.id) throw error("ASSISTANT_DRAFT_EDITING");
   return action;
 }

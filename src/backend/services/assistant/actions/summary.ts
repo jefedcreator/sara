@@ -6,33 +6,36 @@ import type { DraftRequestKind } from "./schemas";
 import type { ResolvedPayloadByKind } from "./types";
 
 /** Leaves room for a 200-character voice transcript and the approval prompt. */
-export const MAX_APPROVAL_SUMMARY_CHARS = 3_700;
+export const MAX_APPROVAL_SUMMARY_CHARS = 3_500;
 
 type ObjectValue = Record<string, unknown>;
+function error(code: string): Error & { code: string } {
+  return Object.assign(new Error(code), { code });
+}
 function object(value: unknown): ObjectValue {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? value as ObjectValue : {};
 }
 function text(value: unknown): string {
-  if (typeof value !== "string" || !value) throw new Error("ASSISTANT_SUMMARY_METADATA_MISSING");
+  if (typeof value !== "string" || !value) throw error("ASSISTANT_SUMMARY_METADATA_MISSING");
   return value;
 }
 function integer(value: unknown): number {
-  if (typeof value !== "number" || !Number.isSafeInteger(value)) throw new Error("ASSISTANT_SUMMARY_INVALID_AMOUNT");
+  if (typeof value !== "number" || !Number.isSafeInteger(value)) throw error("ASSISTANT_SUMMARY_INVALID_AMOUNT");
   return value;
 }
 function money(value: unknown, currency: string): string {
   return formatMoney(integer(value) / 100, currency);
 }
 function date(value: string): string {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw new Error("ASSISTANT_SUMMARY_INVALID_DATE");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) throw error("ASSISTANT_SUMMARY_INVALID_DATE");
   const parsed = new Date(`${value}T12:00:00Z`);
-  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) throw new Error("ASSISTANT_SUMMARY_INVALID_DATE");
+  if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== value) throw error("ASSISTANT_SUMMARY_INVALID_DATE");
   return parsed.toLocaleDateString("en-GB", { timeZone: "Africa/Lagos", day: "numeric", month: "long", year: "numeric" });
 }
 function time(value: unknown): string {
   const parsed = new Date(text(value));
-  if (!Number.isFinite(parsed.getTime())) throw new Error("ASSISTANT_SUMMARY_INVALID_DATE");
+  if (!Number.isFinite(parsed.getTime())) throw error("ASSISTANT_SUMMARY_INVALID_DATE");
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Lagos", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(parsed);
   const part = (kind: Intl.DateTimeFormatPartTypes) => parts.find((value) => value.type === kind)!.value;
   return `${part("day")} ${part("month")} ${part("year")}, ${part("hour")}:${part("minute")} WAT`;
@@ -50,14 +53,14 @@ function customerCreation(customer: unknown, snapshot: ObjectValue): string[] {
 function payment(method: string): string {
   if (method === "CASH") return "cash";
   if (method === "BANK_TRANSFER") return "bank transfer";
-  throw new Error("ASSISTANT_SUMMARY_INVALID_METHOD");
+  throw error("ASSISTANT_SUMMARY_INVALID_METHOD");
 }
 function stock(snapshot: ObjectValue, lines: Array<{ name: string; productOptionId: string | null }>): string[] {
   const before = object(snapshot.stockBefore);
   const after = object(snapshot.stockAfter);
   return [...new Set(lines.map((line) => line.productOptionId).filter((id): id is string => id !== null))].map((id) => {
     const name = lines.find((line) => line.productOptionId === id)!.name;
-    if (!(id in before) || !(id in after)) throw new Error("ASSISTANT_SUMMARY_METADATA_MISSING");
+    if (!(id in before) || !(id in after)) throw error("ASSISTANT_SUMMARY_METADATA_MISSING");
     return before[id] === null && after[id] === null
       ? `Stock · ${name}: not tracked.`
       : `Stock · ${name}: ${integer(before[id])} → ${integer(after[id])}.`;
@@ -82,12 +85,12 @@ function totals(p: ResolvedPayloadByKind["create_invoice"] | ResolvedPayloadByKi
     `Total: ${money(p.totalMinor, p.currency)}`,
   ];
 }
-function productOptions(options: ResolvedPayloadByKind["create_product"]["options"], currency: string, tracksStock: boolean): string[] {
-  return options.map((option) => `Option: ${option.name || "Default"} · ${option.priceMinor === null ? "base price" : money(option.priceMinor, currency)} · ${tracksStock ? `stock ${integer(option.stock)}` : "stock not tracked"}`);
+function productOptions(options: ResolvedPayloadByKind["create_product"]["options"], currency: string, tracksStock: boolean, basePrice: unknown): string[] {
+  return options.map((option) => `Option: ${option.name || "Default"} · ${option.priceMinor === null ? `${money(basePrice, currency)} (base price)` : money(option.priceMinor, currency)} · ${tracksStock ? `stock ${integer(option.stock)}` : "stock not tracked"}`);
 }
 function restock(snapshot: ObjectValue): string[] {
   const lines = snapshot.restockLines;
-  if (!Array.isArray(lines)) throw new Error("ASSISTANT_SUMMARY_METADATA_MISSING");
+  if (!Array.isArray(lines)) throw error("ASSISTANT_SUMMARY_METADATA_MISSING");
   const grouped = new Map<string, { name: string; quantity: number }>();
   for (const value of lines) {
     const line = object(value);
@@ -154,7 +157,7 @@ export function renderSummary<K extends DraftRequestKind>(
     }
     case "create_product": {
       const p = payload as ResolvedPayloadByKind["create_product"];
-      output = [`Create product ${p.name}?`, `Base price: ${money(p.priceMinor, currency())}`, ...(p.description ? [`Description: ${p.description}`] : []), `Track stock: ${p.tracksStock ? "Yes" : "No"}`, ...productOptions(p.options, currency(), p.tracksStock)];
+      output = [`Create product ${p.name}?`, `Base price: ${money(p.priceMinor, currency())}`, ...(p.description ? [`Description: ${p.description}`] : []), `Track stock: ${p.tracksStock ? "Yes" : "No"}`, ...productOptions(p.options, currency(), p.tracksStock, p.priceMinor)];
       break;
     }
     case "update_product": {
@@ -167,11 +170,13 @@ export function renderSummary<K extends DraftRequestKind>(
         else if (key === "isActive") output.push(`Active: ${p.isActive ? "Yes" : "No"}`);
         else if (key === "tracksStock") output.push(`Track stock: ${p.tracksStock ? "Yes" : "No"}`);
         else if (key === "options") {
-          if (!p.options) throw new Error("ASSISTANT_SUMMARY_METADATA_MISSING");
-          output.push("Replace product options with:", ...productOptions(p.options, currency(), p.tracksStock ?? s.tracksStock === true));
+          if (!p.options) throw error("ASSISTANT_SUMMARY_METADATA_MISSING");
+          output.push("Replace product options with:", ...productOptions(p.options, currency(), p.tracksStock ?? s.tracksStock === true, p.fields.includes("price") ? p.priceMinor : s.currentPrice));
           if (Array.isArray(s.existingOptions)) for (const value of s.existingOptions) {
             const existing = object(value);
-            if (!p.options.some((option) => option.optionId === existing.id)) output.push(`Deactivate option: ${existing.name === "" ? "Default" : text(existing.name)}.`);
+            const included = p.options.find((option) => option.optionId === existing.id);
+            if (!included) output.push(`Deactivate option: ${existing.name === "" ? "Default" : text(existing.name)}.`);
+            else if (existing.isActive === false) output.push(`Reactivate option: ${included.name || "Default"}.`);
           }
         }
         else output.push(field(title(key), p[key]));
@@ -207,7 +212,7 @@ export function renderSummary<K extends DraftRequestKind>(
       }
       break;
     }
-    default: throw new Error("ASSISTANT_SUMMARY_UNKNOWN_KIND");
+    default: throw error("ASSISTANT_SUMMARY_UNKNOWN_KIND");
   }
   const summary = output.join("\n");
   if (summary.length > MAX_APPROVAL_SUMMARY_CHARS) throw Object.assign(new Error("Please split this request into smaller actions so every detail fits in the approval preview."), { code: "ASSISTANT_PREVIEW_TOO_LONG" });

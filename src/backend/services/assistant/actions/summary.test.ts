@@ -94,19 +94,40 @@ describe("deterministic approval summaries", () => {
 
   it("shows product base price, options and opening stock", () => {
     expect(renderSummary("create_product", { name: "Shea butter", description: "Organic", priceMinor: 500000, tracksStock: true, options: [{ name: "Large", priceMinor: 600000, stock: 10 }, { name: "Small", priceMinor: null, stock: 5 }] }, base)).toBe(
-      "Create product Shea butter?\nBase price: NGN 5,000\nDescription: Organic\nTrack stock: Yes\nOption: Large · NGN 6,000 · stock 10\nOption: Small · base price · stock 5",
+      "Create product Shea butter?\nBase price: NGN 5,000\nDescription: Organic\nTrack stock: Yes\nOption: Large · NGN 6,000 · stock 10\nOption: Small · NGN 5,000 (base price) · stock 5",
     );
   });
 
   it("shows every selected product update including clearing description", () => {
     expect(renderSummary("update_product", { productId: "product-1", name: "Body butter", description: null, priceMinor: 600000, isActive: false, tracksStock: true, options: [{ optionId: "option-1", name: "Large", priceMinor: null, stock: 8 }], fields: ["name", "description", "price", "isActive", "tracksStock", "options"] }, { ...base, productName: "Shea butter", currentPrice: 500000 })).toBe(
-      "Update product Shea butter?\nName: Body butter\nDescription: Clear\nBase price: NGN 5,000 → NGN 6,000\nActive: No\nTrack stock: Yes\nReplace product options with:\nOption: Large · base price · stock 8",
+      "Update product Shea butter?\nName: Body butter\nDescription: Clear\nBase price: NGN 5,000 → NGN 6,000\nActive: No\nTrack stock: Yes\nReplace product options with:\nOption: Large · NGN 6,000 (base price) · stock 8",
     );
   });
 
   it("explicitly names options made inactive by option replacement", () => {
     const p: ResolvedPayloadByKind["update_product"] = { productId: "product-1", name: null, description: null, priceMinor: null, isActive: null, tracksStock: null, options: [{ optionId: "option-1", name: "Large", priceMinor: null, stock: 8 }], fields: ["options"] };
-    expect(renderSummary("update_product", p, { ...base, productName: "Shea butter", tracksStock: true, existingOptions: [{ id: "option-1", name: "Large" }, { id: "option-2", name: "Small" }] })).toBe("Update product Shea butter?\nReplace product options with:\nOption: Large · base price · stock 8\nDeactivate option: Small.");
+    expect(renderSummary("update_product", p, { ...base, productName: "Shea butter", currentPrice: 500000, tracksStock: true, existingOptions: [{ id: "option-1", name: "Large", isActive: true }, { id: "option-2", name: "Small", isActive: true }] })).toBe("Update product Shea butter?\nReplace product options with:\nOption: Large · NGN 5,000 (base price) · stock 8\nDeactivate option: Small.");
+  });
+
+  it("shows the inherited current base amount in an options-only update", () => {
+    const p: ResolvedPayloadByKind["update_product"] = { productId: "product-1", name: null, description: null, priceMinor: null, isActive: null, tracksStock: null, options: [{ optionId: "option-1", name: "Large", priceMinor: null, stock: 8 }], fields: ["options"] };
+    expect(renderSummary("update_product", p, { ...base, productName: "Shea butter", currentPrice: 500000, tracksStock: true, existingOptions: [{ id: "option-1", name: "Large", isActive: true }] })).toBe(
+      "Update product Shea butter?\nReplace product options with:\nOption: Large · NGN 5,000 (base price) · stock 8",
+    );
+  });
+
+  it("shows zero as the effective inherited price when the base price is updated with options", () => {
+    const p: ResolvedPayloadByKind["update_product"] = { productId: "product-1", name: null, description: null, priceMinor: 0, isActive: null, tracksStock: null, options: [{ optionId: "option-1", name: "Large", priceMinor: null, stock: 8 }], fields: ["price", "options"] };
+    expect(renderSummary("update_product", p, { ...base, productName: "Shea butter", currentPrice: 500000, tracksStock: true })).toBe(
+      "Update product Shea butter?\nBase price: NGN 5,000 → NGN 0\nReplace product options with:\nOption: Large · NGN 0 (base price) · stock 8",
+    );
+  });
+
+  it("names an inactive option made sellable again, including its new name", () => {
+    const p: ResolvedPayloadByKind["update_product"] = { productId: "product-1", name: null, description: null, priceMinor: null, isActive: null, tracksStock: null, options: [{ optionId: "option-1", name: "Family size", priceMinor: null, stock: 8 }], fields: ["options"] };
+    expect(renderSummary("update_product", p, { ...base, productName: "Shea butter", currentPrice: 500000, tracksStock: true, existingOptions: [{ id: "option-1", name: "Large", isActive: false }] })).toBe(
+      "Update product Shea butter?\nReplace product options with:\nOption: Family size · NGN 5,000 (base price) · stock 8\nReactivate option: Family size.",
+    );
   });
 
   it("does not invent stock changes for an untracked product cancellation", () => {
@@ -141,8 +162,16 @@ describe("deterministic approval summaries", () => {
     expect(() => renderSummary("create_invoice", { ...invoice, notes: "x".repeat(MAX_APPROVAL_SUMMARY_CHARS) }, base)).toThrow("Please split this request");
   });
 
+  it("allows exactly 3,500 characters and rejects one more with a stable error code", () => {
+    const prefix = "Create customer Amaka?\nNotes: ";
+    const payload: ResolvedPayloadByKind["create_customer"] = { name: "Amaka", phone: null, email: null, address: null, notes: "x".repeat(3500 - prefix.length) };
+    expect(MAX_APPROVAL_SUMMARY_CHARS).toBe(3500);
+    expect(renderSummary("create_customer", payload, base)).toBe(prefix + payload.notes);
+    expect(() => renderSummary("create_customer", { ...payload, notes: payload.notes + "x" }, base)).toThrow(expect.objectContaining({ code: "ASSISTANT_PREVIEW_TOO_LONG" }));
+  });
+
   it("fails closed when tracked stock metadata or integer money is missing", () => {
-    expect(() => renderSummary("create_receipt", receipt, base)).toThrow("ASSISTANT_SUMMARY_METADATA_MISSING");
-    expect(() => renderSummary("create_invoice", { ...invoice, totalMinor: 1.5 }, base)).toThrow("ASSISTANT_SUMMARY_INVALID_AMOUNT");
+    expect(() => renderSummary("create_receipt", receipt, base)).toThrow(expect.objectContaining({ code: "ASSISTANT_SUMMARY_METADATA_MISSING" }));
+    expect(() => renderSummary("create_invoice", { ...invoice, totalMinor: 1.5 }, base)).toThrow(expect.objectContaining({ code: "ASSISTANT_SUMMARY_INVALID_AMOUNT" }));
   });
 });
