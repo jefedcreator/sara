@@ -202,7 +202,8 @@ describe("positive monetary evidence", () => {
   it.each([
     "Charge 45000", "Pay 45000", "Paid 45000", "Charging 45000",
     "Charge45000", "Pay45000", "Paid45000", "Paid NGN45000",
-    "Charge forty-five thousand", "Paid ₦45,000",
+    "Charge forty-five thousand", "Paid ₦45,000", "The price is three naira",
+    "Payment 45,000 cash", "The price is #45,000",
   ])("retains corrections after an attached monetary verb statement: %s", (priorTurn) => {
     expect(verifyOwnerPrice({ quote: "40000", amountMinor: 4_000_000 }, {
       text: "Actually 40000", recentOwnerTexts: [priorTurn], selectedIds: [],
@@ -215,6 +216,18 @@ describe("positive monetary evidence", () => {
   ])("does not infer correction context from an unattached monetary verb: %s", (priorTurn) => {
     expect(() => verifyOwnerPrice({ quote: "40000", amountMinor: 4_000_000 }, {
       text: "Actually 40000", recentOwnerTexts: [priorTurn], selectedIds: [],
+    })).toThrow("price");
+  });
+
+  it.each([
+    "Charge three bottles to Tolu", "Pay two thousand widgets",
+    "Charge 45000 bottles", "The price of two packs",
+    "Charge three and four", "Paid 45000.555",
+    "Charge product code 1234", "Paid invoice number 1234",
+    "Pay phone 1234", "Charge reference #1234",
+  ])("does not use a quantity, malformed amount, or labelled ID as prior pricing: %s", (priorTurn) => {
+    expect(() => verifyOwnerPrice({ quote: "two", amountMinor: 200 }, {
+      text: "Actually two", recentOwnerTexts: [priorTurn], selectedIds: [],
     })).toThrow("price");
   });
 });

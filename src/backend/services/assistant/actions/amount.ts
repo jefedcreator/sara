@@ -160,9 +160,23 @@ function hasMonetaryContext(text: string, expression: AmountExpression, evidence
   // numbered choices, so require an explicit correction phrase for those.
   const correctionPrefix = /^\s*(?:actually|instead|correction|make\s+that|no[, ]+)\s*[:,]?\s*$/u.test(before);
   const standalone = /^\s*$/u.test(before) || correctionPrefix;
-  // Require a prior price/value statement, not the word "price" in a label.
-  const priorPricing = evidence.recentOwnerTexts.some((turn) => /\b(?:(?:price|cost|rate|payment|amount|total)(?:\s+(?:is|was|of|to|at|should\s+be|will\s+be))?|pay|paid|charge|charging)\s*[:=]?\s*(?:₦|ngn(?=\s|\d)|#|\d|zero\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|twenty\b|thirty\b|forty\b|fifty\b|sixty\b|seventy\b|eighty\b|ninety\b)/iu.test(turn));
-  return isCurrentTurn && standalone && /^\s*[.!?]?\s*$/u.test(after) && priorPricing && (qualifiedAmount || correctionPrefix);
+  if (!isCurrentTurn || !standalone || !/^\s*[.!?]?\s*$/u.test(after) || !(qualifiedAmount || correctionPrefix)) return false;
+  return evidence.recentOwnerTexts.some((turn) => hasPriorPricing(turn, evidence));
+}
+
+/** A prior statement supplies context only when its whole amount is valid and
+ * the same local monetary checks accept it. Historical bare replies cannot
+ * recursively acquire context from other turns.
+ */
+function hasPriorPricing(turn: string, evidence: OwnerEvidence): boolean {
+  const text = turn.toLowerCase();
+  const prefix = /\b(?:(?:price|cost|rate|payment|amount|total)(?:\s+(?:is|was|of|to|at|should\s+be|will\s+be))?|pay|paid|charge|charging)\s*[:=]?\s*(?=₦|ngn(?=\s|\d)|#|\d|zero\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|twenty\b|thirty\b|forty\b|fifty\b|sixty\b|seventy\b|eighty\b|ninety\b)/gu;
+  for (const match of text.matchAll(prefix)) {
+    const start = match.index + match[0].length;
+    const expression = completeExpression(text, start, start + 1);
+    if (parseEnglishAmount(expression.text) !== null && hasMonetaryContext(text, expression, evidence, false)) return true;
+  }
+  return false;
 }
 
 /** The quote must identify a whole amount in a stored owner turn. */
