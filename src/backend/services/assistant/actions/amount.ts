@@ -161,7 +161,7 @@ function hasMonetaryContext(text: string, expression: AmountExpression, evidence
   const correctionPrefix = /^\s*(?:actually|instead|correction|make\s+that|no[, ]+)\s*[:,]?\s*$/u.test(before);
   const standalone = /^\s*$/u.test(before) || correctionPrefix;
   // Require a prior price/value statement, not the word "price" in a label.
-  const priorPricing = evidence.recentOwnerTexts.some((turn) => /\b(?:price|cost|rate|payment|amount|total)(?:\s+(?:is|was|of|to|at|should\s+be|will\s+be))?\s*[:=]?\s*(?:₦|ngn\b|#|\d|zero\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|twenty\b|thirty\b|forty\b|fifty\b|sixty\b|seventy\b|eighty\b|ninety\b)/iu.test(turn));
+  const priorPricing = evidence.recentOwnerTexts.some((turn) => /\b(?:(?:price|cost|rate|payment|amount|total)(?:\s+(?:is|was|of|to|at|should\s+be|will\s+be))?|pay|paid|charge|charging)\s*[:=]?\s*(?:₦|ngn(?=\s|\d)|#|\d|zero\b|one\b|two\b|three\b|four\b|five\b|six\b|seven\b|eight\b|nine\b|ten\b|twenty\b|thirty\b|forty\b|fifty\b|sixty\b|seventy\b|eighty\b|ninety\b)/iu.test(turn));
   return isCurrentTurn && standalone && /^\s*[.!?]?\s*$/u.test(after) && priorPricing && (qualifiedAmount || correctionPrefix);
 }
 

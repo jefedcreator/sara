@@ -198,6 +198,25 @@ describe("positive monetary evidence", () => {
     // A later price-setting instruction must not promote an old quantity reply.
     expect(() => verifyOwnerPrice({ quote: "two", amountMinor: 200 }, { text: "Set the price to 45,000", recentOwnerTexts: ["two"], selectedIds: [] })).toThrow("price");
   });
+
+  it.each([
+    "Charge 45000", "Pay 45000", "Paid 45000", "Charging 45000",
+    "Charge45000", "Pay45000", "Paid45000", "Paid NGN45000",
+    "Charge forty-five thousand", "Paid ₦45,000",
+  ])("retains corrections after an attached monetary verb statement: %s", (priorTurn) => {
+    expect(verifyOwnerPrice({ quote: "40000", amountMinor: 4_000_000 }, {
+      text: "Actually 40000", recentOwnerTexts: [priorTurn], selectedIds: [],
+    })).toBe(4_000_000);
+  });
+
+  it.each([
+    "Charge product code 1234", "Paid invoice number 1234", "Pay phone 1234",
+    "Charge reference #1234", "Product code 1234; charge", "The price code is 1234",
+  ])("does not infer correction context from an unattached monetary verb: %s", (priorTurn) => {
+    expect(() => verifyOwnerPrice({ quote: "40000", amountMinor: 4_000_000 }, {
+      text: "Actually 40000", recentOwnerTexts: [priorTurn], selectedIds: [],
+    })).toThrow("price");
+  });
 });
 
 describe("whole amount evidence", () => {
