@@ -25,7 +25,7 @@ describe("deterministic approval summaries", () => {
   it("shows every sale line, amount and stock/order consequence", () => {
     const payload = { ...receipt, lines: [productLine, { ...productLine, kind: "custom" as const, id: null, name: "Gift wrap", quantity: 1, unitPriceMinor: 50000, totalMinor: 50000, productOptionId: null }], subtotalMinor: 1550000, totalMinor: 1550000, amountPaidMinor: 1550000 };
     expect(renderSummary("create_receipt", payload, { ...base, ...stocks })).toBe(
-      "Record a sale for Amaka?\n3 × Shea butter · NGN 5,000 each · NGN 15,000\n1 × Gift wrap · NGN 500 each · NGN 500\nTotal: NGN 15,500\nPaid cash · Pickup\nAmount paid: NGN 15,500\nCreate a receipt and completed pickup order.\nStock · Shea butter: 10 → 7.",
+      "Record a sale for Amaka?\n3 × Shea butter · NGN 5,000 each · NGN 15,000\n1 × Gift wrap · NGN 500 each · NGN 500\nTotal: NGN 15,500\nPaid cash · Pickup\nAmount paid: NGN 15,500\nCreate a receipt and completed pickup order.\nAvailable stock · Shea butter: 10 → 7.",
     );
   });
 
@@ -38,7 +38,7 @@ describe("deterministic approval summaries", () => {
 
   it("shows the actual zero delivery fee and complete delivery address", () => {
     expect(renderSummary("create_receipt", { ...receipt, method: "BANK_TRANSFER", fulfilment: "DELIVERY", deliveryAddress: "10 Broad Street, Lagos" }, { ...base, ...stocks, deliveryFeeMinor: 0 })).toBe(
-      "Record a sale for Amaka?\n3 × Shea butter · NGN 5,000 each · NGN 15,000\nTotal: NGN 15,000\nPaid bank transfer · Delivery\nAmount paid: NGN 15,000\nDelivery fee: NGN 0\nDelivery address: 10 Broad Street, Lagos\nCreate a receipt and new delivery order.\nStock · Shea butter: 10 → 7.",
+      "Record a sale for Amaka?\n3 × Shea butter · NGN 5,000 each · NGN 15,000\nTotal: NGN 15,000\nPaid bank transfer · Delivery\nAmount paid: NGN 15,000\nDelivery fee: NGN 0\nDelivery address: 10 Broad Street, Lagos\nCreate a receipt and new delivery order.\nAvailable stock · Shea butter: 10 → 7.",
     );
   });
 
@@ -56,7 +56,7 @@ describe("deterministic approval summaries", () => {
     const p: ResolvedPayloadByKind["record_invoice_payment"] = { invoiceId: "invoice-1", amountMinor: 500000, method: "BANK_TRANSFER", createReceipt: true, currency: "NGN" };
     const s = { ...base, ...stocks, invoiceNumber: "INV-7", clientName: "Amaka", outstandingMinor: 1500000, createsOrder: true, productLines: [productLine], clientEmail: "amaka@example.test", invoiceEmailWillBeSent: false, receiptEmailWillBeSent: false };
     expect(renderSummary("record_invoice_payment", p, s)).toBe(
-      "Record payment for invoice INV-7 · Amaka?\nPayment: NGN 5,000 · bank transfer\nOutstanding: NGN 15,000 → NGN 10,000\nCreate a receipt for this payment.\nCreate a new pickup order.\nStock · Shea butter: 10 → 7.",
+      "Record payment for invoice INV-7 · Amaka?\nPayment: NGN 5,000 · bank transfer\nOutstanding: NGN 15,000 → NGN 10,000\nCreate a receipt for this payment.\nCreate a new pickup order.\nAvailable stock · Shea butter: 10 → 7.",
     );
     expect(renderSummary("record_invoice_payment", { ...p, createReceipt: false }, { ...s, createsOrder: false })).toBe(
       "Record payment for invoice INV-7 · Amaka?\nPayment: NGN 5,000 · bank transfer\nOutstanding: NGN 15,000 → NGN 10,000\nDo not create a receipt.\nStock is unchanged.",
@@ -65,13 +65,13 @@ describe("deterministic approval summaries", () => {
 
   it("shows invoice voiding, order cancellation, returned stock and customer email", () => {
     expect(renderSummary("void_invoice", { invoiceId: "invoice-1", cancelOrder: true }, { ...base, invoiceNumber: "INV-7", clientName: "Amaka", orderInfo: { id: "order-1", orderNumber: "ORD-8", clientEmail: "amaka@example.test", ...restock } })).toBe(
-      "Void invoice INV-7 · Amaka?\nMark the invoice void.\nCancel order ORD-8.\nRestock · Shea butter: +3 (7 → 10).\nEmail order cancellation to: amaka@example.test.",
+      "Void invoice INV-7 · Amaka?\nMark the invoice void.\nCancel order ORD-8.\nRestock · Shea butter: +3 (available 7 → 10).\nEmail order cancellation to: amaka@example.test.",
     );
   });
 
   it("shows order status, cancellation stock and known customer email", () => {
     expect(renderSummary("update_order", { orderId: "order-1", status: "CANCELLED" }, { ...base, orderNumber: "ORD-8", currentStatus: "NEW", clientEmail: "amaka@example.test", ...restock })).toBe(
-      "Update order ORD-8?\nStatus: NEW → CANCELLED\nRestock · Shea butter: +3 (7 → 10).\nEmail order update to: amaka@example.test.",
+      "Update order ORD-8?\nStatus: NEW → CANCELLED\nRestock · Shea butter: +3 (available 7 → 10).\nEmail order update to: amaka@example.test.",
     );
   });
 
@@ -131,7 +131,7 @@ describe("deterministic approval summaries", () => {
   });
 
   it("does not invent stock changes for an untracked product cancellation", () => {
-    expect(renderSummary("update_order", { orderId: "order-1", status: "CANCELLED" }, { ...base, orderNumber: "ORD-8", currentStatus: "NEW", restockLines: [{ productOptionId: "option-1", name: "Shea butter", quantity: 3 }], stockBefore: { "option-1": null }, stockAfter: { "option-1": null } })).toBe("Update order ORD-8?\nStatus: NEW → CANCELLED\nStock · Shea butter: not tracked.");
+    expect(renderSummary("update_order", { orderId: "order-1", status: "CANCELLED" }, { ...base, orderNumber: "ORD-8", currentStatus: "NEW", restockLines: [{ productOptionId: "option-1", name: "Shea butter", quantity: 3 }], stockBefore: { "option-1": null }, stockAfter: { "option-1": null } })).toBe("Update order ORD-8?\nStatus: NEW → CANCELLED\nAvailable stock · Shea butter: not tracked.");
   });
 
   it("shows service price, duration, availability, booking mode and unit limits", () => {

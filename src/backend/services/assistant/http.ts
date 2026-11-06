@@ -181,6 +181,7 @@ export async function withAssistantOwner(
     const code = error !== null && typeof error === "object" && "code" in error ? error.code : undefined;
     if (error instanceof HttpException) { status = error.statusCode; message = error.message; }
     else if (code === "ASSISTANT_TIMEOUT") { status = 503; message = "That request took too long. Please try again."; }
+    else if (code === "ASSISTANT_UNAVAILABLE" || code === "ASSISTANT_DISABLED") { status = 503; message = "Sara's assistant is unavailable right now."; }
     else if (code === "CONVERSATION_NOT_FOUND" || code === "ACTION_NOT_FOUND") { status = 404; message = "Conversation or draft not found"; }
     else if (code === "ASSISTANT_BUSY" || code === "ASSISTANT_TURN_STALE" ||
       code === "ASSISTANT_DRAFT_NOT_PENDING" || code === "ASSISTANT_DRAFT_EXPIRED" || code === "ASSISTANT_DRAFT_EDITING") {

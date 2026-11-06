@@ -62,8 +62,8 @@ function stock(snapshot: ObjectValue, lines: Array<{ name: string; productOption
     const name = lines.find((line) => line.productOptionId === id)!.name;
     if (!(id in before) || !(id in after)) throw error("ASSISTANT_SUMMARY_METADATA_MISSING");
     return before[id] === null && after[id] === null
-      ? `Stock · ${name}: not tracked.`
-      : `Stock · ${name}: ${integer(before[id])} → ${integer(after[id])}.`;
+      ? `Available stock · ${name}: not tracked.`
+      : `Available stock · ${name}: ${integer(before[id])} → ${integer(after[id])}.`;
   });
 }
 function lineItems(lines: ResolvedPayloadByKind["create_invoice"]["lines"], currency: string, snapshot: ObjectValue): string[] {
@@ -98,8 +98,8 @@ function restock(snapshot: ObjectValue): string[] {
     grouped.set(id, { name: text(line.name), quantity: integer(integer(line.quantity) + (grouped.get(id)?.quantity ?? 0)) });
   }
   return grouped.size ? [...grouped].map(([id, line]) => {
-    if (object(snapshot.stockBefore)[id] === null && object(snapshot.stockAfter)[id] === null) return `Stock · ${line.name}: not tracked.`;
-    return `Restock · ${line.name}: +${line.quantity} (${integer(object(snapshot.stockBefore)[id])} → ${integer(object(snapshot.stockAfter)[id])}).`;
+    if (object(snapshot.stockBefore)[id] === null && object(snapshot.stockAfter)[id] === null) return `Available stock · ${line.name}: not tracked.`;
+    return `Restock · ${line.name}: +${line.quantity} (available ${integer(object(snapshot.stockBefore)[id])} → ${integer(object(snapshot.stockAfter)[id])}).`;
   }) : ["No tracked stock to return."];
 }
 function email(label: string, value: unknown): string[] {

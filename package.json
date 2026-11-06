@@ -27,6 +27,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:assistant:integration": "vitest run --config vitest.assistant-integration.config.ts",
+    "eval:assistant": "node scripts/eval-assistant.mjs",
     "docs:generate": "npx next-openapi-gen generate",
     "docs:init": "npx next-openapi-gen init --ui swagger",
     "doctor": "npx react-doctor@latest"

@@ -1,4 +1,4 @@
-import { Prisma, type AssistantAction } from "@prisma/client";
+import { Prisma, type AssistantAction, type AssistantConversation } from "@prisma/client";
 
 import { db } from "@/server/db";
 import type { DraftDto } from "types/assistant";
@@ -185,6 +185,27 @@ export async function cancelDraft(scope: AssistantScope, actionId?: string): Pro
       data: { editingActionId: null, clarification: Prisma.DbNull },
     });
   });
+}
+
+/**
+ * Acquires the same conversation row lock used by edits and publication, then
+ * loads one scoped action without deciding whether its lifecycle state is
+ * approvable. Approval needs to distinguish a replay from an expired, replaced
+ * or invalidated draft, so that decision stays with the caller.
+ */
+export async function lockActionInTransaction(
+  tx: Prisma.TransactionClient,
+  scope: AssistantScope,
+  actionId: string,
+  now: Date,
+): Promise<{ action: AssistantAction; conversation: AssistantConversation }> {
+  const conversation = await lockConversation(tx, scope, now);
+  if (!conversation) throw error("ACTION_NOT_FOUND");
+  const action = await tx.assistantAction.findFirst({
+    where: { id: actionId, ...scopedAction(scope, conversation.id) },
+  });
+  if (!action) throw error("ACTION_NOT_FOUND");
+  return { action, conversation };
 }
 
 /**

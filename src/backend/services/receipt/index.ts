@@ -91,7 +91,7 @@ class ReceiptService {
       business.id,
       linesToCreate,
     );
-
+    
     const customer = input.customerId
       ? await customerService.ownedBy(tx, business.id, input.customerId)
       : await customerService.resolve(tx, {
