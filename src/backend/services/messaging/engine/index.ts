@@ -12,6 +12,8 @@ import {
 import { linkingService } from "../linking";
 import { chatSessionService } from "../session";
 import { formatMoney, parseAmount } from "./amount";
+import type { AssistantScope } from "@/backend/services/assistant/types";
+import { routeAssistantMessage } from "./assistant";
 
 /** "1️⃣": the digit, then the emoji presentation selector and the combining keycap. */
 function keycap(n: number): string {
@@ -149,9 +151,6 @@ class ConversationEngine {
     message: InboundMessage,
     options?: HandleOptions,
   ): Promise<OutboundMessage | null> {
-    // Task 15 routes these to the assistant. Until then, never put a media or
-    // button id into a typed menu field or consume the menu's message claim.
-    if (message.kind !== "text") return null;
     const identity = await chatSessionService.findIdentity(
       message.channel,
       message.externalId,
@@ -163,15 +162,14 @@ class ConversationEngine {
       return text(`👋 Welcome to Sara! Connect your business to get started:\n${url}`);
     }
 
+    const scope: AssistantScope = {
+      businessId: identity.businessId,
+      channel: message.channel as "WHATSAPP" | "INSTAGRAM" | "WEB",
+      principalId: identity.id,
+    };
+
     const sells = identity.business.sells;
     const session = await chatSessionService.getOrCreateSession(identity.id);
-
-    let state = session.state;
-    let context = (session.context as Draft | null) ?? {};
-    if (chatSessionService.isStale(session)) {
-      state = "MAIN_MENU";
-      context = {};
-    }
 
     // Atomically claim this messageId before doing any work. A concurrent or
     // duplicate Meta delivery of the same messageId loses the race and is dropped,
@@ -179,18 +177,76 @@ class ConversationEngine {
     const claimed = await chatSessionService.claimMessage(session.id, message.messageId);
     if (!claimed) return null;
 
-    const trimmed = message.text.trim();
-    const lower = trimmed.toLowerCase();
-    if (lower === "menu" || lower === "0") {
+    // Route to assistant first (Task 15) for buttons, voice, and assistant-specific text
+    if (message.kind === "button" || message.kind === "voice") {
+      try {
+        const result = await routeAssistantMessage(scope, message, options);
+        return result;
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        if (errorMessage === "ASSISTANT_BUTTON_IGNORED") {
+          return null;
+        }
+        if (message.kind === "voice") {
+          return text("Sara's assistant is unavailable right now. Reply menu to continue.");
+        }
+        return null;
+      }
+    }
+
+    // For text messages, check if we should route to assistant
+    if (message.kind === "text") {
+      const trimmed = message.text.trim();
+      const lower = trimmed.toLowerCase();
+      
+      // menu/0 and cancel are handled by engine for backward compatibility
+      // But we should cancel any pending draft for cancel
+      if (lower === "cancel") {
+        try {
+          await cancelDraft(scope);
+        } catch {
+          // No pending draft or error
+        }
+      }
+      
+      // Check if this should go to assistant
+      if (lower !== "menu" && lower !== "0" && lower !== "cancel") {
+        try {
+          const result = await routeAssistantMessage(scope, message, options);
+          return result;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          if (errorMessage === "ASSISTANT_BUTTON_IGNORED") {
+            return null;
+          }
+          // For other errors, fall through to engine
+        }
+      }
+    }
+
+    // Fall through to existing menu routing
+    let state = session.state;
+    let context = (session.context as Draft | null) ?? {};
+    if (chatSessionService.isStale(session)) {
       state = "MAIN_MENU";
       context = {};
-    } else if (lower === "cancel") {
-      await chatSessionService.save(session.id, {
-        state: "MAIN_MENU",
-        context: null,
-        lastProcessedMsgId: message.messageId,
-      });
-      return text(`Cancelled.\n\n${mainMenuText(sells)}`);
+    }
+
+    // Use message.text directly since we've already processed it
+    if (message.kind === "text") {
+      const trimmed = message.text.trim();
+      const lower = trimmed.toLowerCase();
+      if (lower === "menu" || lower === "0") {
+        state = "MAIN_MENU";
+        context = {};
+      } else if (lower === "cancel") {
+        await chatSessionService.save(session.id, {
+          state: "MAIN_MENU",
+          context: null,
+          lastProcessedMsgId: message.messageId,
+        });
+        return text(`Cancelled.\n\n${mainMenuText(sells)}`);
+      }
     }
 
     const result = await this.route(
