@@ -80,16 +80,25 @@ export function WhatsAppChat({ children }: { children: ReactNode }) {
 /** The owner's message: right, pale green, with the time and ticks. */
 export function OwnerMessage({
   time,
+  voice = false,
   children,
 }: {
   time: string;
+  voice?: boolean;
   children: ReactNode;
 }) {
   return (
     <div className={cn("flex justify-end", ARRIVE_ITEM)} data-item>
       <p className={cn(BUBBLE, "bg-wa-out rounded-br-[4px]")}>
         <span className="sr-only">Tobi: </span>
-        {children}
+        {voice ? (
+          <span className="inline-flex items-center gap-1.5">
+            <Microphone size={14} weight="fill" />
+            {children}
+          </span>
+        ) : (
+          children
+        )}
         <Stamp time={time} ticks />
         <Tail className="fill-wa-out -right-[5px] -scale-x-100" />
       </p>

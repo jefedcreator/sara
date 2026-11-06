@@ -280,8 +280,8 @@ const STEPS = [
 
 const FAQ = [
   {
-    q: "Is Sara an AI chatbot?",
-    a: 'No. Sara is a guided menu. You reply with a number and Sara answers the same way every time. Send "menu" or "0" to go back.',
+    q: "How does Sara understand?",
+    a: "Type or send a voice note. Sara figures out what you want, shows you the exact details as a draft, and waits for you to approve before anything changes.",
   },
   {
     q: "Will Sara message my customers on WhatsApp?",
@@ -297,7 +297,7 @@ const FAQ = [
   },
   {
     q: "Can I use Instagram instead of WhatsApp?",
-    a: "Yes. The same numbered menu works in your Instagram chat.",
+    a: "Yes. Sara works in your Instagram chat too.",
   },
 ] as const;
 
@@ -331,10 +331,10 @@ export function LandingPage() {
               Your whole business, <br className="hidden md:inline" />
               one chat away.
             </h1>
-            <p className="text-muted motion-safe:animate-rise-1 mx-auto mt-[22px] max-w-[50ch] text-[clamp(16px,1rem_+_0.3vw,19px)] text-pretty">
-              Invoices, receipts, booking links and today&apos;s numbers,
-              straight from the WhatsApp chat you already have open. Reply with
-              a number. Sara does the rest.
+            <p className="text-muted motion-safe:animate-rise-1 mx-auto mt-[22px] max-w-[58ch] text-[clamp(16px,1rem_+_0.3vw,19px)] text-pretty">
+              Send Sara a voice note or type what you need. Make invoices, record
+              sales, and check your numbers. Sara shows you the details before
+              anything changes.
             </p>
             <div className="motion-safe:animate-rise-2 mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-3.5">
               <StartButton href={wa} id="start" />
@@ -587,6 +587,48 @@ export function LandingPage() {
                   <br />• Today&apos;s revenue: NGN 31,000
                   <br />• This week: NGN 188,000
                   <br />• Unpaid invoices: 3
+                </SaraMessage>
+              </MenuCard>
+              {/* Voice note example */}
+              <MenuCard n={0} title="Voice note">
+                <OwnerMessage time="09:15" voice={true}>
+                  🎤 Voice note sent
+                </OwnerMessage>
+                <SaraMessage time="09:15">
+                  I heard: &quot;Create invoice for Amina for knotless braids for NGN 28,000&quot;
+                  <br />
+                  <br />
+                  Draft invoice:
+                  <br />• Customer: Amina
+                  <br />• Amount: NGN 28,000
+                  <br />• Service: Knotless braids
+                  <br />
+                  <br />
+                  Reply SEND IT to create, or CHANGE SOMETHING to edit
+                </SaraMessage>
+                <OwnerMessage time="09:16">Send it</OwnerMessage>
+                <SaraMessage time="09:16" grouped>
+                  Creating invoice... ⏳
+                </SaraMessage>
+                <SaraMessage
+                  time="09:16"
+                  preview={{
+                    title: "Invoice INV-1043 from Tobi Beauty Studio",
+                    body: "NGN 28,000 to pay. See it here or download the PDF.",
+                  }}
+                >
+                  Invoice INV-1043 created ✅
+                  <br />
+                  Payment link: <ChatLink>{INVOICE_LINK}</ChatLink>
+                  <br />
+                  <br />
+                  Share with Amina:
+                  <br />
+                  — — —
+                  <br />
+                  Hi Amina, here&apos;s your invoice. Pay securely:{" "}
+                  <ChatLink>{INVOICE_LINK}</ChatLink>
+                  <br />— — —
                 </SaraMessage>
               </MenuCard>
             </div>

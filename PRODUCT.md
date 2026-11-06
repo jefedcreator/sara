@@ -24,7 +24,7 @@ Sara lets the owner run the business from the WhatsApp or Instagram chat they al
 
 ## Positioning
 
-A guided, deterministic numbered chat menu (not an AI chatbot) on top of serious infrastructure: Paystack split payments into the business's own subaccount, Mono bank linking, two-way Google Calendar sync, automatic receipts and customer emails. A one-person shop gets the back office of a salon chain without ever opening a laptop.
+A guided, deterministic numbered chat menu on top of serious infrastructure: Paystack split payments into the business's own subaccount, Mono bank linking, two-way Google Calendar sync, automatic receipts and customer emails. Send Sara a voice note or type what you need. Sara uses AI to understand plain English and turn voice notes into text, then shows you the details before anything changes. A one-person shop gets the back office of a salon chain without ever opening a laptop.
 
 ## Operating Context
 
@@ -52,13 +52,13 @@ A guided, deterministic numbered chat menu (not an AI chatbot) on top of serious
 - Home service: route and distance between customer and business address.
 - Web dashboard (decided by the owner 2026-09-29): a superset of the chat. Today (the chat's menu items for the business, plus revenue by item, orders to send out and running low), Bookings (confirm, mark done, reschedule, cancel), Orders (filter by status; mark ready, delivered or collected; cancel), Invoices (itemised or custom amount, record full or part payments with an optional receipt, void), Receipts, Customers, Services (create, edit, pause, booking links), Products (create, edit, pause, copy link, adjust stock) and Settings (profile, hours, days off, Google Calendar, what you sell, delivery and pickup). Bookings and Services show for businesses that sell services, Orders and Products for those that sell products. The chat and the dashboard read the same numbers (dashboardService).
 - Booking modes per service: by time slot (default), by the night (shortlets: check-in/check-out times, min/max nights, priced per night) and by the day (self-drive: 24-hour days from a chosen pickup time, priced per day). Each apartment or car is its own service with its own calendar; stays and rentals never block other units or the owner's slot bookings. Unpaid bookings hold their time for 30 minutes.
-- Does NOT exist yet (never claim): caution fees / security deposits, iCal sync with Airbnb or Booking.com, guest count or ID capture, pickup and drop-off locations for rentals, no-show/reliability scores, buffer times, QR codes, customer-side WhatsApp booking, a shop page listing everything a business sells, a shopping cart, discount codes, cost prices and profit reports, delivery company integrations, refunds through Sara. Sara is not AI and must never be described as one.
+- Does NOT exist yet (never claim): caution fees / security deposits, iCal sync with Airbnb or Booking.com, guest count or ID capture, pickup and drop-off locations for rentals, no-show/reliability scores, buffer times, QR codes, customer-side WhatsApp booking, a shop page listing everything a business sells, a shopping cart, discount codes, cost prices and profit reports, delivery company integrations, refunds through Sara.
 - Money: "NGN 15,000" in UI chrome, "₦15,000" in headline and stat copy.
 
 ## Brand Commitments
 
 - Primary CTA everywhere: "Start on WhatsApp". Optional hero-only secondary: "See how booking links work".
-- Calm, warm, confident, at home in Lagos. No Silicon Valley hype, no AI/chatbot language.
+- Calm, warm, confident, at home in Lagos. No Silicon Valley hype.
 - Partner names appear only as plain text or neutral wordmarks in a "Works with" row.
 - Colour: the original brief ruled out WhatsApp green; on 2026-09-25 the owner chose WhatsApp green (#25D366) as the accent for the preferred direction (v1 Impeccable).
 
@@ -71,6 +71,7 @@ A guided, deterministic numbered chat menu (not an AI chatbot) on top of serious
 ## Product Principles
 
 1. The chat is the product: every claim is shown as a real exchange, invoice line or number.
-2. Deterministic over clever: numbered menus, predictable replies.
-3. Serious infrastructure, plain language.
-4. Phone first: 375px is the primary canvas.
+2. Understand the request, show the details, wait for approval.
+3. Deterministic over clever: numbered menus, predictable replies.
+4. Serious infrastructure, plain language.
+5. Phone first: 375px is the primary canvas.
