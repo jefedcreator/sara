@@ -55,6 +55,10 @@ export function readAssistantSettings(
  * parsed again through the string-only test seam above.
  */
 export function assistantConfig(): AssistantSettings {
+  // The Docker build escape hatch skips createEnv's transforms as well as
+  // validation. Parse raw assistant settings there so "false" stays off and
+  // the database quota always receives a validated positive integer.
+  if (process.env.SKIP_ENV_VALIDATION) return readAssistantSettings(process.env);
   return {
     enabled: env.ASSISTANT_ENABLED,
     available: env.ASSISTANT_ENABLED && Boolean(env.OPENAI_API_KEY),

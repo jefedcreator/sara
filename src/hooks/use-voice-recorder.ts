@@ -9,7 +9,7 @@ import {
 } from "@/utils/audio-recorder";
 
 interface UseVoiceRecorderOptions {
-  onAudio(audio: RecordedAudio): void;
+  onAudio: (audio: RecordedAudio) => void;
 }
 
 export function useVoiceRecorder({ onAudio }: UseVoiceRecorderOptions) {
@@ -40,8 +40,7 @@ export function useVoiceRecorder({ onAudio }: UseVoiceRecorderOptions) {
   const start = useCallback(async () => {
     if (!mounted.current) return;
     setError(null);
-    if (!controller.current) {
-      controller.current = createAudioRecorder({
+    controller.current ??= createAudioRecorder({
         getUserMedia: navigator.mediaDevices?.getUserMedia
           ? navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices)
           : undefined,
@@ -59,7 +58,6 @@ export function useVoiceRecorder({ onAudio }: UseVoiceRecorderOptions) {
           if (mounted.current) setError(message);
         },
       });
-    }
     await controller.current.start();
   }, []);
 

@@ -1,4 +1,4 @@
-import { Prisma, type AssistantAction } from "@prisma/client";
+import { type Prisma, type AssistantAction } from "@prisma/client";
 import { z } from "zod";
 
 import { withSerializable } from "@/backend/services/assistant/transaction";
@@ -48,7 +48,7 @@ function safeErrorCode(value: unknown): string {
 
 function object(value: Prisma.JsonValue | null | undefined): Record<string, unknown> {
   return value !== null && value !== undefined && typeof value === "object" && !Array.isArray(value)
-    ? value as Record<string, unknown>
+    ? value
     : {};
 }
 
@@ -64,6 +64,20 @@ function canonical(value: unknown): string {
       .join(",")}}`;
   }
   return JSON.stringify(value) ?? "undefined";
+}
+
+/** Values used to decide what the action means, beyond the displayed text.
+ * Timestamps record provenance, but a harmless row touch must not invalidate a
+ * preview. Invoice stock is informational: invoicing does not reserve or take it.
+ */
+function materialSnapshot(kind: string, value: unknown): unknown {
+  if (Array.isArray(value)) return value.map((item) => materialSnapshot(kind, item));
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(Object.entries(value).filter(([key]) =>
+    !["originalRequest", "resolvedRequest", "ownerEvidence", "resolvedAt"].includes(key) &&
+    !/updatedAt$/i.test(key) &&
+    !(kind === "create_invoice" && ["stockBefore", "stockAfter", "physicalStock", "availableStock"].includes(key)),
+  ).map(([key, item]) => [key, materialSnapshot(kind, item)]));
 }
 
 /**
@@ -93,7 +107,7 @@ function savedResult(value: Prisma.JsonValue | null): ActionResult {
   return {
     text: saved.text,
     resourceId: saved.resourceId,
-    link: saved.link as string | null,
+    link: saved.link,
     affected: [...saved.affected] as ResourceKind[],
   };
 }
@@ -125,6 +139,8 @@ export async function revalidateAction(
     if ("question" in resolved) return changed(resolved.question || CHANGED_EXPLANATION);
     if (resolved.kind !== action.kind) return changed();
     if (canonical(resolved.payload) !== canonical(action.payload)) return changed();
+    if (canonical(materialSnapshot(action.kind, resolved.snapshot)) !==
+        canonical(materialSnapshot(action.kind, action.snapshot))) return changed();
 
     const summary = renderSummary(resolved.kind, resolved.payload, resolved.snapshot);
     if (summary !== action.summary) return changed();
@@ -250,7 +266,7 @@ export async function approveAction(
     const executed = await executeAction(tx, scope, revalidated, checkedAt);
     await tx.assistantAction.update({
       where: { id: action.id },
-      data: { result: executed.result as unknown as Prisma.InputJsonValue },
+      data: { result: executed.result },
     });
     effects = executed.effects;
     return {

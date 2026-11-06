@@ -1,3 +1,4 @@
+import type { ResponsesTransport } from "../loop";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("@/server/db", () => ({ db: {} }));
 vi.mock("./reads", () => ({ executeRead: vi.fn() }));
@@ -15,7 +16,7 @@ const context: ToolContext = {
   evidence: { text: "Create customer Ada", recentOwnerTexts: [], selectedIds: [] },
   now: new Date(), signal: new AbortController().signal,
 };
-const request = { kind: "create_customer", name: "Ada", phone: null, email: null, address: null, notes: null };
+const request = { kind: "create_customer" as const, name: "Ada", phone: null, email: null, address: null, notes: null };
 beforeEach(() => vi.clearAllMocks());
 describe("curated registry", () => {
   it("returns unknown-tool errors without calling a service", async () => {
@@ -113,7 +114,7 @@ describe("offline full request continuation", () => {
     const draft = { id: "d1", summary: "Preview exact saved receipt", status: "PENDING" as const, expiresAt: "2026-11-06" };
     vi.mocked(resolveDraft).mockResolvedValue({ kind: "create_receipt", payload: {}, snapshot: {} });
     vi.mocked(createDraft).mockResolvedValue(draft);
-    const transport = vi.fn<import("../loop").ResponsesTransport>().mockImplementation(async (params) => {
+    const transport = vi.fn<ResponsesTransport>().mockImplementation(async (params) => {
       expect(JSON.stringify(params.input)).toContain("option-owned");
       expect(JSON.stringify(params.input)).toContain("Keep original notes");
       expect(JSON.stringify(params.input)).toContain(answer);

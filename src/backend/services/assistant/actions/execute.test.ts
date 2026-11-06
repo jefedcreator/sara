@@ -1,45 +1,56 @@
 import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/backend/services/booking/mutations", () => ({ bookingMutations: { updateInTransaction: vi.fn(), finalize: vi.fn() } }));
-vi.mock("@/backend/services/customer", () => ({ customerService: { createInTransaction: vi.fn(), updateInTransaction: vi.fn() } }));
-vi.mock("@/backend/services/invoice", () => ({ invoiceService: { createInTransaction: vi.fn() } }));
-vi.mock("@/backend/services/invoice/finalize", () => ({ finalizeInvoice: vi.fn() }));
-vi.mock("@/backend/services/invoice/mutations", () => ({ invoiceMutations: { recordPaymentInTransaction: vi.fn(), updateInTransaction: vi.fn(), finalize: vi.fn() } }));
+const serviceMocks = vi.hoisted(() => ({
+  booking: { updateInTransaction: vi.fn(), finalize: vi.fn() },
+  customer: { createInTransaction: vi.fn(), updateInTransaction: vi.fn() },
+  invoice: { createInTransaction: vi.fn() },
+  finalizeInvoice: vi.fn(),
+  invoiceMutations: { recordPaymentInTransaction: vi.fn(), updateInTransaction: vi.fn(), finalize: vi.fn() },
+  order: { setStatusInTransaction: vi.fn(), finalizeStatus: vi.fn() },
+  product: { createInTransaction: vi.fn(), updateInTransaction: vi.fn(), adjustStockInTransaction: vi.fn() },
+  requireAvailableStock: vi.fn(), receipt: { createInTransaction: vi.fn() }, finalizeReceipt: vi.fn(),
+  service: { createInTransaction: vi.fn(), updateInTransaction: vi.fn() }, emailReceipt: vi.fn(),
+  db: { receipt: { findUnique: vi.fn() } },
+}));
+vi.mock("@/backend/services/booking/mutations", () => ({ bookingMutations: serviceMocks.booking }));
+vi.mock("@/backend/services/customer", () => ({ customerService: serviceMocks.customer }));
+vi.mock("@/backend/services/invoice", () => ({ invoiceService: serviceMocks.invoice }));
+vi.mock("@/backend/services/invoice/finalize", () => ({ finalizeInvoice: serviceMocks.finalizeInvoice }));
+vi.mock("@/backend/services/invoice/mutations", () => ({ invoiceMutations: serviceMocks.invoiceMutations }));
 vi.mock("@/backend/services/messaging/engine/amount", () => ({ formatMoney: (amount: number, currency: string) => `${currency} ${amount.toFixed(2)}` }));
-vi.mock("@/backend/services/order", () => ({ orderService: { setStatusInTransaction: vi.fn(), finalizeStatus: vi.fn() } }));
-vi.mock("@/backend/services/product", () => ({ productService: { createInTransaction: vi.fn(), updateInTransaction: vi.fn(), adjustStockInTransaction: vi.fn() } }));
-vi.mock("@/backend/services/product/stock", () => ({ requireAvailableStock: vi.fn() }));
-vi.mock("@/backend/services/receipt", () => ({ receiptService: { createInTransaction: vi.fn() } }));
-vi.mock("@/backend/services/receipt/finalize", () => ({ finalizeReceipt: vi.fn() }));
-vi.mock("@/backend/services/service", () => ({ serviceService: { createInTransaction: vi.fn(), updateInTransaction: vi.fn() } }));
-vi.mock("@/backend/services/email/documents", () => ({ emailReceipt: vi.fn() }));
-vi.mock("@/server/db", () => ({ db: { receipt: { findUnique: vi.fn() } } }));
+vi.mock("@/backend/services/order", () => ({ orderService: serviceMocks.order }));
+vi.mock("@/backend/services/product", () => ({ productService: serviceMocks.product }));
+vi.mock("@/backend/services/product/stock", () => ({ requireAvailableStock: serviceMocks.requireAvailableStock }));
+vi.mock("@/backend/services/receipt", () => ({ receiptService: serviceMocks.receipt }));
+vi.mock("@/backend/services/receipt/finalize", () => ({ finalizeReceipt: serviceMocks.finalizeReceipt }));
+vi.mock("@/backend/services/service", () => ({ serviceService: serviceMocks.service }));
+vi.mock("@/backend/services/email/documents", () => ({ emailReceipt: serviceMocks.emailReceipt }));
+vi.mock("@/server/db", () => ({ db: serviceMocks.db }));
 vi.mock("@/server/share", () => ({
   publicLink: (kind: string, id: string) => `https://sara.test/${kind}/${id}`,
   productLink: (slug: string) => `https://sara.test/products/${slug}`,
   serviceLink: (slug: string) => `https://sara.test/services/${slug}`,
 }));
 
-import { bookingMutations } from "@/backend/services/booking/mutations";
-import { customerService } from "@/backend/services/customer";
-import { invoiceService } from "@/backend/services/invoice";
-import { finalizeInvoice } from "@/backend/services/invoice/finalize";
-import { invoiceMutations } from "@/backend/services/invoice/mutations";
-import { orderService } from "@/backend/services/order";
-import { productService } from "@/backend/services/product";
-import { requireAvailableStock } from "@/backend/services/product/stock";
-import { receiptService } from "@/backend/services/receipt";
-import { finalizeReceipt } from "@/backend/services/receipt/finalize";
-import { serviceService } from "@/backend/services/service";
-import { emailReceipt } from "@/backend/services/email/documents";
-import { db } from "@/server/db";
 import { BadRequestException } from "@/utils/exceptions";
 
 import type { AssistantScope } from "../types";
 import { executeAction, finalizeEffects } from "./execute";
-import type { PreparedAction, ResolvedPayloadByKind } from "./types";
+import type { PreparedAction } from "./types";
 
+const bookingMutations = serviceMocks.booking;
+const customerService = serviceMocks.customer;
+const invoiceService = serviceMocks.invoice;
+const finalizeInvoice = serviceMocks.finalizeInvoice;
+const invoiceMutations = serviceMocks.invoiceMutations;
+const orderService = serviceMocks.order;
+const productService = serviceMocks.product;
+const requireAvailableStock = serviceMocks.requireAvailableStock;
+const receiptService = serviceMocks.receipt;
+const finalizeReceipt = serviceMocks.finalizeReceipt;
+const serviceService = serviceMocks.service;
+const emailReceipt = serviceMocks.emailReceipt;
 const tx = {
   invoice: { findFirst: vi.fn() },
   order: { findFirst: vi.fn() },
@@ -48,8 +59,9 @@ const tx = {
   booking: { findFirst: vi.fn() },
   service: { findFirst: vi.fn() },
   receipt: { findFirst: vi.fn() },
-} as any;
-const mocked = db as any;
+} ;
+const transactionClient = tx as unknown as Prisma.TransactionClient;
+const mocked = serviceMocks.db;
 const scope: AssistantScope = { businessId: "business-1", channel: "WHATSAPP", principalId: "owner-1" };
 const now = new Date("2026-11-04T12:00:00.000Z");
 const currency = "NGN";
@@ -66,7 +78,7 @@ const invoice: PreparedAction<"create_invoice"> = {
     customer: { name: "Amaka", phone: null, email: null, address: null },
     lines: [line], dueDate: "2026-11-06", notes: null,
     subtotalMinor: 1500000, taxAmountMinor: 0, discountMinor: 0, totalMinor: 1500000, currency,
-  } as unknown as ResolvedPayloadByKind["create_invoice"],
+  },
   snapshot: { businessId: scope.businessId, customerWillBeCreated: false, invoiceEmailWillBeSent: false },
 };
 const receipt: PreparedAction<"create_receipt"> = {
@@ -75,7 +87,7 @@ const receipt: PreparedAction<"create_receipt"> = {
     customer: null, lines: [line], amountPaidMinor: 1500000,
     subtotalMinor: 1500000, taxAmountMinor: 0, discountMinor: 0, totalMinor: 1500000,
     method: "CASH", fulfilment: "PICKUP", deliveryAddress: null, notes: null, currency,
-  } as unknown as ResolvedPayloadByKind["create_receipt"],
+  },
   snapshot: { businessId: scope.businessId, customerWillBeCreated: false, receiptEmailWillBeSent: false },
 };
 const payment: PreparedAction<"record_invoice_payment"> = {
@@ -165,35 +177,35 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(invoiceService.createInTransaction).mockResolvedValue({
     id: "invoice-1", invoiceNumber: "INV-1001", publicId: "public-invoice",
-  } as never);
+  });
   vi.mocked(receiptService.createInTransaction).mockResolvedValue({
     id: "receipt-1", receiptNumber: "RCP-1001", publicId: "public-receipt",
-  } as never);
+  });
   vi.mocked(invoiceMutations.recordPaymentInTransaction).mockResolvedValue({
     invoice: { id: "invoice-1", invoiceNumber: "INV-1001", publicId: "public-invoice" },
     receiptId: null,
     effects: [{ kind: "invoice_pdf", id: "invoice-1" }],
-  } as never);
+  });
   vi.mocked(invoiceMutations.updateInTransaction).mockResolvedValue({
     invoice: { id: "invoice-1", invoiceNumber: "INV-1001", publicId: "public-invoice" },
     effects: [],
-  } as never);
+  });
   vi.mocked(orderService.setStatusInTransaction).mockResolvedValue({
     order: { id: "order-1", orderNumber: "ORD-1001", publicId: "public-order" },
     effects: [{ kind: "order_email", id: "order-1" }],
-  } as never);
-  vi.mocked(productService.adjustStockInTransaction).mockResolvedValue({ id: "option-1", stock: 7 } as never);
-  vi.mocked(productService.createInTransaction).mockResolvedValue({ id: "product-1", name: "Cocoa soap", slug: "cocoa-soap" } as never);
-  vi.mocked(productService.updateInTransaction).mockResolvedValue({ id: "product-1", name: "Shea butter", slug: "shea-butter" } as never);
+  });
+  vi.mocked(productService.adjustStockInTransaction).mockResolvedValue({ id: "option-1", stock: 7 });
+  vi.mocked(productService.createInTransaction).mockResolvedValue({ id: "product-1", name: "Cocoa soap", slug: "cocoa-soap" });
+  vi.mocked(productService.updateInTransaction).mockResolvedValue({ id: "product-1", name: "Shea butter", slug: "shea-butter" });
   vi.mocked(bookingMutations.updateInTransaction).mockResolvedValue({
     booking: { id: "booking-1", clientName: "Amaka", publicId: "public-booking" },
     effects: [],
-  } as never);
-  vi.mocked(serviceService.createInTransaction).mockResolvedValue({ id: "service-1", name: "Gele touch-up", slug: "gele-touch-up" } as never);
-  vi.mocked(serviceService.updateInTransaction).mockResolvedValue({ id: "service-1", name: "Gele tying", slug: "gele-tying" } as never);
-  vi.mocked(customerService.createInTransaction).mockResolvedValue({ id: "customer-1", name: "Zainab" } as never);
-  vi.mocked(customerService.updateInTransaction).mockResolvedValue({ id: "customer-1", name: "Zainab Bello" } as never);
-  vi.mocked(requireAvailableStock).mockResolvedValue(undefined as never);
+  });
+  vi.mocked(serviceService.createInTransaction).mockResolvedValue({ id: "service-1", name: "Gele touch-up", slug: "gele-touch-up" });
+  vi.mocked(serviceService.updateInTransaction).mockResolvedValue({ id: "service-1", name: "Gele tying", slug: "gele-tying" });
+  vi.mocked(customerService.createInTransaction).mockResolvedValue({ id: "customer-1", name: "Zainab" });
+  vi.mocked(customerService.updateInTransaction).mockResolvedValue({ id: "customer-1", name: "Zainab Bello" });
+  vi.mocked(requireAvailableStock).mockResolvedValue(undefined);
 
   tx.invoice.findFirst.mockResolvedValue({
     id: "invoice-1", slug: "inv-1", publicId: "public-invoice", invoiceNumber: "INV-1001",
@@ -213,7 +225,7 @@ beforeEach(() => {
 
 describe("executeAction", () => {
   it("creates an unpaid invoice inside the transaction and queues its PDF", async () => {
-    const executed = await executeAction(tx, scope, invoice, now);
+    const executed = await executeAction(transactionClient, scope, invoice, now);
     expect(invoiceService.createInTransaction).toHaveBeenCalledWith(tx, expect.objectContaining({
       businessId: scope.businessId,
       status: "SENT",
@@ -231,7 +243,7 @@ describe("executeAction", () => {
   });
 
   it("preflights available stock before a sale receipt and creates the order in the same transaction", async () => {
-    const executed = await executeAction(tx, scope, receipt, now);
+    const executed = await executeAction(transactionClient, scope, receipt, now);
     expect(requireAvailableStock).toHaveBeenCalledWith(tx, scope.businessId, [{ productOptionId: "option-1", quantity: 3 }], now);
     expect(receiptService.createInTransaction).toHaveBeenCalledWith(tx, expect.objectContaining({
       total: 15000,
@@ -244,12 +256,12 @@ describe("executeAction", () => {
 
   it("refuses a product receipt without pickup or delivery before writing", async () => {
     const missing = { ...receipt, payload: { ...receipt.payload, fulfilment: null } } as PreparedAction<"create_receipt">;
-    await expect(executeAction(tx, scope, missing, now)).rejects.toBeInstanceOf(BadRequestException);
+    await expect(executeAction(transactionClient, scope, missing, now)).rejects.toBeInstanceOf(BadRequestException);
     expect(receiptService.createInTransaction).not.toHaveBeenCalled();
   });
 
   it("preflights stock for a real first invoice product payment", async () => {
-    await executeAction(tx, scope, payment, now);
+    await executeAction(transactionClient, scope, payment, now);
     expect(requireAvailableStock).toHaveBeenCalledWith(tx, scope.businessId, [{ productOptionId: "option-1", quantity: 3 }], now);
     expect(invoiceMutations.recordPaymentInTransaction).toHaveBeenCalledWith(tx, scope.businessId, "invoice-1", {
       amountMinor: 500000, method: "CASH", createReceipt: true, paidAt: now,
@@ -262,7 +274,7 @@ describe("executeAction", () => {
       amountPaid: new Prisma.Decimal(30000), order: null,
       lines: [{ productOptionId: "option-1", quantity: 3 }],
     });
-    await executeAction(tx, scope, payment, now);
+    await executeAction(transactionClient, scope, payment, now);
     expect(requireAvailableStock).not.toHaveBeenCalled();
 
     tx.invoice.findFirst.mockResolvedValue({
@@ -270,7 +282,7 @@ describe("executeAction", () => {
       amountPaid: new Prisma.Decimal(0), order: { id: "order-1" },
       lines: [{ productOptionId: "option-1", quantity: 3 }],
     });
-    await executeAction(tx, scope, payment, now);
+    await executeAction(transactionClient, scope, payment, now);
     expect(requireAvailableStock).not.toHaveBeenCalled();
   });
 
@@ -279,7 +291,7 @@ describe("executeAction", () => {
       slug: "inv-1", publicId: "public-invoice", invoiceNumber: "INV-1001",
       order: { id: "order-1", orderNumber: "ORD-1001", status: "READY" },
     });
-    const executed = await executeAction(tx, scope, voided, now);
+    const executed = await executeAction(transactionClient, scope, voided, now);
     expect(invoiceMutations.updateInTransaction).toHaveBeenCalledWith(tx, scope.businessId, "inv-1", {
       status: "VOID", cancelOrder: true,
     });
@@ -288,26 +300,26 @@ describe("executeAction", () => {
   });
 
   it("moves an order and returns its email effect", async () => {
-    const executed = await executeAction(tx, scope, order, now);
+    const executed = await executeAction(transactionClient, scope, order, now);
     expect(orderService.setStatusInTransaction).toHaveBeenCalledWith(tx, scope.businessId, "ord-1", "READY");
     expect(executed.result.text).toContain("marked ready");
     expect(executed.effects).toEqual([{ kind: "order_email", id: "order-1" }]);
   });
 
   it("maps remove and set stock modes to the physical adjustment the owner approved", async () => {
-    await executeAction(tx, scope, stock, now);
+    await executeAction(transactionClient, scope, stock, now);
     expect(productService.adjustStockInTransaction).toHaveBeenCalledWith(tx, scope.businessId, "option-1", { add: -3 });
 
     const set = { ...stock, payload: { ...stock.payload, mode: "set", quantity: 2 } } as PreparedAction<"adjust_stock">;
-    await executeAction(tx, scope, set, now);
+    await executeAction(transactionClient, scope, set, now);
     expect(productService.adjustStockInTransaction).toHaveBeenLastCalledWith(tx, scope.businessId, "option-1", { set: 2 });
   });
 
   it("confirms a booking and reschedules one with computed end times", async () => {
-    await executeAction(tx, scope, booking, now);
+    await executeAction(transactionClient, scope, booking, now);
     expect(bookingMutations.updateInTransaction).toHaveBeenCalledWith(tx, scope.businessId, "bkg-1", { status: "CONFIRMED" });
 
-    await executeAction(tx, scope, rescheduled, now);
+    await executeAction(transactionClient, scope, rescheduled, now);
     expect(bookingMutations.updateInTransaction).toHaveBeenLastCalledWith(tx, scope.businessId, "bkg-1", {
       startTime: new Date("2026-11-05T10:00:00.000Z"),
       endTime: new Date("2026-11-05T10:30:00.000Z"),
@@ -315,7 +327,7 @@ describe("executeAction", () => {
   });
 
   it("creates a product with its options and no photos", async () => {
-    await executeAction(tx, scope, createProduct, now);
+    await executeAction(transactionClient, scope, createProduct, now);
     expect(productService.createInTransaction).toHaveBeenCalledWith(tx, scope.businessId, {
       name: "Cocoa soap",
       description: null,
@@ -326,22 +338,22 @@ describe("executeAction", () => {
   });
 
   it("updates a product using the approved field list only", async () => {
-    await executeAction(tx, scope, updateProduct, now);
+    await executeAction(transactionClient, scope, updateProduct, now);
     expect(productService.updateInTransaction).toHaveBeenCalledWith(tx, scope.businessId, "shea-butter", { isActive: false });
   });
 
   it("creates and updates services through the shared atomic cores", async () => {
-    await executeAction(tx, scope, createService, now);
+    await executeAction(transactionClient, scope, createService, now);
     expect(serviceService.createInTransaction).toHaveBeenCalledWith(tx, scope.businessId, expect.objectContaining({
       name: "Gele touch-up", price: 5000, duration: 30, bookingMode: "SLOT", isActive: true,
     }), null);
 
-    await executeAction(tx, scope, updateService, now);
+    await executeAction(transactionClient, scope, updateService, now);
     expect(serviceService.updateInTransaction).toHaveBeenCalledWith(tx, scope.businessId, "gele-tying", { price: 20000 });
   });
 
   it("creates and updates customers inside the supplied transaction", async () => {
-    await executeAction(tx, scope, createCustomer, now);
+    await executeAction(transactionClient, scope, createCustomer, now);
     expect(customerService.createInTransaction).toHaveBeenCalledWith(tx, {
       businessId: scope.businessId,
       name: "Zainab",
@@ -351,7 +363,7 @@ describe("executeAction", () => {
       notes: null,
     });
 
-    await executeAction(tx, scope, updateCustomer, now);
+    await executeAction(transactionClient, scope, updateCustomer, now);
     expect(customerService.updateInTransaction).toHaveBeenCalledWith(tx, scope.businessId, "customer-1", { name: "Zainab Bello" });
   });
 });
@@ -377,7 +389,7 @@ describe("finalizeEffects", () => {
     vi.mocked(invoiceMutations.finalize).mockResolvedValue(undefined);
     vi.mocked(orderService.finalizeStatus).mockResolvedValue(undefined);
     vi.mocked(bookingMutations.finalize).mockResolvedValue(undefined);
-    vi.mocked(emailReceipt).mockResolvedValue(undefined);
+    vi.mocked(emailReceipt).mockResolvedValue(null);
 
     await finalizeEffects([
       { kind: "invoice_email", id: "invoice-1" },

@@ -44,12 +44,12 @@ export async function finalizeReceipt(id: string): Promise<void> {
         logoUrl: receipt.business.logoUrl,
       },
       client: {
-        name: receipt.name || "Client",
+        name: receipt.name?.length ? receipt.name : "Client",
         email: receipt.email,
         phone: receipt.phone,
       },
       items: receipt.lines.map((item) => ({
-        description: item.description || item.name,
+        description: item.description?.length ? item.description : item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice.toString(),
         total: item.total.toString(),
@@ -65,8 +65,8 @@ export async function finalizeReceipt(id: string): Promise<void> {
     });
 
     pdfUrl = uploadResult.secure_url;
-  } catch (error) {
-    console.error(`Failed to generate or upload receipt PDF for ${receipt.id}:`, error);
+  } catch {
+    console.error(`Failed to generate or upload receipt PDF for ${receipt.id}`);
   }
 
   if (pdfUrl) {

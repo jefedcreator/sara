@@ -36,13 +36,14 @@ function streamed(chunks: Uint8Array[], headers: Record<string, string> = {}) {
   const cancel = vi.fn();
   let index = 0;
   const pull = vi.fn((controller: ReadableStreamDefaultController<Uint8Array>) => {
-    if (index < chunks.length) controller.enqueue(chunks[index++]!);
+    if (index < chunks.length) controller.enqueue(chunks[index++]);
     else controller.close();
   });
   const body = new ReadableStream<Uint8Array>({ pull, cancel }, { highWaterMark: 0 });
-  const request = new NextRequest("https://sara.test/api/assistant/messages", {
-    method: "POST", headers: { "content-type": "application/json", ...headers }, body, duplex: "half",
-  } as RequestInit & { duplex: "half" });
+  const init = {
+    method: "POST", headers: { "content-type": "application/json", ...headers }, body, duplex: "half" as const,
+  };
+  const request = new NextRequest("https://sara.test/api/assistant/messages", init);
   return { request, cancel, pull };
 }
 
@@ -134,9 +135,10 @@ describe("bounded assistant JSON", () => {
     const cancel = vi.fn();
     const controller = new AbortController();
     const body = new ReadableStream<Uint8Array>({ cancel }, { highWaterMark: 0 });
-    const request = new NextRequest("https://sara.test", {
-      method: "POST", headers: { "content-type": "application/json" }, body, duplex: "half",
-    } as RequestInit & { duplex: "half" });
+    const init = {
+      method: "POST", headers: { "content-type": "application/json" }, body, duplex: "half" as const,
+    };
+    const request = new NextRequest("https://sara.test", init);
     const reading = readAssistantInput(request, controller.signal);
     controller.abort("private owner text");
     await expect(reading).rejects.toMatchObject({ name: "AbortError", message: "Request aborted" });

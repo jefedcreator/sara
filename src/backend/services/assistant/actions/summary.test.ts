@@ -81,6 +81,12 @@ describe("deterministic approval summaries", () => {
     );
   });
 
+  it("includes order fulfilment and the delivery address in the approval context", () => {
+    expect(renderSummary("update_order", { orderId: "order-1", status: "READY" }, {
+      ...base, orderNumber: "ORD-8", currentStatus: "NEW", fulfilment: "DELIVERY", deliveryAddress: "10 Broad Street, Lagos",
+    })).toBe("Update order ORD-8?\nFulfilment: Delivery\nDelivery address: 10 Broad Street, Lagos\nStatus: NEW → READY\nStock is unchanged.");
+  });
+
   it("shows booking times in Lagos and email/calendar effects", () => {
     const p: ResolvedPayloadByKind["update_booking"] = { bookingId: "booking-1", status: null, startTime: "2026-11-05T14:00:00.000Z", endTime: "2026-11-05T15:00:00.000Z", units: 1 };
     const s = { ...base, serviceName: "Consultation", currentStatus: "CONFIRMED", currentStartTime: "2026-11-04T12:00:00.000Z", currentEndTime: "2026-11-04T13:00:00.000Z", clientEmail: "amaka@example.test", calendarSyncNeeded: true, emailWillBeSent: true, calendarEventExists: true };
@@ -150,6 +156,11 @@ describe("deterministic approval summaries", () => {
     expect(renderSummary("create_customer", { name: "Amaka", phone: "+2348012345678", email: "amaka@example.test", address: "Lagos", notes: "Prefers pickup" }, base)).toBe(
       "Create customer Amaka?\nPhone: +2348012345678\nEmail: amaka@example.test\nAddress: Lagos\nNotes: Prefers pickup",
     );
+  });
+
+  it("shows implicit nightly check-in and check-out clearing when switching booking mode", () => {
+    const p: ResolvedPayloadByKind["update_service"] = { serviceId: "service-1", name: null, description: null, priceMinor: null, isActive: null, duration: null, bookingMode: "SLOT", availableFrom: null, availableTo: null, checkInTime: null, checkOutTime: null, minUnits: null, maxUnits: null, fields: ["bookingMode"] };
+    expect(renderSummary("update_service", p, { ...base, serviceName: "Stay", currentService: { checkInTime: "14:00", checkOutTime: "11:00" } })).toBe("Update service Stay?\nBooking mode: SLOT\nCheck-in (WAT): Clear\nCheck-out (WAT): Clear");
   });
 
   it("distinguishes customer clearing from omitted fields", () => {

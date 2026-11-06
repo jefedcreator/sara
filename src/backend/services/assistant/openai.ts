@@ -16,12 +16,10 @@ export function getOpenAI(): OpenAI {
   if (!config.available || !env.OPENAI_API_KEY) {
     throw new Error("ASSISTANT_UNAVAILABLE");
   }
-  if (!client) {
-    client = new OpenAI({
+  client ??= new OpenAI({
       apiKey: env.OPENAI_API_KEY,
       maxRetries: 0,
       timeout: TURN_TIMEOUT_MS,
-    });
-  }
+  });
   return client;
 }

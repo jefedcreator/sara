@@ -289,6 +289,71 @@ export async function resetMemory(scope: AssistantScope): Promise<void> {
   });
 }
 
+/**
+ * Atomically reset/cancel and save its replay result. A repeated cancel must
+ * never cancel a newer draft, and an older model turn must lose its lease.
+ * Controls consume no paid-turn reservation, including while unavailable.
+ */
+export async function controlTurn(
+  scope: AssistantScope,
+  requestId: string,
+  command: "menu" | "cancel",
+): Promise<AssistantReply> {
+  if (!requestId || requestId.length > 200 || requestId.startsWith("approve:")) {
+    throw storeError("ASSISTANT_INVALID_REQUEST_ID");
+  }
+  const conversation = await getConversation(scope);
+  const key = { conversationId: conversation.id, requestId };
+  return db.$transaction(async (tx) => {
+    const lock = await tx.assistantConversation.updateMany({
+      where: { id: conversation.id, ...scope },
+      data: { memoryVersion: { increment: 0 } },
+    });
+    if (lock.count !== 1) throw storeError("CONVERSATION_NOT_FOUND");
+    const existing = await tx.assistantTurn.findUnique({ where: { conversationId_requestId: key } });
+    if (existing?.state === "DONE") return replay(conversation.id, existing);
+    // A request id already interpreting another input cannot become a control.
+    if (existing) throw storeError("ASSISTANT_BUSY");
+
+    const now = new Date();
+    const current = await tx.assistantConversation.update({
+      where: { id: conversation.id },
+      data: {
+        memoryVersion: { increment: 1 }, clarification: Prisma.DbNull,
+        editingActionId: null, leaseToken: null, leaseExpiresAt: null, lastActiveAt: now,
+      },
+    });
+    const actionScope = { conversationId: conversation.id, businessId: scope.businessId, conversation: { ...scope } };
+    await tx.assistantAction.updateMany({
+      where: { ...actionScope, status: "PENDING", expiresAt: { lte: now } },
+      data: { status: "EXPIRED" },
+    });
+    let draft: DraftDto | null = null;
+    if (command === "cancel") {
+      await tx.assistantAction.updateMany({
+        where: { ...actionScope, status: "PENDING" }, data: { status: "CANCELLED" },
+      });
+    } else {
+      const pending = await tx.assistantAction.findFirst({
+        where: { ...actionScope, status: "PENDING", expiresAt: { gt: now } },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      });
+      if (pending) draft = { id: pending.id, summary: pending.summary, expiresAt: pending.expiresAt.toISOString(), status: pending.status };
+    }
+    const reply: AssistantReply = {
+      ...key, transcript: null, draft, result: null,
+      reply: command === "cancel" ? "Cancelled. What would you like to do next?"
+        : "What would you like to do? Ask about your business or prepare a change for review.",
+    };
+    await tx.assistantTurn.create({ data: {
+      ...key, memoryVersion: current.memoryVersion, userText: command,
+      transcript: null, toolRecords: [], state: "DONE",
+      reply: { text: reply.reply, draft, result: null },
+    } });
+    return reply;
+  });
+}
+
 /** One acquisition generation; never derive lease tokens from a request id. */
 export type TurnLease = {
   status: "claimed";
@@ -494,8 +559,8 @@ export async function saveTurn(
       data: {
         userText: turn.userText ?? "",
         transcript,
-        toolRecords: (turn.toolRecords ?? []) as unknown as Prisma.InputJsonValue,
-        reply: { text, draft, result } as unknown as Prisma.InputJsonValue,
+        toolRecords: turn.toolRecords ?? [],
+        reply: { text, draft, result },
         state: turn.state ?? "DONE",
       },
     });
@@ -575,17 +640,17 @@ export async function saveReadPages(scope: AssistantScope, fence: TurnFence, pag
   await saveConversationContext(scope, fence, "readPages", next < pages.length ? { kind: "read_pages", pages, next, createdAt: new Date().toISOString() } : null, signal);
 }
 
-async function saveConversationContext(scope: AssistantScope, fence: TurnFence, slot: "clarification" | "readPages", state: unknown, signal: AbortSignal): Promise<void> {
+async function saveConversationContext(scope: AssistantScope, fence: TurnFence, slot: "clarification" | "readPages", state: StoredClarification | StoredReadPages | null, signal: AbortSignal): Promise<void> {
   await db.$transaction(async (tx) => {
     await tx.assistantConversation.updateMany({ where: { id: fence.conversationId, ...scope }, data: { memoryVersion: { increment: 0 } } });
     const current = await tx.assistantConversation.findFirst({ where: { id: fence.conversationId, ...scope } });
     const now = new Date();
     signal.throwIfAborted();
-    if (!current || current.leaseToken !== fence.leaseToken || current.memoryVersion !== fence.memoryVersion ||
+    if (current?.leaseToken !== fence.leaseToken || current.memoryVersion !== fence.memoryVersion ||
         !current.leaseExpiresAt || current.leaseExpiresAt <= now) throw storeError("ASSISTANT_TURN_STALE");
     const slots = { ...contextSlots(current.clarification, now), [slot]: state };
     await tx.assistantConversation.update({ where: { id: current.id }, data: {
-      clarification: { kind: "assistant_context", ...slots } as Prisma.InputJsonValue, lastActiveAt: now,
+      clarification: { kind: "assistant_context", ...slots }, lastActiveAt: now,
     } });
     signal.throwIfAborted();
   });

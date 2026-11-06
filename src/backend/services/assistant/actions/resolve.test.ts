@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const objectContaining = (value: unknown): unknown => expect.objectContaining(value);
+const arrayContaining = (value: unknown[]): unknown => expect.arrayContaining(value);
+const stringContaining = (value: string): unknown => expect.stringContaining(value);
+
 const mocks = vi.hoisted(() => {
   const delegate = () => ({ findFirst: vi.fn(), findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn(), create: vi.fn(), update: vi.fn(), updateMany: vi.fn() });
   return { business: delegate(), customer: delegate(), invoice: delegate(), receipt: delegate(), order: delegate(), booking: delegate(), service: delegate(), product: delegate(), productOption: delegate(), orderLine: { groupBy: vi.fn() } };
@@ -22,7 +26,7 @@ const product = { id: "prod_1", businessId: "biz_1", name: "Frontal wig", descri
 const option = { id: "opt_1", productId: product.id, name: "Black", price: null, stock: 10, isActive: true, product };
 const otherOption = { ...option, id: "opt_2", name: "Brown" };
 const invoice = { id: "inv_1", slug: "inv-1", publicId: "invoice-public-1", status: "SENT", total: new Prisma.Decimal(90000), amountPaid: new Prisma.Decimal(0), clientName: customer.name, clientPhone: customer.phone, clientEmail: customer.email, currency: "NGN", invoiceNumber: "INV-1001", updatedAt: NOW, lines: [], order: null };
-const order = { id: "ord_1", slug: "ord-1", publicId: "order-public-1", status: "NEW", orderNumber: "ORD-1001", updatedAt: NOW, clientName: customer.name, clientPhone: customer.phone, clientEmail: customer.email, lines: [{ name: "Frontal wig – Black", productOptionId: "opt_1", quantity: 2 }] };
+const order = { id: "ord_1", slug: "ord-1", publicId: "order-public-1", status: "NEW", orderNumber: "ORD-1001", fulfilment: "PICKUP", deliveryAddress: null, currency: "NGN", total: new Prisma.Decimal(90000), updatedAt: NOW, clientName: customer.name, clientPhone: customer.phone, clientEmail: customer.email, lines: [{ name: "Frontal wig – Black", productOptionId: "opt_1", quantity: 2 }] };
 const booking = { id: "book_1", slug: "booking-1", publicId: "booking-public-1", status: "CONFIRMED", clientName: customer.name, clientPhone: customer.phone, clientEmail: customer.email, googleEventId: "event_1", startTime: new Date("2026-11-06T14:00:00Z"), endTime: new Date("2026-11-06T15:00:00Z"), units: 1, updatedAt: NOW, service };
 const evidence: OwnerEvidence = { text: "Invoice Tolu for a wig at 45,000 and installation at 5,000", recentOwnerTexts: [], selectedIds: ["cus_1", "opt_1", "svc_1", "prod_1", "inv_1", "ord_1", "book_1"] };
 const invoiceRequest: DraftRequest = { kind: "create_invoice", customer: { kind: "existing", id: "cus_1" }, lines: [{ kind: "product", id: "opt_1", name: null, quantity: 2, priceOverride: null }], dueDate: null, notes: null };
@@ -72,7 +76,7 @@ describe("strict boundary and money", () => {
     expect(() => draftRequestSchema.parse({ ...receiptRequest, method: null })).toThrow();
     mocks.customer.findFirst.mockResolvedValue(null);
     await expect(prepared(invoiceRequest)).rejects.toThrow("Customer not found");
-    expect(mocks.customer.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "cus_1", businessId: "biz_1" } }));
+    expect(mocks.customer.findFirst).toHaveBeenCalledWith(objectContaining({ where: { id: "cus_1", businessId: "biz_1" } }));
     expectNoWrites();
   });
 
@@ -80,10 +84,10 @@ describe("strict boundary and money", () => {
     const request = { ...invoiceRequest, lines: [...invoiceRequest.lines, ...invoiceRequest.lines] };
     const result = await prepared(request);
     expect(result.payload.totalMinor).toBe(18_000_000);
-    expect(result.payload.lines).toEqual([expect.objectContaining({ quantity: 4, unitPriceMinor: 4_500_000, totalMinor: 18_000_000 })]);
+    expect(result.payload.lines).toEqual([objectContaining({ quantity: 4, unitPriceMinor: 4_500_000, totalMinor: 18_000_000 })]);
     expect(result.snapshot.originalRequest).toEqual(request);
     expect(result.snapshot.ownerEvidence).toEqual(evidence);
-    expect(result.snapshot.catalogLines).toEqual([expect.objectContaining({ catalogPriceMinor: 4_500_000, priceSource: "catalog", updatedAt: null, productUpdatedAt: NOW.toISOString(), optionName: "Black", optionPriceMinor: null, physicalStock: 10, availableStock: 10 }), expect.anything()]);
+    expect(result.snapshot.catalogLines).toEqual([objectContaining({ catalogPriceMinor: 4_500_000, priceSource: "catalog", updatedAt: null, productUpdatedAt: NOW.toISOString(), optionName: "Black", optionPriceMinor: null, physicalStock: 10, availableStock: 10 }), expect.anything()]);
     evidence.selectedIds.push("later");
     expect(result.snapshot.ownerEvidence).not.toEqual(evidence);
     evidence.selectedIds.pop();
@@ -103,7 +107,7 @@ describe("strict boundary and money", () => {
     const override: DraftRequest = { ...invoiceRequest, lines: [{ ...invoiceRequest.lines[0]!, priceOverride: { quote: "two", amountMinor: 200 } }] };
     await expect(prepared(override, trusted)).rejects.toThrow("Please state the price");
     const catalogDraft = await prepared(invoiceRequest, trusted);
-    expect(catalogDraft.payload.lines).toEqual([expect.objectContaining({ quantity: 2, unitPriceMinor: 4_500_000, totalMinor: 9_000_000 })]);
+    expect(catalogDraft.payload.lines).toEqual([objectContaining({ quantity: 2, unitPriceMinor: 4_500_000, totalMinor: 9_000_000 })]);
     expectNoWrites();
   });
 
@@ -131,7 +135,7 @@ describe("strict boundary and money", () => {
 describe("trusted selection", () => {
   it("returns two labelled Tolu choices even if the model supplies a valid owned id", async () => {
     const result = await resolveDraft(db, scope, invoiceRequest, { text: "Invoice Tolu for a wig", recentOwnerTexts: [], selectedIds: [] }, NOW);
-    expect(result).toEqual({ question: expect.any(String), choices: [{ id: "cus_1", label: expect.stringContaining("Tolu Adekunle") }, { id: "cus_2", label: expect.stringContaining("Tolu Bakare") }], originalRequest: invoiceRequest });
+    expect(result).toEqual({ question: (expect.any(String) as unknown), choices: [{ id: "cus_1", label: stringContaining("Tolu Adekunle") }, { id: "cus_2", label: stringContaining("Tolu Bakare") }], originalRequest: invoiceRequest });
     expect(mocks.productOption.findFirst).not.toHaveBeenCalled();
   });
 
@@ -146,6 +150,44 @@ describe("trusted selection", () => {
     const result = await resolveDraft(db, scope, invoiceRequest, { ...evidence, text: "Invoice Tolu for a frontal wig", selectedIds: ["cus_1"] }, NOW);
     expect(result).toHaveProperty("choices", [{ id: "opt_1", label: "Frontal wig – Black" }, { id: "opt_2", label: "Frontal wig – Brown" }]);
     expect((await prepared(invoiceRequest, { ...evidence, text: "Invoice Tolu for Frontal wig Black", selectedIds: ["cus_1"] })).kind).toBe("create_invoice");
+  });
+
+  it("accepts explicit option names before a plural product name without a recorded choice", async () => {
+    mocks.productOption.findFirst.mockResolvedValue({ ...option, name: "18-inch" });
+    mocks.productOption.findMany.mockResolvedValue([{ ...option, name: "18-inch" }, { ...otherOption, name: "20-inch" }]);
+    const trusted = { text: "Invoice Tolu Adekunle for two 18-inch frontal wigs", recentOwnerTexts: [], selectedIds: [] };
+    expect((await prepared(invoiceRequest, trusted)).payload.lines).toEqual([objectContaining({ productOptionId: option.id, quantity: 2 })]);
+    expect(await resolveDraft(db, scope, invoiceRequest, { ...trusted, text: "Invoice Tolu Adekunle for two frontal wigs" }, NOW)).toHaveProperty("question");
+    expectNoWrites();
+  });
+
+  it("resolves a unique natural booking description and freezes the accepted selection", async () => {
+    const pending = { ...booking, status: "PENDING", startTime: new Date("2026-11-05T09:00:00Z"), endTime: new Date("2026-11-05T10:00:00Z") };
+    mocks.booking.findFirst.mockResolvedValueOnce(pending).mockResolvedValueOnce(null);
+    mocks.booking.findMany.mockResolvedValue([pending, booking]);
+    const trusted = { text: "Confirm Tolu Adekunle's pending booking tomorrow", recentOwnerTexts: [], selectedIds: [] };
+    const result = await prepared({ kind: "update_booking", bookingId: pending.id, status: "CONFIRMED", startTime: null }, trusted);
+    expect(result.snapshot.ownerEvidence).toMatchObject({ selectedIds: [pending.id] });
+    expectNoWrites();
+  });
+
+  it("asks when two owned bookings match a natural customer/date description", async () => {
+    const tomorrow = { ...booking, startTime: new Date("2026-11-05T09:00:00Z") };
+    mocks.booking.findFirst.mockResolvedValue(tomorrow);
+    mocks.booking.findMany.mockResolvedValue([tomorrow, { ...tomorrow, id: "book_2" }]);
+    expect(await resolveDraft(db, scope, { kind: "update_booking", bookingId: tomorrow.id, status: "CANCELLED", startTime: null }, {
+      text: "Cancel Tolu Adekunle's booking tomorrow", recentOwnerTexts: [], selectedIds: [],
+    }, NOW)).toMatchObject({ choices: [{ id: tomorrow.id }, { id: "book_2" }] });
+    expectNoWrites();
+  });
+
+  it("does not confuse a requested completed status with the existing booking selector", async () => {
+    const tomorrow = { ...booking, startTime: new Date("2026-11-05T09:00:00Z") };
+    mocks.booking.findFirst.mockResolvedValue(tomorrow);
+    mocks.booking.findMany.mockResolvedValue([tomorrow]);
+    expect((await prepared({ kind: "update_booking", bookingId: tomorrow.id, status: "COMPLETED", startTime: null }, {
+      text: "Mark Tolu Adekunle's booking tomorrow completed", recentOwnerTexts: [], selectedIds: [],
+    })).payload.status).toBe("COMPLETED");
   });
 
   it("asks before a duplicate new customer or product and never writes", async () => {
@@ -164,7 +206,7 @@ describe("trusted selection", () => {
     expect(await resolveDraft(db, scope, request, trusted, NOW)).toHaveProperty("choices", [
       { id: option.id, label: "Frontal wig – Black" }, { id: duplicate.id, label: "Frontal wig – Black" },
     ]);
-    expect(mocks.productOption.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: {
+    expect(mocks.productOption.findMany).toHaveBeenCalledWith(objectContaining({ where: {
       product: { businessId: scope.businessId, name: { contains: "Frontal", mode: "insensitive" } },
     } }));
     expect((await prepared(request, { ...trusted, selectedIds: [option.id] })).payload.newStock).toBe(12);
@@ -176,8 +218,8 @@ describe("trusted selection", () => {
     const invoiceWithNewCustomer: DraftRequest = { ...invoiceRequest, customer: { kind: "new", name: create.name, phone: null, email: null } };
     for (const request of [create, invoiceWithNewCustomer]) {
       expect(await resolveDraft(db, scope, request, { ...evidence, selectedIds: [] }, NOW)).toHaveProperty("question");
-      expect(mocks.customer.findMany).toHaveBeenLastCalledWith(expect.objectContaining({
-        where: expect.objectContaining({ businessId: scope.businessId, OR: expect.arrayContaining([{ nameKey: "tolu adekunle" }]) }),
+      expect(mocks.customer.findMany).toHaveBeenLastCalledWith(objectContaining({
+        where: objectContaining({ businessId: scope.businessId, OR: arrayContaining([{ nameKey: "tolu adekunle" }]) }),
       }));
     }
     expectNoWrites();
@@ -198,10 +240,10 @@ describe("trusted document selection", () => {
     mocks.booking.findMany.mockResolvedValue([booking, { ...booking, id: "book_2", slug: "booking-2", publicId: "booking-public-2" }]);
     for (const request of requests) {
       const result = await resolveDraft(db, scope, request, { text: "Cancel Tolu's document or record 45,000", recentOwnerTexts: [], selectedIds: [] }, NOW);
-      expect(result).toMatchObject({ question: expect.any(String), choices: [expect.objectContaining({ label: expect.stringContaining(customer.name) }), expect.anything()], originalRequest: request });
+      expect(result).toMatchObject({ question: (expect.any(String) as unknown), choices: [objectContaining({ label: stringContaining(customer.name) }), expect.anything()], originalRequest: request });
     }
     for (const delegate of [mocks.invoice, mocks.order, mocks.booking]) {
-      expect(delegate.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { businessId: scope.businessId } }));
+      expect(delegate.findMany).toHaveBeenCalledWith(objectContaining({ where: { businessId: scope.businessId } }));
     }
     expectNoWrites();
   });
@@ -277,7 +319,7 @@ describe("sales and stock", () => {
     mocks.orderLine.groupBy.mockResolvedValue([]);
     const result = await prepared(payment);
     expect(result.snapshot).toMatchObject({ createsOrder: true, stockBefore: { opt_1: 10 }, stockAfter: { opt_1: 8 } });
-    expect(result.snapshot.stockRows).toEqual([expect.objectContaining({ id: option.id, name: option.name, productUpdatedAt: NOW.toISOString(), stock: 10, physicalStockAfter: 8, heldQuantity: 0 })]);
+    expect(result.snapshot.stockRows).toEqual([objectContaining({ id: option.id, name: option.name, productUpdatedAt: NOW.toISOString(), stock: 10, physicalStockAfter: 8, heldQuantity: 0 })]);
     expectNoWrites();
   });
 
@@ -299,7 +341,7 @@ describe("sales and stock", () => {
     ] satisfies DraftRequest[]) {
       const result = await prepared(request);
       const stockSnapshot = request.kind === "void_invoice" ? result.snapshot.orderInfo : result.snapshot;
-      expect(stockSnapshot).toMatchObject({ stockBefore: { opt_1: 0 }, stockAfter: { opt_1: 0 }, stockRows: [expect.objectContaining({ stock: 1, physicalStockAfter: 2, heldQuantity: 3 })] });
+      expect(stockSnapshot).toMatchObject({ stockBefore: { opt_1: 0 }, stockAfter: { opt_1: 0 }, stockRows: [objectContaining({ stock: 1, physicalStockAfter: 2, heldQuantity: 3 })] });
     }
     expectNoWrites();
   });
@@ -340,7 +382,7 @@ describe("booking domain parity", () => {
     mocks.booking.findFirst.mockResolvedValueOnce({ ...booking, units: 3, service: { ...service, bookingMode: "NIGHTLY", checkInTime: "14:00", checkOutTime: "12:00", minUnits: 5 } }).mockResolvedValueOnce(null);
     const result = await prepared({ kind: "update_booking", bookingId: booking.id, startTime: "2026-11-08T14:00:00Z", status: null });
     expect(result.payload).toMatchObject({ startTime: "2026-11-08T14:00:00.000Z", endTime: "2026-11-11T12:00:00.000Z", units: 3 });
-    expect(mocks.booking.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({ where: expect.objectContaining({ serviceId: service.id, id: { not: booking.id } }) }));
+    expect(mocks.booking.findFirst).toHaveBeenLastCalledWith(objectContaining({ where: objectContaining({ serviceId: service.id, id: { not: booking.id } }) }));
     expect(result.snapshot.calendarSyncNeeded).toBe(true);
   });
 
@@ -349,7 +391,7 @@ describe("booking domain parity", () => {
     expect((await prepared({ kind: "update_booking", bookingId: booking.id, startTime: "2026-11-08T10:00:00Z", status: null })).payload.endTime).toBe("2026-11-10T10:00:00.000Z");
     mocks.booking.findFirst.mockResolvedValueOnce(booking).mockResolvedValueOnce({ id: "conflict" });
     await expect(prepared({ kind: "update_booking", bookingId: booking.id, startTime: "2026-11-08T10:00:00Z", status: null })).rejects.toThrow("already booked");
-    expect(mocks.booking.findFirst).toHaveBeenLastCalledWith(expect.objectContaining({ where: expect.objectContaining({ businessId: scope.businessId, service: { bookingMode: "SLOT" }, id: { not: booking.id } }) }));
+    expect(mocks.booking.findFirst).toHaveBeenLastCalledWith(objectContaining({ where: objectContaining({ businessId: scope.businessId, service: { bookingMode: "SLOT" }, id: { not: booking.id } }) }));
   });
 });
 

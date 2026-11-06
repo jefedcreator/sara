@@ -1,8 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const state = vi.hoisted(() => ({
+const state = vi.hoisted<{ env: {
+  OPENAI_API_KEY?: string; OPENAI_ASSISTANT_MODEL: string; OPENAI_TRANSCRIBE_MODEL: string;
+  ASSISTANT_ENABLED: boolean; ASSISTANT_DAILY_LIMIT: number;
+} }>(() => ({
   env: {
-    OPENAI_API_KEY: "sk-test" as string | undefined,
+    OPENAI_API_KEY: "sk-test",
     OPENAI_ASSISTANT_MODEL: "gpt-5.4-mini",
     OPENAI_TRANSCRIBE_MODEL: "whisper-1",
     ASSISTANT_ENABLED: true,

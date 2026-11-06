@@ -7,7 +7,7 @@ vi.mock("@/server/db", () => ({ db: {} }));
 import { runModelTurn, type ModelTurnInput, type ResponsesTransport } from "./loop";
 import { UsageAccumulator } from "./usage";
 import type { ToolDispatcher } from "./tools/registry";
-const tokens: ResponseUsage = { input_tokens: 20, input_tokens_details: { cached_tokens: 5 }, output_tokens: 10, output_tokens_details: { reasoning_tokens: 2 }, total_tokens: 30 };
+const tokens: ResponseUsage = { input_tokens: 20, input_tokens_details: { cached_tokens: 5, cache_write_tokens: 0 }, output_tokens: 10, output_tokens_details: { reasoning_tokens: 2 }, total_tokens: 30 };
 const call = (name = "business_summary", id = "call-1"): ResponseOutputItem => ({ type: "function_call", call_id: id, name, arguments: '{"name":"business_summary","period":"today","byItem":false}' });
 const prose: ResponseOutputItem = { type: "message", id: "msg1", role: "assistant", status: "completed", content: [{ type: "output_text", text: "Created it! NGN 999,999.", annotations: [], logprobs: [] }] };
 let input: ModelTurnInput;

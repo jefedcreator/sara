@@ -1,4 +1,4 @@
-import type { BusinessSells, Customer, Prisma } from "@prisma/client";
+import type { BusinessSells, Customer } from "@prisma/client";
 import { customerService } from "@/backend/services/customer";
 import { MENU } from "@/utils/menu";
 import type { InboundMessage, OutboundMessage } from "../channels/types";
@@ -13,7 +13,11 @@ import { linkingService } from "../linking";
 import { chatSessionService } from "../session";
 import { formatMoney, parseAmount } from "./amount";
 import type { AssistantScope } from "@/backend/services/assistant/types";
-import { routeAssistantMessage } from "./assistant";
+import { assistantConfig } from "@/backend/services/assistant/config";
+import { getPendingDraft } from "@/backend/services/assistant/actions/drafts";
+import { controlTurn, hasEditingContext, hasPendingClarification, hasPendingReadPage } from "@/backend/services/assistant/store";
+import { ERROR_REPLY } from "@/backend/services/assistant/prompt";
+import { parseAssistantButton, routeAssistantMessage } from "../assistant";
 
 /** "1️⃣": the digit, then the emoji presentation selector and the combining keycap. */
 function keycap(n: number): string {
@@ -164,7 +168,7 @@ class ConversationEngine {
 
     const scope: AssistantScope = {
       businessId: identity.businessId,
-      channel: message.channel as "WHATSAPP" | "INSTAGRAM" | "WEB",
+      channel: message.channel,
       principalId: identity.id,
     };
 
@@ -177,54 +181,37 @@ class ConversationEngine {
     const claimed = await chatSessionService.claimMessage(session.id, message.messageId);
     if (!claimed) return null;
 
-    // Route to assistant first (Task 15) for buttons, voice, and assistant-specific text
-    if (message.kind === "button" || message.kind === "voice") {
+    // An assistant rejection must never fall through into a legacy confirmation.
+    const assistant = async (): Promise<OutboundMessage> => {
       try {
-        const result = await routeAssistantMessage(scope, message, options);
-        return result;
+        return await routeAssistantMessage(scope, message, options);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : String(error);
-        if (errorMessage === "ASSISTANT_BUTTON_IGNORED") {
-          return null;
+        const code = error !== null && typeof error === "object" && "code" in error && typeof error.code === "string"
+          ? error.code : error instanceof Error ? error.message : "";
+        if (code === "ASSISTANT_DRAFT_EDITING") return text("What should change?");
+        if (["ACTION_NOT_FOUND", "ASSISTANT_DRAFT_NOT_PENDING", "ASSISTANT_DRAFT_EXPIRED"].includes(code)) {
+          return text("This draft is no longer available. Nothing was changed.");
         }
-        if (message.kind === "voice") {
-          return text("Sara's assistant is unavailable right now. Reply menu to continue.");
-        }
-        return null;
+        if (code === "ASSISTANT_BUSY") return text("I'm still working on your last request. Try again in a moment.");
+        return text(ERROR_REPLY);
       }
+    };
+
+    if (message.kind === "button") {
+      if (!parseAssistantButton(message.buttonId)) return null;
+      return assistant();
     }
 
-    // For text messages, check if we should route to assistant
-    if (message.kind === "text") {
-      const trimmed = message.text.trim();
-      const lower = trimmed.toLowerCase();
-      
-      // menu/0 and cancel are handled by engine for backward compatibility
-      // But we should cancel any pending draft for cancel
-      if (lower === "cancel") {
-        try {
-          await cancelDraft(scope);
-        } catch {
-          // No pending draft or error
-        }
-      }
-      
-      // Check if this should go to assistant
-      if (lower !== "menu" && lower !== "0" && lower !== "cancel") {
-        try {
-          const result = await routeAssistantMessage(scope, message, options);
-          return result;
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : String(error);
-          if (errorMessage === "ASSISTANT_BUTTON_IGNORED") {
-            return null;
-          }
-          // For other errors, fall through to engine
-        }
-      }
+    if (message.kind === "voice") {
+      // Voice leaves any numbered invoice/receipt flow, even when unavailable.
+      await chatSessionService.save(session.id, {
+        state: "MAIN_MENU", context: null, lastProcessedMsgId: message.messageId,
+      });
+      return assistant();
     }
 
-    // Fall through to existing menu routing
+    const trimmed = message.text.trim();
+    const lower = trimmed.toLowerCase();
     let state = session.state;
     let context = (session.context as Draft | null) ?? {};
     if (chatSessionService.isStale(session)) {
@@ -232,21 +219,29 @@ class ConversationEngine {
       context = {};
     }
 
-    // Use message.text directly since we've already processed it
-    if (message.kind === "text") {
-      const trimmed = message.text.trim();
-      const lower = trimmed.toLowerCase();
-      if (lower === "menu" || lower === "0") {
-        state = "MAIN_MENU";
-        context = {};
-      } else if (lower === "cancel") {
-        await chatSessionService.save(session.id, {
-          state: "MAIN_MENU",
-          context: null,
-          lastProcessedMsgId: message.messageId,
-        });
-        return text(`Cancelled.\n\n${mainMenuText(sells)}`);
-      }
+    if (["menu", "0", "cancel"].includes(lower)) {
+      await controlTurn(scope, message.messageId, lower === "cancel" ? "cancel" : "menu");
+      await chatSessionService.save(session.id, {
+        state: "MAIN_MENU", context: null, lastProcessedMsgId: message.messageId,
+      });
+      return text(`${lower === "cancel" ? "Cancelled.\n\n" : ""}${mainMenuText(sells)}`);
+    }
+
+    // Exact typed controls refer to the assistant preview before menu replies.
+    // Off/missing-key controls still receive an explicit unavailable response.
+    if ((["yes", "send it", "change something"].includes(lower) || /^(?:yes|send it)\b/.test(lower)) && await getPendingDraft(scope, new Date())) {
+      return assistant();
+    }
+
+    const config = assistantConfig();
+    if (config.enabled && config.available) {
+      const [editing, clarification, pages] = await Promise.all([
+        hasEditingContext(scope), hasPendingClarification(scope),
+        /^next[.!]?$/i.test(trimmed) ? hasPendingReadPage(scope) : Promise.resolve(false),
+      ]);
+      if (editing || clarification || pages) return assistant();
+      const menuNumber = MENU[sells].some((_, i) => String(i + 1) === trimmed);
+      if (state === "MAIN_MENU" && !menuNumber) return assistant();
     }
 
     const result = await this.route(
@@ -262,7 +257,7 @@ class ConversationEngine {
 
     await chatSessionService.save(session.id, {
       state: result.nextState,
-      context: (result.context as Prisma.InputJsonValue | null) ?? null,
+      context: result.context ?? null,
       lastProcessedMsgId: message.messageId,
     });
 

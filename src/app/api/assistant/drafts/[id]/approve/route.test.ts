@@ -1,20 +1,19 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ApprovalReply } from "types";
 import { authenticatedCookies, mockAuthenticatedSession } from "@/backend/test-utils/mock-request";
 
-vi.mock("@/server/db", () => ({ db: {
+const { mockedDb, createInvoice } = vi.hoisted(() => ({ mockedDb: {
   session: { findUnique: vi.fn(), delete: vi.fn() },
   assistantConversation: { findFirst: vi.fn() }, assistantAction: { findFirst: vi.fn() },
-} }));
+}, createInvoice: vi.fn() }));
+vi.mock("@/server/db", () => ({ db: mockedDb }));
 vi.mock("@/backend/services/assistant/actions/approve", () => ({ approveAction: vi.fn() }));
-vi.mock("@/backend/services/invoice", () => ({ invoiceService: { createInTransaction: vi.fn() } }));
+vi.mock("@/backend/services/invoice", () => ({ invoiceService: { createInTransaction: createInvoice } }));
 
 import { approveAction } from "@/backend/services/assistant/actions/approve";
-import { invoiceService } from "@/backend/services/invoice";
-import { db } from "@/server/db";
 import { POST as APPROVE } from "./route";
 
-const mockedDb = db as any;
 const SCOPE = { businessId: "biz_1", principalId: "owner1", channel: "WEB" };
 const APPROVED = { status: "approved" as const, reply: "Invoice created", result: null, draft: null };
 const cookie = Object.entries(authenticatedCookies()).map(([key, value]) => `${key}=${value}`).join("; ");
@@ -47,7 +46,7 @@ describe("POST /api/assistant/drafts/:id/approve", () => {
     mockedDb.assistantAction.findFirst.mockResolvedValue(null);
     const response = await APPROVE(request(), { params: Promise.resolve({ id: "wa1" }) });
     expect(response.status).toBe(404);
-    expect(invoiceService.createInTransaction).not.toHaveBeenCalled();
+    expect(createInvoice).not.toHaveBeenCalled();
     expect(approveAction).not.toHaveBeenCalled();
   });
   it("rejects a foreign user's conversation before action lookup", async () => {
@@ -75,13 +74,14 @@ describe("POST /api/assistant/drafts/:id/approve", () => {
       vi.mocked(approveAction).mockResolvedValue({ ...APPROVED, status });
       const response = await APPROVE(request(), context);
       expect(response.status).toBe(200);
-      expect((await response.json()).data.status).toBe(status);
+      const body = await response.json() as { data: ApprovalReply };
+      expect(body.data.status).toBe(status);
     }
-    expect(invoiceService.createInTransaction).not.toHaveBeenCalled();
+    expect(createInvoice).not.toHaveBeenCalled();
   });
   it("maps lifecycle conflicts to 409", async () => {
     vi.mocked(approveAction).mockRejectedValue(Object.assign(new Error("private"), { code: "ASSISTANT_DRAFT_EDITING" }));
     expect((await APPROVE(request(), context)).status).toBe(409);
-    expect(invoiceService.createInTransaction).not.toHaveBeenCalled();
+    expect(createInvoice).not.toHaveBeenCalled();
   });
 });

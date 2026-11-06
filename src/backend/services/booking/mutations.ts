@@ -30,7 +30,7 @@ class BookingMutations {
       where: { slug, businessId },
       include: { service: true },
     });
-    if (!booking || booking.service.businessId !== businessId) {
+    if (booking?.service.businessId !== businessId) {
       throw new NotFoundException("Booking not found");
     }
     if (patch.status && !VALID_STATUS_TRANSITIONS[booking.status]?.includes(patch.status)) {
@@ -43,6 +43,14 @@ class BookingMutations {
     if (patch.clientEmail !== undefined) data.clientEmail = patch.clientEmail;
     if (patch.clientPhone !== undefined) data.clientPhone = patch.clientPhone;
     if (patch.notes !== undefined) data.notes = patch.notes;
+
+    if (patch.status === "CONFIRMED" && patch.startTime === undefined && patch.endTime === undefined) {
+      const overlapping = await tx.booking.findFirst({
+        where: blockingBookingsWhere(booking.service, { start: booking.startTime, end: booking.endTime }, { excludeId: booking.id }),
+        select: { id: true },
+      });
+      if (overlapping) throw new ConflictException("Those dates or that time are already booked");
+    }
 
     if (patch.startTime !== undefined || patch.endTime !== undefined) {
       const status = patch.status ?? booking.status;
@@ -90,8 +98,8 @@ class BookingMutations {
     for (const effect of result.effects) {
       try {
         await this.finalize(effect);
-      } catch (error) {
-        console.warn("[Bookings] Sync failed:", error);
+      } catch {
+        console.warn(`[Bookings] Sync failed for ${effect.id}`);
       }
     }
     return result.booking;
@@ -127,8 +135,8 @@ class BookingMutations {
             previousSpan: { bookingMode: booking.service.bookingMode, endTime: previousEndTime, units: booking.units },
           });
         }
-      } catch (error) {
-        console.warn("[Bookings] Notification email failed:", error);
+      } catch {
+        console.warn(`[Bookings] Notification email failed for ${booking.id}`);
       }
     }
     if (booking.googleEventId) {
@@ -139,8 +147,8 @@ class BookingMutations {
         } else if (rescheduled) {
           await googleCalendarService.updateEvent(booking.business, booking, booking.service);
         }
-      } catch (error) {
-        console.warn("[Bookings] Calendar sync failed:", error);
+      } catch {
+        console.warn(`[Bookings] Calendar sync failed for ${booking.id}`);
       }
     }
   }

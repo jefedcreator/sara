@@ -191,7 +191,7 @@ export function createAudioRecorder(
       updateState("idle");
       // Use the browser's actual container. Never relabel MP4/native bytes as WebM.
       const mimeType =
-        recorder.mimeType || chunks.find((chunk) => chunk.type)?.type || "";
+        (recorder.mimeType || chunks.find((chunk) => chunk.type)?.type) ?? "";
       const blob = new Blob(chunks, { type: mimeType });
       chunks.length = 0;
       if (!blob.size) return;

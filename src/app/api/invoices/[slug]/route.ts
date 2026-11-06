@@ -50,7 +50,7 @@ export const PUT = withMiddleware<UpdateInvoiceValidatorSchema>(
 
       const updatedInvoice = await invoiceMutations.update(
         invoice.businessId,
-        slug,
+        invoice.slug,
         payload,
       );
 

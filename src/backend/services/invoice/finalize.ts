@@ -51,7 +51,7 @@ export async function finalizeInvoice(id: string): Promise<void> {
         phone: invoice.clientPhone,
       },
       items: invoice.lines.map((item) => ({
-        description: item.description || item.name,
+        description: item.description?.length ? item.description : item.name,
         quantity: item.quantity,
         unitPrice: item.unitPrice.toString(),
         total: item.total.toString(),
@@ -67,8 +67,8 @@ export async function finalizeInvoice(id: string): Promise<void> {
     });
 
     pdfUrl = uploadResult.secure_url;
-  } catch (error) {
-    console.error(`Failed to generate or upload invoice PDF for ${invoice.id}:`, error);
+  } catch {
+    console.error(`Failed to generate or upload invoice PDF for ${invoice.id}`);
   }
 
   if (pdfUrl) {

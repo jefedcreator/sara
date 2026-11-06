@@ -153,6 +153,14 @@ describe("invoiceService.create", () => {
 });
 
 describe("invoiceService.createInTransaction", () => {
+  it("does not reuse global slugs for the same business name and document number", async () => {
+    const input: CreateInvoiceInput = { businessId: "biz_1", name: "Ada", status: "SENT", currency: "NGN", subtotal: 5000, taxAmount: 0, discount: 0, total: 5000, amountPaid: 0 };
+    await invoiceService.createInTransaction(txMock, input);
+    await invoiceService.createInTransaction(txMock, input);
+    const slugs = txMock.invoice.create.mock.calls.map(([args]: [{ data: { slug: string } }]) => args.data.slug);
+    expect(slugs[0]).toMatch(/^acme-salon-inv-1001-/);
+    expect(slugs[0]).not.toBe(slugs[1]);
+  });
   it("creates through the supplied transaction without opening another or generating a PDF", async () => {
     const outer = { ...txMock, outerMarker: Symbol("approval transaction") };
     outer.service.findMany.mockResolvedValue([{ id: "ser_1", name: "Wig install" }]);

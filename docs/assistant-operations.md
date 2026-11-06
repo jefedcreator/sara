@@ -1,215 +1,111 @@
-# Sara Assistant Operations
+# Sara assistant operations
 
-This document describes the operation and configuration of Sara's voice note and plain English request feature.
+Status: **UNRELEASED**. The implementation and local automated checks do not establish production availability. Keep voice and plain-English marketing claims deferred until the release evidence below is complete. Approved sample copy and canonical invoice/cash-sale exchanges are staged in `PRODUCT.md`.
 
-## Overview
+## Configuration and bounds
 
-Sara can understand voice notes and plain English text from business owners, creating drafts of actions (invoices, receipts, payments, etc.) that require explicit approval before execution. This feature uses AI to understand requests but always shows the exact details and waits for owner approval before changing anything.
+Use Node 24 and install the pinned dependencies with `yarn install --frozen-lockfile`. The official `openai` SDK is pinned to `7.50.0`; `music-metadata` is pinned to `12.3.4`. Generate Prisma Client and apply the committed migration before exercising assistant traffic.
 
-## Environment Setup
+Only these assistant environment settings exist in `src/env.js` and `.env.example`:
 
-### Required Environment Variables
+| Setting | Default | Effect |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | Empty | Optional server-only OpenAI key; missing key leaves the numbered menu available. |
+| `OPENAI_ASSISTANT_MODEL` | `gpt-5.4-mini` | Responses model, with low reasoning effort and `store: false`. |
+| `OPENAI_TRANSCRIBE_MODEL` | `whisper-1` | Voice-to-text model. |
+| `ASSISTANT_ENABLED` | `true` | Global off switch for new assistant turns and approvals. |
+| `ASSISTANT_DAILY_LIMIT` | `100` | Paid-turn reservations per business per Lagos calendar day, across all channels. |
 
-- `OPENAI_API_KEY`: Your OpenAI API key for model access
-- `ASSISTANT_ENABLED`: Set to `true` to enable the assistant (default: `true`)
-- `ASSISTANT_AVAILABLE`: Set to `true` when the service is available (default: `true`)
-- `ASSISTANT_DAILY_LIMIT`: Maximum daily paid-turn calls per business (default: `100`)
-- `ASSISTANT_MODEL`: The OpenAI model to use (default: `gpt-5.4-mini`)
-- `ASSISTANT_TRANSCRIBE_MODEL`: The transcription model to use (default: `whisper-1`)
-- `ASSISTANT_REASONING`: Reasoning mode (default: `low`)
+The 25-second turn deadline, 6-round tool-loop cap, 120-second audio ceiling and 10 MiB audio cap are code constants in `assistant/config.ts`, not environment settings. Turn persistence/accounting cleanup has a separate bounded allowance of at most one second. Web JSON is capped at 16 KiB; multipart is capped at 10 MiB plus 64 KiB before parsing. Server metadata and Whisper duration decide audio length; client-reported duration is never authoritative. Raw audio is transient; the transcript is stored with its request. Recent conversation lasts 30 minutes and drafts expire after 24 hours.
 
-### Optional Environment Variables
+## Quota and versioned cost estimates
 
-- `ASSISTANT_TIMEOUT_MS`: Request timeout in milliseconds (default: `25000`)
-- `ASSISTANT_MAX_ROUNDS`: Maximum conversation rounds per turn (default: `6`)
+One fresh request that may call OpenAI reserves one daily slot **before** transcription or interpretation. Natural-language reads and draft proposals both count. One voice request counts once even when it calls transcription and several Responses rounds. Failed or interrupted paid attempts keep their reservation; replaying a request id never authorizes another paid attempt. Plain approval/change/cancel operations do not consume the daily counter. Exact menu/0 controls and stored report-page navigation also avoid model calls. Approval usage is logged separately with zero estimated provider cost.
 
-## Model and Pricing
+The counter resets at midnight in `Africa/Lagos`, not after a rolling 24 hours. `AssistantDailyUsage` is the quota source of truth; counting all `AssistantUsage` rows would include approvals and give the wrong answer.
 
-- **Model**: OpenAI GPT models (configurable via `ASSISTANT_MODEL`)
-- **Pricing**: Based on OpenAI's current pricing. As of 2026-11-04:
-  - gpt-5.4-mini: USD 0.75/1M input tokens, USD 0.075/1M cached tokens, USD 4.50/1M output tokens
-  - whisper-1: USD 0.006/minute
-- **Transcription**: Audio is transcribed using OpenAI Whisper
+`assistant/usage.ts` labels its local rate card `openai-2026-11-04`: gpt-5.4-mini input/cached-input/output rates are USD 0.75/0.075/4.50 per million tokens, and whisper-1 is USD 0.006 per minute. These rates were reverified on **6 November 2026** against the official [model page](https://developers.openai.com/api/docs/models/gpt-5.4-mini) and [pricing page](https://developers.openai.com/api/docs/pricing). They are versioned estimates; provider billing is authoritative. Recheck before release or a model change and update the rates, version and tests together. Unknown models, failed requests and incomplete provider usage produce a null estimate rather than a fabricated zero.
 
-## Daily Limit
+The official [deprecations page](https://developers.openai.com/api/docs/deprecations), checked on 6 November 2026, schedules `whisper-1` removal for **26 February 2027**. This implementation preserves the plan's required model. Schedule and validate a transcription migration before that shutdown, including duration enforcement, container support and usage pricing; do not silently change the model.
 
-Each business has a daily limit on paid model calls (configurable via `ASSISTANT_DAILY_LIMIT`). This prevents unexpected costs. Read operations, draft creation, and approvals do not count against this limit. Only actual model inference calls (responses API) consume the limit.
+## Inspect request usage without private content
 
-## Querying Usage
-
-Usage can be queried without exposing transcript or customer fields. The following queries are safe:
+Use parameterized queries with the desired business/request identifiers. PostgreSQL table and camel-case column names require double quotes. These examples select operational counters only:
 
 ```sql
--- Count daily usage for a business
-SELECT COUNT(*) FROM AssistantUsage 
-WHERE businessId = :businessId AND createdAt >= NOW() - INTERVAL '24 hours';
+SELECT "requestId", "channel", "mode", "model", "inputTokens", "cachedTokens",
+       "outputTokens", "audioSeconds", "durationMs", "outcome",
+       "estimatedCostUsd", "pricingVersion", "createdAt"
+FROM "AssistantUsage"
+WHERE "businessId" = $1 AND "requestId" = $2
+ORDER BY "createdAt" DESC;
 
--- Check if a business has reached their limit
-SELECT COUNT(*) AS usageCount FROM AssistantUsage 
-WHERE businessId = :businessId AND createdAt >= NOW() - INTERVAL '24 hours';
+SELECT "day", "count"
+FROM "AssistantDailyUsage"
+WHERE "businessId" = $1
+  AND "day" = to_char(CURRENT_TIMESTAMP AT TIME ZONE 'Africa/Lagos', 'YYYY-MM-DD');
 ```
 
-Never query or log:
-- Transcripts
-- Customer names, emails, phones
-- Message content
-- Draft payloads
-- Owner evidence text
+Do not print transcripts, message bodies, customer fields, action payloads or provider error bodies. Operational delivery logs use message ids, channel, outcome codes and elapsed milliseconds. There is no owner usage screen or assistant usage/conversation-list HTTP endpoint. The web API consists of POST `/api/assistant/messages`, POST `/api/assistant/drafts/:id/approve` and POST `/api/assistant/drafts/:id/change`.
 
-## Off/Missing Key Behavior
+## Availability, replay and approvals
 
-When `OPENAI_API_KEY` is not set or the key is invalid:
-- The assistant will be unavailable
-- Voice notes cannot be processed
-- Text requests fall back to the numbered menu
-- The UI shows: "Sara's assistant is unavailable right now. Reply menu to continue."
+A missing key makes new assistant turns and assistant approvals unavailable without breaking the numbered messaging menu. `ASSISTANT_ENABLED=false` has the same availability effect. An invalid configured key fails the provider call and returns a recoverable request error; it is not detected as a missing key at startup. Web requests return the typed unavailable reply or the scoped approval error; typing remains possible, and the owner can use the numbered menu in their linked messaging channel. The web panel does not emulate the full numbered chat menu.
 
-When `ASSISTANT_ENABLED=false`:
-- The assistant is completely disabled
-- All requests route to the numbered menu
-- This can be used for maintenance or rollback
+Conversations are separate for each business, channel and principal: a messaging `ChatIdentity.id` or web `User.id`. Web authentication/ownership and same-origin cookie checks happen before reading an upload. No client can select the business or replace a stored approval payload.
 
-## Replay and Idempotency
+Completed request ids replay their saved outcome. Use the same UUID for a manual network retry, including audio, and never automatically retry uploads or approvals. Messaging message claims additionally deduplicate webhook deliveries. Exact typed web menu/0/cancel commands save their control outcome atomically, so replaying an old cancellation cannot cancel a newer draft.
 
-Every request has a unique `requestId` (UUID v4). Replays with the same `requestId` return the same response without additional model calls or mutations. This ensures:
-- Duplicate message deliveries (e.g., from WhatsApp) are handled safely
-- Retries after network failures reuse the same request
-- Costs are not duplicated
+Only the current pending, nonediting, unexpired draft can execute. A replacement makes the old draft `REPLACED`; Change something marks the stored action for editing until a new preview arrives. Expired drafts cannot execute. Relevant price, stock, status or other frozen evidence changes invalidate the preview rather than silently changing the approved values. Mutation, action status and saved result commit together; a retry returns that result. External PDF/email/calendar work follows commit and cannot rerun the domain mutation.
 
-## Expired and Replaced Actions
+On WhatsApp, approve with Send it or exact typed yes/send it; Instagram supports exact typed approvals. The web uses its scoped approval endpoint. A voice transcript saying yes never approves. Menu/0 resets context while preserving a valid pending draft; cancel also cancels it. A failed correction keeps the old preview unavailable for approval until the edit is resolved.
 
-Drafts (prepared actions) have a 24-hour lifetime. After expiration:
-- Drafts cannot be approved
-- The status changes to `EXPIRED`
-- The owner must create a new request
+## Validate hosting and background work
 
-When a new draft replaces an old one:
-- The old draft's status changes to `REPLACED`
-- Only the newest draft can be approved
-- Replaced drafts cannot be approved
+`after()` is used by the WhatsApp and Instagram webhook routes to process authenticated batches **after** returning HTTP 200. It is not the assistant turn's cleanup mechanism. Both webhook routes declare the Node runtime and a 60-second maximum duration; the host must actually support this lifecycle and allow enough time for message processing and outbound delivery.
 
-## Approval Lifecycle
+On the actual deployment, send a signed test webhook while deliberately delaying the provider stub. Record response time separately from final-reply delivery time. Verify the response is acknowledged promptly, background processing continues after the response, the delayed final reply arrives, and replaying the same message does not create a second action or consume more quota. Send multiple messages from one sender and confirm per-sender ordering. Exercise a batch containing multiple senders and observe the host's total execution limit. A local unit test of a mocked `after()` does not satisfy this acceptance check.
 
-1. **Draft Creation**: Owner sends request → Sara creates draft with exact details
-2. **Review**: Owner reviews the draft summary
-3. **Approval**: Owner taps "Send it" or types "yes" / "send it"
-4. **Revalidation**: Sara rechecks all details against current data
-5. **Execution**: If unchanged, the action is executed atomically
-6. **Result**: Success or failure message is shown
+## Dedicated local integration database
 
-If data changes between draft creation and approval:
-- The approval is rejected with a `changed` status
-- The draft is marked as `INVALID`
-- The owner must create a new request
+Use only a disposable local database named exactly `sara_assistant_test`. The integration configuration accepts only `localhost` or `127.0.0.1`, overrides Prisma URLs with the checked `ASSISTANT_TEST_DATABASE_URL`, and supplies validated offline credentials rather than skipping environment transforms. Remote delivery and OpenAI are never called by the integration suite. Never point it at an ordinary development or production database: fixtures may be reset.
 
-## Safe Usage Queries
-
-The following queries are safe for operations and do not expose sensitive data:
-
-```typescript
-// Check assistant availability
-GET /api/assistant/available
-
-// Get conversation info (no transcript)
-GET /api/assistant/conversation
-
-// Get pending draft info
-GET /api/assistant/drafts
-```
-
-## Hosting and `after()` Validation
-
-The assistant service uses the Next.js `after()` function for cleanup. Validation:
-- `after()` runs after the response is sent
-- Cleanup includes: saving durable turn state, releasing locks, recording usage
-- Maximum cleanup time: 1 second (capped at 26 seconds total with main budget)
-- If cleanup fails, the reservation remains but the response is still returned
-
-## Local Integration Database
-
-For testing and CI, use a dedicated PostgreSQL database:
+The repository Compose PostgreSQL service exposes port **5433** and belongs to the production profile. Start only the database service, create the dedicated test database once, then migrate and run:
 
 ```bash
-# Create the test database
+docker compose --profile production up -d postgres
 docker compose exec -T postgres psql -U postgres -c 'CREATE DATABASE sara_assistant_test'
-
-# Run migrations
-DATABASE_URL='postgresql://postgres:postgres@localhost:5432/sara_assistant_test' \
-  DIRECT_URL='postgresql://postgres:postgres@localhost:5432/sara_assistant_test' \
-  yarn prisma migrate deploy
-
-# Run integration tests
-ASSISTANT_TEST_DATABASE_URL='postgresql://postgres:postgres@localhost:5432/sara_assistant_test' \
-  yarn test:assistant:integration
+DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:5433/sara_assistant_test' \
+DIRECT_URL='postgresql://postgres:postgres@127.0.0.1:5433/sara_assistant_test' \
+yarn prisma migrate deploy
+ASSISTANT_TEST_DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:5433/sara_assistant_test' \
+yarn test:assistant:integration
 ```
 
-The integration test configuration requires:
-- Database name exactly `sara_assistant_test`
-- Host exactly `localhost` or `127.0.0.1`
-- No production database URLs allowed
+An existing dedicated local PostgreSQL instance can also be used with its actual port. Inspect the test output: mocked unit coverage does not prove real database races.
 
-## Evaluation Command
+## Evaluation and release evidence
 
-Run the 30-case evaluation suite:
+Run `yarn eval:assistant` for deterministic fixture evaluation and `yarn eval:assistant --live` for the 30-case live gate. Live evaluation requires a configured OpenAI key and incurs provider charges. Confirm the runner actually uses the live adapter, structured assertions and disposable fixtures; a canned or skipped run does not establish model quality. Retain the output, fixture/configuration versions, model, latency and estimated cost without private owner data. Then perform a timed real voice smoke test separately.
 
-```bash
-# Canned responses (deterministic, no cost)
-yarn eval:assistant
+Review on 6 November 2026 found no configured `OPENAI_API_KEY` in the local `.env`. The live evaluation and provider-backed voice acceptance therefore remain unverified; a deterministic replay run does not replace them.
 
-# Live model evaluation (actual model calls, costs money)
-yarn eval:assistant --live
-```
+Required release evidence remains unchecked until collected:
 
-The evaluation:
-- Tests all 30 natural language cases
-- Verifies structured facts (not fuzzy text matching)
-- Ensures no domain writes occur during evaluation
-- Reports pass/fail for each case
-- Aggregates timing and cost estimates
+- [ ] Create/set the OpenAI key.
+- [ ] Set the OpenAI account monthly spending limit.
+- [ ] Decide/publish the appropriate privacy notice for sending audio/messages/customer details to OpenAI.
+- [ ] Confirm the deployed configuration, SDK/model/rate-card versions and intended daily limit.
+- [ ] Full automated tests, typecheck, lint and build pass.
+- [x] Local PostgreSQL approval/replay/replacement/stock races and rollback tests pass: 17 checks on 6 November 2026. See `docs/assistant-verification-2026-11-06.md`; rerun against release code before rollout.
+- [ ] All 30 live evaluation cases pass with structured assertions and recorded latency/cost.
+- [ ] Linked WhatsApp voice/text/buttons and Instagram text/typed approval smoke tests pass.
+- [ ] Authenticated web smoke tests pass at 375px and desktop: long transcript scrolling, denied/unsupported mic with working text, duplicate taps, stale-price approval and matching canonical summaries.
+- [ ] Real Chrome and iOS Safari MP4 recording pass: permission-after-release, release outside the control, Space/Enter, Escape/close/cancel/unmount, mic cleanup, focus return and reduced motion.
+- [ ] Actual deployment webhook `after()` lifecycle and response/delivery timing pass.
+- [ ] Verify rollback with the numbered menu and completed action replay preserved.
+- [ ] Enable and verify the release, then publish the staged voice/Instagram disclosure and canonical examples from `PRODUCT.md`.
 
-## Rollback Path
+## Rollback
 
-To disable the assistant while preserving existing functionality:
-
-1. Set `ASSISTANT_ENABLED=false` in environment variables
-2. This disables all assistant features
-3. The numbered menu continues to work normally
-4. Existing approved actions and stored results are preserved
-5. No migration or data changes are required
-
-Do NOT roll back by:
-- Deleting assistant tables
-- Re-running mutations
-- Removing the assistant code
-
-## Release Prerequisites
-
-Before enabling the assistant in production:
-
-- [ ] Create and set `OPENAI_API_KEY` environment variable
-- [ ] Set OpenAI account monthly spending limit
-- [ ] Decide and publish appropriate privacy notice for:
-  - Audio messages sent to OpenAI
-  - Text messages sent to OpenAI
-  - Customer details (names, emails, phones) in requests
-- [ ] Verify daily limit is appropriate for your traffic
-- [ ] Test rollback procedure with `ASSISTANT_ENABLED=false`
-- [ ] Monitor usage and costs in production
-
-## Feature Status
-
-The assistant feature is **UNRELEASED**. The following checks must pass before release:
-
-- [ ] Full automated test suite passes
-- [ ] Typecheck passes
-- [ ] Lint passes
-- [ ] Build succeeds
-- [ ] Real database race tests pass
-- [ ] 30 live evaluation cases pass
-- [ ] WhatsApp/Instagram/web smoke tests pass
-- [ ] Browser/microphone tests pass
-- [ ] Production deployment lifecycle checks pass
-- [ ] Privacy notice published
-- [ ] OpenAI spending limit set
-
-Do not claim the feature is "shipped", "enabled", or "verified" until all checks pass.
+Set `ASSISTANT_ENABLED=false` and redeploy using the ordinary configuration workflow. This prevents new assistant turns and approvals while the numbered menu remains available. Preserve completed action results, turn records, message claims and usage records. Do not delete tables, downgrade the schema or rerun domain mutations as rollback. Re-enable only after resolving the issue and repeating the relevant release checks.

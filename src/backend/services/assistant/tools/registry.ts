@@ -66,7 +66,8 @@ export const registry: readonly RegistryEntry[] = [
 /** Each tool has its own object root. Nested nullable objects remain strict. */
 export function buildTools(): FunctionTool[] {
   return registry.map((entry) => {
-    const { $schema: _metadata, ...parameters } = z.toJSONSchema(entry.schema);
+    const parameters = z.toJSONSchema(entry.schema);
+    delete parameters.$schema;
     return {
       type: "function", name: entry.name, strict: true, parameters,
       description: entry.access === "read"

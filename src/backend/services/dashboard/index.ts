@@ -28,7 +28,7 @@ function unpaidWhere(businessId: string, filters: UnpaidInvoiceFilters): Prisma.
     businessId,
     status: { in: UNPAID_STATUSES },
     ...(filters.customerId && { customerId: filters.customerId }),
-    ...((filters.from || filters.to) && {
+    ...((filters.from !== undefined || filters.to !== undefined) && {
       dueAt: {
         ...(filters.from && { gte: filters.from }),
         ...(filters.to && { lt: filters.to }),
@@ -210,15 +210,21 @@ class DashboardService {
 
   /** Payments received within the range, plus all current unpaid invoices. */
   async summaryForPeriod(businessId: string, range: PeriodRange): Promise<PeriodSummary> {
-    const [payments, unpaidCount, unpaidTotal] = await Promise.all([
+    const [payments, standaloneReceipts, unpaidCount, unpaidTotal] = await Promise.all([
       db.payment.aggregate({
         where: { businessId, createdAt: { gte: range.from, lt: range.to } },
         _sum: { amount: true },
       }),
+      // Product sales and invoice receipts already have Payment rows. Other
+      // cash/bank receipts are paid revenue too, without a second payment row.
+      db.receipt.aggregate({
+        where: { businessId, paymentId: null, createdAt: { gte: range.from, lt: range.to } },
+        _sum: { amountPaid: true },
+      }),
       db.invoice.count({ where: { businessId, status: { in: UNPAID_STATUSES } } }),
       this.unpaidTotal(businessId),
     ]);
-    return { revenue: Number(payments._sum.amount ?? 0), unpaidCount, unpaidTotal };
+    return { revenue: Math.round((Number(payments._sum.amount ?? 0) + Number(standaloneReceipts._sum.amountPaid ?? 0)) * 100) / 100, unpaidCount, unpaidTotal };
   }
 
   /** Everything still owed across unpaid invoices. */

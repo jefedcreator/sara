@@ -2,21 +2,19 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authenticatedCookies, mockAuthenticatedSession } from "@/backend/test-utils/mock-request";
 
-vi.mock("@/server/db", () => ({ db: {
+const { mockedDb, createInvoice } = vi.hoisted(() => ({ mockedDb: {
   session: { findUnique: vi.fn(), delete: vi.fn() },
   assistantConversation: { findFirst: vi.fn() }, assistantAction: { findFirst: vi.fn() },
-} }));
+}, createInvoice: vi.fn() }));
+vi.mock("@/server/db", () => ({ db: mockedDb }));
 vi.mock("@/backend/services/assistant/actions/drafts", () => ({ changeDraft: vi.fn() }));
 vi.mock("@/backend/services/assistant/actions/approve", () => ({ approveAction: vi.fn() }));
-vi.mock("@/backend/services/invoice", () => ({ invoiceService: { createInTransaction: vi.fn() } }));
+vi.mock("@/backend/services/invoice", () => ({ invoiceService: { createInTransaction: createInvoice } }));
 
 import { approveAction } from "@/backend/services/assistant/actions/approve";
 import { changeDraft } from "@/backend/services/assistant/actions/drafts";
-import { invoiceService } from "@/backend/services/invoice";
-import { db } from "@/server/db";
 import { POST } from "./route";
 
-const mockedDb = db as any;
 const SCOPE = { businessId: "biz_1", principalId: "owner1", channel: "WEB" };
 const DRAFT = { id: "draft1", summary: "Create an invoice for NGN 45,000", expiresAt: "2026-11-06T12:00:00.000Z", status: "PENDING" as const };
 const cookie = Object.entries(authenticatedCookies()).map(([key, value]) => `${key}=${value}`).join("; ");
@@ -41,7 +39,7 @@ describe("POST /api/assistant/drafts/:id/change", () => {
     expect(await response.json()).toEqual({ status: 200, message: "Success", data: { conversationId: "web1", reply: "What should change?", draft: DRAFT } });
     expect(changeDraft).toHaveBeenCalledWith(SCOPE, "draft1");
     expect(approveAction).not.toHaveBeenCalled();
-    expect(invoiceService.createInTransaction).not.toHaveBeenCalled();
+    expect(createInvoice).not.toHaveBeenCalled();
   });
   it("checks the conversation and draft using WEB and the signed-in owner", async () => {
     await POST(request(), context);
@@ -67,6 +65,6 @@ describe("POST /api/assistant/drafts/:id/change", () => {
   it("returns a lifecycle conflict for expired drafts", async () => {
     vi.mocked(changeDraft).mockRejectedValue(Object.assign(new Error("private"), { code: "ASSISTANT_DRAFT_EXPIRED" }));
     expect((await POST(request(), context)).status).toBe(409);
-    expect(invoiceService.createInTransaction).not.toHaveBeenCalled();
+    expect(createInvoice).not.toHaveBeenCalled();
   });
 });

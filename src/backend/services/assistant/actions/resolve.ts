@@ -12,6 +12,7 @@ import { receiptSaleValidatorSchema } from "@/backend/validators/receipt.validat
 import { updateBookingValidatorSchema } from "@/backend/validators/booking.validator";
 import { updateOrderValidatorSchema } from "@/backend/validators/order.validator";
 import { BadRequestException, NotFoundException } from "@/utils/exceptions";
+import { optionLabel } from "@/utils/labels";
 
 import { lagosDay } from "../clock";
 import type { AssistantScope } from "../types";
@@ -23,6 +24,12 @@ const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "frida
 const DAY_MS = 86_400_000;
 // Prices, lines, documents and payments persist as Decimal(10,2).
 const MAX_PERSISTED_MINOR = 9_999_999_999;
+
+function nullableText(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed?.length) return null;
+  return trimmed;
+}
 
 function resolveRelativeDate(text: string, now: Date): string {
   const lower = text.toLowerCase();
@@ -59,7 +66,7 @@ function json(value: unknown): Prisma.InputJsonValue | null {
 }
 
 function jsonObject(value: object): Prisma.InputJsonObject {
-  const result: { [key: string]: Prisma.InputJsonValue | null } = {};
+  const result: Record<string, Prisma.InputJsonValue | null> = {};
   for (const [key, item] of Object.entries(value)) {
     if (item !== undefined) result[key] = json(item);
   }
@@ -68,14 +75,19 @@ function jsonObject(value: object): Prisma.InputJsonObject {
 
 function mentioned(texts: string[], name: string | null): boolean {
   if (!name?.trim()) return false;
-  const normalized = name.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-  return texts.some((text) => ` ${text.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()} `.includes(` ${normalized} `));
+  const normalize = (value: string) => value.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim()
+    .split(/\s+/).map((word) => word.length > 3 && word.endsWith("s") && !word.endsWith("ss") ? word.slice(0, -1) : word).join(" ");
+  const normalized = normalize(name);
+  return texts.some((text) => ` ${normalize(text)} `.includes(` ${normalized} `));
 }
 
-type Candidate = { id: string; name: string | null; label: string };
+type Candidate = { id: string; name: string | null; label: string; parts?: string[] };
 function choose(request: DraftRequest, evidence: OwnerEvidence, id: string, candidates: Candidate[], question: string): Clarification | null {
   if (evidence.selectedIds.includes(id)) return null;
-  const explicit = candidates.filter((candidate) => mentioned([evidence.text, ...evidence.recentOwnerTexts], candidate.name));
+  const texts = [evidence.text, ...evidence.recentOwnerTexts];
+  const explicit = candidates.filter((candidate) => candidate.parts
+    ? candidate.parts.filter((part) => part.trim()).every((part) => mentioned(texts, part))
+    : mentioned(texts, candidate.name));
   if (explicit.length === 1 && explicit[0]?.id === id) return null;
   return { question, choices: candidates.slice(0, 3).map((candidate) => ({ id: candidate.id, label: candidate.label })), originalRequest: request };
 }
@@ -100,6 +112,34 @@ async function chooseInvoice(tx: Prisma.TransactionClient, businessId: string, r
     id: row.id, identifiers: [row.invoiceNumber, row.slug, row.publicId, row.id],
     label: `${row.invoiceNumber} · ${row.clientName} · ${row.status}`,
   })), "Which invoice do you mean? Please select one or state its invoice number.");
+}
+
+function chooseBooking(request: DraftRequest, evidence: OwnerEvidence, id: string,
+  candidates: Array<{ id: string; slug: string; publicId: string; clientName: string; status: string; startTime: Date; service: { name: string } }>, now: Date,
+): Clarification | null {
+  const question = "Which booking do you mean? Please select one or state its booking reference.";
+  const references = candidates.map((row) => ({ id: row.id, identifiers: [row.slug, row.publicId, row.id], label: `${row.clientName} · ${row.service.name} · ${row.startTime.toISOString()} · ${row.slug}` }));
+  const byReference = chooseDocument(request, evidence, id, references, question);
+  if (!byReference) return null;
+  // A natural customer/date/status description is also an owner selection,
+  // provided exactly one owned booking matches it. A proposed new startTime
+  // never supplies evidence for which existing booking the owner meant.
+  for (const text of [evidence.text, ...evidence.recentOwnerTexts]) {
+    let matches = candidates.filter((row) => mentioned([text], row.clientName));
+    if (!matches.length) continue;
+    const dates = [...text.toLowerCase().matchAll(/\b(today|tomorrow|sunday|monday|tuesday|wednesday|thursday|friday|saturday|\d{4}-\d{2}-\d{2})\b/g)]
+      .map((match) => resolveRelativeDate(match[0], now));
+    if (dates.length) matches = matches.filter((row) => dates.includes(lagosDay(row.startTime)));
+    // Only an adjective describing the current booking is a selector. In
+    // "mark Amaka's booking completed", completed is the requested new state.
+    const statuses = ["PENDING", "CONFIRMED", "COMPLETED", "CANCELLED"].filter((status) => new RegExp(`\\b${status.toLowerCase()}\\s+bookings?\\b`).test(text.toLowerCase()));
+    if (statuses.length) matches = matches.filter((row) => statuses.includes(row.status));
+    const services = candidates.filter((row) => mentioned([text], row.service.name));
+    if (services.length) matches = matches.filter((row) => services.some((named) => named.service.name === row.service.name));
+    if (matches.length === 1 && matches[0]?.id === id) return null;
+    return { ...byReference, choices: matches.slice(0, 3).map((row) => ({ id: row.id, label: references.find((reference) => reference.id === row.id)!.label })) };
+  }
+  return byReference;
 }
 
 const customerSelect = { id: true, name: true, phone: true, email: true, address: true, updatedAt: true } as const;
@@ -172,9 +212,9 @@ async function resolveLines(tx: Prisma.TransactionClient, businessId: string, li
       const option = await tx.productOption.findFirst({ where: { id: line.id, isActive: true, product: { businessId, isActive: true } }, include: { product: true } });
       if (!option) throw new NotFoundException("Product option not found or inactive");
       const candidates = await tx.productOption.findMany({ where: { isActive: true, product: { businessId, isActive: true, name: { contains: option.product.name.trim().split(/\s+/)[0] ?? option.product.name, mode: "insensitive" } } }, include: { product: true } });
-      const clarification = choose(request, evidence, option.id, candidates.map((row) => ({ id: row.id, name: `${row.product.name} ${row.name}`.trim(), label: `${row.product.name}${row.name ? ` – ${row.name}` : ""}` })), "Which product option do you mean?");
+      const clarification = choose(request, evidence, option.id, candidates.map((row) => ({ id: row.id, name: `${row.product.name} ${row.name}`.trim(), parts: [row.product.name, row.name], label: `${row.product.name}${row.name ? ` – ${row.name}` : ""}` })), "Which product option do you mean?");
       if (clarification) return clarification;
-      name = `${option.product.name}${option.name ? ` – ${option.name}` : ""}`;
+      name = optionLabel(option.product.name, option.name);
       description = option.product.description;
       catalogPrice = minorFromDecimal(option.price ?? option.product.price);
       // ProductOption has no timestamp; freeze its actual material fields instead.
@@ -185,7 +225,7 @@ async function resolveLines(tx: Prisma.TransactionClient, businessId: string, li
     if (unitPriceMinor === null) throw new BadRequestException("Please state the price");
     const totalMinor = money(unitPriceMinor * line.quantity);
     // Existing shared line validator remains the second boundary layer.
-    invoiceItemValidatorSchema.parse({ name, description: description || null, quantity: line.quantity, unitPrice: unitPriceMinor / 100, total: totalMinor / 100 });
+    invoiceItemValidatorSchema.parse({ name, description: nullableText(description), quantity: line.quantity, unitPrice: unitPriceMinor / 100, total: totalMinor / 100 });
     const previous = resolved.find((row) => line.id !== null && row.kind === line.kind && row.id === line.id && row.unitPriceMinor === unitPriceMinor);
     if (previous) { previous.quantity += line.quantity; previous.totalMinor = money(previous.totalMinor + totalMinor); }
     else resolved.push({ kind: line.kind, id: line.id, name, description, quantity: line.quantity, unitPriceMinor, totalMinor, serviceId: line.kind === "service" ? line.id : null, productOptionId: line.kind === "product" ? line.id : null });
@@ -439,10 +479,10 @@ export async function resolveDraft(
       if (request.cancelOrder) {
         const order = await tx.order.findFirst({
           where: { invoiceId: invoice.id, businessId },
-          select: { id: true, slug: true, status: true, clientEmail: true, updatedAt: true, lines: { select: { name: true, productOptionId: true, quantity: true } } },
+          select: { id: true, slug: true, orderNumber: true, status: true, fulfilment: true, deliveryAddress: true, clientEmail: true, updatedAt: true, lines: { select: { name: true, productOptionId: true, quantity: true } } },
         });
         if (order && (order.status === "NEW" || order.status === "READY")) {
-          orderInfo = jsonObject({ id: order.id, slug: order.slug, status: order.status, clientEmail: order.clientEmail, updatedAt: order.updatedAt, ...await stockChange(tx, businessId, order.lines, now, 1) });
+          orderInfo = jsonObject({ id: order.id, slug: order.slug, orderNumber: order.orderNumber, status: order.status, fulfilment: order.fulfilment, deliveryAddress: order.deliveryAddress, clientEmail: order.clientEmail, updatedAt: order.updatedAt, ...await stockChange(tx, businessId, order.lines, now, 1) });
         }
       }
 
@@ -464,12 +504,12 @@ export async function resolveDraft(
     case "update_order": {
       const order = await tx.order.findFirst({
         where: { id: request.orderId, businessId },
-        select: { id: true, slug: true, status: true, orderNumber: true, updatedAt: true, clientName: true, clientPhone: true, clientEmail: true, lines: { select: { name: true, productOptionId: true, quantity: true } } },
+        select: { id: true, slug: true, status: true, orderNumber: true, fulfilment: true, deliveryAddress: true, currency: true, total: true, updatedAt: true, clientName: true, clientPhone: true, clientEmail: true, lines: { select: { name: true, productOptionId: true, quantity: true } } },
       });
       if (!order) throw new NotFoundException("Order not found");
 
       const candidates = await tx.order.findMany({ where: { businessId }, select: { id: true, orderNumber: true, slug: true, publicId: true, clientName: true, status: true }, orderBy: { createdAt: "desc" } });
-      const clarification = chooseDocument(request, evidence, order.id, candidates.map((row) => ({ id: row.id, identifiers: [row.orderNumber, row.slug, row.publicId, row.id], label: `${row.orderNumber} · ${row.clientName} · ${row.status}` })), "Which order do you mean? Please select one or state its order number.");
+      const clarification = chooseDocument(request, evidence, order.id, candidates.map((row) => ({ id: row.id, identifiers: [row.orderNumber, row.slug, row.publicId, row.id].filter((value): value is string => value !== null), label: `${row.orderNumber ?? row.slug} · ${row.clientName} · ${row.status}` })), "Which order do you mean? Please select one or state its order number.");
       if (clarification) return clarification;
 
       updateOrderValidatorSchema.parse({ status: request.status });
@@ -483,6 +523,8 @@ export async function resolveDraft(
         orderNumber: order.orderNumber,
         clientName: order.clientName, clientPhone: order.clientPhone, clientEmail: order.clientEmail, ...jsonObject(restock),
         currentStatus: order.status,
+        fulfilment: order.fulfilment, deliveryAddress: order.deliveryAddress,
+        currency: order.currency, totalMinor: minorFromDecimal(order.total),
         slug: order.slug,
         updatedAt: order.updatedAt.toISOString(),
         ...baseSnapshot,
@@ -502,7 +544,7 @@ export async function resolveDraft(
 
       stockAdjustValidatorSchema.parse({ optionId: request.optionId, ...(request.mode === "set" ? { set: request.quantity } : { add: request.mode === "remove" ? -request.quantity : request.quantity }) });
       const candidates = await tx.productOption.findMany({ where: { product: { businessId, name: { contains: option.product.name.trim().split(/\s+/)[0] ?? option.product.name, mode: "insensitive" } } }, include: { product: true } });
-      const clarification = choose(request, evidence, option.id, candidates.map((row) => ({ id: row.id, name: `${row.product.name} ${row.name}`.trim(), label: `${row.product.name} – ${row.name}` })), "Which product option should I adjust?");
+      const clarification = choose(request, evidence, option.id, candidates.map((row) => ({ id: row.id, name: `${row.product.name} ${row.name}`.trim(), parts: [row.product.name, row.name], label: `${row.product.name} – ${row.name}` })), "Which product option should I adjust?");
       if (clarification) return clarification;
       const previous = option.stock;
       let newStock: number;
@@ -539,9 +581,9 @@ export async function resolveDraft(
           service: true,
         },
       });
-      if (!booking || booking.service.businessId !== businessId) throw new NotFoundException("Booking not found");
-      const candidates = await tx.booking.findMany({ where: { businessId }, select: { id: true, slug: true, publicId: true, clientName: true, startTime: true, service: { select: { name: true } } }, orderBy: { startTime: "desc" } });
-      const clarification = chooseDocument(request, evidence, booking.id, candidates.map((row) => ({ id: row.id, identifiers: [row.slug, row.publicId, row.id], label: `${row.clientName} · ${row.service.name} · ${row.startTime.toISOString()} · ${row.slug}` })), "Which booking do you mean? Please select one or state its booking reference.");
+      if (booking?.service.businessId !== businessId) throw new NotFoundException("Booking not found");
+      const candidates = await tx.booking.findMany({ where: { businessId }, select: { id: true, slug: true, publicId: true, clientName: true, status: true, startTime: true, service: { select: { name: true } } }, orderBy: { startTime: "desc" } });
+      const clarification = chooseBooking(request, evidence, booking.id, candidates, now);
       if (clarification) return clarification;
       const transitions: Record<string, string[]> = { PENDING: ["CONFIRMED", "CANCELLED"], CONFIRMED: ["COMPLETED", "CANCELLED"], COMPLETED: [], CANCELLED: [] };
       if (request.status && !transitions[booking.status]?.includes(request.status)) throw new BadRequestException("This booking cannot move to that status");
@@ -560,6 +602,10 @@ export async function resolveDraft(
         const terms = bookingTerms(booking.service, parsed, booking.units, { now, enforceUnitLimits: false });
         endTime = terms.endTime.toISOString();
         const overlap = await tx.booking.findFirst({ where: blockingBookingsWhere(booking.service, { start: parsed, end: terms.endTime }, { now, excludeId: booking.id }), select: { id: true } });
+        if (overlap) throw new BadRequestException("Those dates or that time are already booked");
+      }
+      if (request.status === "CONFIRMED" && !request.startTime) {
+        const overlap = await tx.booking.findFirst({ where: blockingBookingsWhere(booking.service, { start: booking.startTime, end: booking.endTime }, { now, excludeId: booking.id }), select: { id: true } });
         if (overlap) throw new BadRequestException("Those dates or that time are already booked");
       }
 
@@ -583,6 +629,7 @@ export async function resolveDraft(
         units: booking.units,
         updatedAt: booking.updatedAt.toISOString(),
         ...baseSnapshot,
+        ownerEvidence: jsonObject({ ...evidence, selectedIds: [...new Set([...evidence.selectedIds, booking.id])] }),
       };
       return { kind: "update_booking", payload: jsonObject(payload), snapshot };
     }
@@ -604,10 +651,10 @@ export async function resolveDraft(
       });
 
       validateOptions(options);
-      productValidatorSchema.parse({ name: request.name.trim(), description: request.description?.trim() || null, price: priceMinor / 100, tracksStock: request.tracksStock, options: options.map((option) => ({ name: option.name, price: option.priceMinor === null ? null : option.priceMinor / 100, stock: option.stock })) });
+      productValidatorSchema.parse({ name: request.name.trim(), description: nullableText(request.description), price: priceMinor / 100, tracksStock: request.tracksStock, options: options.map((option) => ({ name: option.name, price: option.priceMinor === null ? null : option.priceMinor / 100, stock: option.stock })) });
       const payload: ResolvedPayloadByKind["create_product"] = {
         name: request.name.trim(),
-        description: request.description?.trim() || null,
+        description: nullableText(request.description),
         priceMinor,
         tracksStock: request.tracksStock,
         options,
@@ -658,7 +705,7 @@ export async function resolveDraft(
       const payload: ResolvedPayloadByKind["update_product"] = {
         productId: product.id,
         name: request.name?.trim() ?? null,
-        description: request.description?.trim() || null,
+        description: nullableText(request.description),
         priceMinor,
         isActive: request.isActive,
         tracksStock: request.tracksStock,
@@ -695,7 +742,7 @@ export async function resolveDraft(
       if (problem) throw new BadRequestException(problem);
       const payload: ResolvedPayloadByKind["create_service"] = {
         name: request.name.trim(),
-        description: request.description?.trim() || null,
+        description: nullableText(request.description),
         priceMinor,
         duration: request.duration,
         bookingMode: request.bookingMode,
@@ -739,7 +786,7 @@ export async function resolveDraft(
       const payload: ResolvedPayloadByKind["update_service"] = {
         serviceId: service.id,
         name: request.name?.trim() ?? null,
-        description: request.description?.trim() || null,
+        description: nullableText(request.description),
         priceMinor,
         isActive: request.isActive,
         duration: request.duration,
@@ -801,8 +848,8 @@ export async function resolveDraft(
         name: request.name.trim(),
         phone: normalizedPhone,
         email: normalizedEmail,
-        address: request.address?.trim() || null,
-        notes: request.notes?.trim() || null,
+        address: nullableText(request.address),
+        notes: nullableText(request.notes),
       };
       const snapshot: Prisma.InputJsonObject = {
         ...baseSnapshot,
@@ -834,8 +881,8 @@ export async function resolveDraft(
         name: request.fields.includes("name") ? normalized.name ?? null : null,
         phone: request.fields.includes("phone") ? phone : null,
         email: request.fields.includes("email") ? email : null,
-        address: request.fields.includes("address") ? normalized.address?.trim() || null : null,
-        notes: request.fields.includes("notes") ? normalized.notes?.trim() || null : null,
+        address: request.fields.includes("address") ? nullableText(normalized.address) : null,
+        notes: request.fields.includes("notes") ? nullableText(normalized.notes) : null,
         fields: request.fields,
       };
       const snapshot: Prisma.InputJsonObject = {

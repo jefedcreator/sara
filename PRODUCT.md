@@ -24,7 +24,9 @@ Sara lets the owner run the business from the WhatsApp or Instagram chat they al
 
 ## Positioning
 
-A guided, deterministic numbered chat menu on top of serious infrastructure: Paystack split payments into the business's own subaccount, Mono bank linking, two-way Google Calendar sync, automatic receipts and customer emails. Send Sara a voice note or type what you need. Sara uses AI to understand plain English and turn voice notes into text, then shows you the details before anything changes. A one-person shop gets the back office of a salon chain without ever opening a laptop.
+A guided numbered chat menu on top of serious infrastructure: Paystack split payments into the business's own subaccount, Mono bank linking, two-way Google Calendar sync, automatic receipts and customer emails. A one-person shop gets the back office of a salon chain without ever opening a laptop.
+
+Voice notes and plain-English requests are implemented but **unreleased**. Keep public positioning on the verified menu until the release checklist in `docs/assistant-operations.md` is complete. Release copy: “Send Sara a voice note or type what you need. Make invoices, record sales, and check your numbers. Sara shows you the details before anything changes.” The capability disclosure is: “Sara uses AI to understand plain English and turn voice notes into text.”
 
 ## Operating Context
 
@@ -55,6 +57,54 @@ A guided, deterministic numbered chat menu on top of serious infrastructure: Pay
 - Does NOT exist yet (never claim): caution fees / security deposits, iCal sync with Airbnb or Booking.com, guest count or ID capture, pickup and drop-off locations for rentals, no-show/reliability scores, buffer times, QR codes, customer-side WhatsApp booking, a shop page listing everything a business sells, a shopping cart, discount codes, cost prices and profit reports, delivery company integrations, refunds through Sara.
 - Money: "NGN 15,000" in UI chrome, "₦15,000" in headline and stat copy.
 
+## Unreleased assistant behavior
+
+Linked owners can type plain English on WhatsApp and Instagram. Voice notes work on WhatsApp and the authenticated dashboard; Instagram stays typed only. Sara replies in text. The dashboard has its own conversation, with a hold-to-talk control and a text fallback. Conversation context lasts 30 minutes; drafts expire after 24 hours. Every assistant change requires approval of the exact details, and a replacement draft makes the previous one unavailable. Reads answer immediately. The default shared limit is 100 paid turns per business per Lagos calendar day.
+
+`menu` and `0` return to the numbered chat menu and reset assistant context; `cancel` also cancels the pending draft. Exact typed `yes` or `send it` and the Send it button approve in messaging. Web approval uses the draft's Send it button. A voice note saying “yes” cannot approve. Product photos, hours, closures, bank details and Google Calendar settings remain web-only. Do not promise non-English support, spoken replies, customer WhatsApp sends, photo recognition or unlimited use.
+
+These release examples use an existing customer, Amaka, without contact fields, and a catalog item, Shea butter, priced at NGN 5,000. Invoice/receipt numbers and public links below are illustrative. Approval summaries match `actions/summary.ts`; saved outcomes match `actions/execute.ts`.
+
+Voice → transcript → draft → explicit approval → invoice:
+
+```text
+Owner: [voice note: Invoice Amaka for three Shea butter. No due date.]
+Sara:
+🎙️ "Invoice Amaka for three Shea butter. No due date."
+
+Create an invoice for Amaka?
+3 × Shea butter · NGN 5,000 each · NGN 15,000
+Total: NGN 15,000
+Due: No due date
+Create an unpaid invoice. Stock is unchanged.
+[Send it] [Change something]
+
+Owner: [Send it]
+Sara:
+Invoice INV-1043 created for NGN 15,000.
+https://app.sara.ng/invoices/Xk39fjQ2aB7mN0pR
+```
+
+Product cash sale, with 10 available units and immediate collection:
+
+```text
+Owner: Amaka paid cash for three Shea butter and collected them.
+Sara:
+Record a sale for Amaka?
+3 × Shea butter · NGN 5,000 each · NGN 15,000
+Total: NGN 15,000
+Paid cash · Pickup
+Amount paid: NGN 15,000
+Create a receipt and completed pickup order.
+Available stock · Shea butter: 10 → 7.
+[Send it] [Change something]
+
+Owner: [Send it]
+Sara:
+Receipt RCP-1044 created for NGN 15,000.
+https://app.sara.ng/receipts/Qm7TzW2pLc9fHs4e
+```
+
 ## Brand Commitments
 
 - Primary CTA everywhere: "Start on WhatsApp". Optional hero-only secondary: "See how booking links work".
@@ -72,6 +122,6 @@ A guided, deterministic numbered chat menu on top of serious infrastructure: Pay
 
 1. The chat is the product: every claim is shown as a real exchange, invoice line or number.
 2. Understand the request, show the details, wait for approval.
-3. Deterministic over clever: numbered menus, predictable replies.
+3. Code computes the numbers and describes every change; the numbered menu stays available.
 4. Serious infrastructure, plain language.
 5. Phone first: 375px is the primary canvas.

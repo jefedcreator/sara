@@ -254,6 +254,14 @@ describe("receiptService.create", () => {
 });
 
 describe("receiptService.createInTransaction", () => {
+  it("does not reuse global slugs for the same business name and document number", async () => {
+    const input: CreateReceiptInput = { businessId: "biz_1", name: "Ada", currency: "NGN", subtotal: 5000, taxAmount: 0, discount: 0, total: 5000, amountPaid: 5000 };
+    await receiptService.createInTransaction(txMock, input);
+    await receiptService.createInTransaction(txMock, input);
+    const slugs = txMock.receipt.create.mock.calls.map(([args]: [{ data: { slug: string } }]) => args.data.slug);
+    expect(slugs[0]).toMatch(/^acme-salon-rcp-1001-/);
+    expect(slugs[0]).not.toBe(slugs[1]);
+  });
   const INPUT: CreateReceiptInput = {
     businessId: "biz_1", name: "Tolu", currency: "NGN",
     subtotal: 90000, taxAmount: 0, discount: 0, total: 90000, amountPaid: 90000,

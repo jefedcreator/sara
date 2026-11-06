@@ -12,9 +12,16 @@ import type {
 const GRAPH = "https://graph.facebook.com/v21.0";
 
 export function extractFirstUrl(text: string): string | null {
-  const match = text.match(/https?:\/\/[^\s]+/i);
+  const match = /https?:\/\/[^\s]+/i.exec(text);
   if (!match) return null;
   return match[0].replace(/[.,;:!?)]+$/, "");
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+function entries(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
 }
 
 function errorCode(raw: string): number | null {
@@ -39,7 +46,7 @@ class WhatsAppAdapter implements ChannelAdapter {
   channel: ChatChannel = "WHATSAPP";
 
   private getVerifyToken(): string | undefined {
-    return (env.WHATSAPP_VERIFY_TOKEN || process.env.WHATSAPP_VERIFY_TOKEN)?.trim();
+    return (env.WHATSAPP_VERIFY_TOKEN ?? process.env.WHATSAPP_VERIFY_TOKEN)?.trim();
   }
 
   verify(req: Request): Response {
@@ -64,7 +71,7 @@ class WhatsAppAdapter implements ChannelAdapter {
   }
 
   isAuthentic(req: Request, rawBody: string): boolean {
-    const secret = env.META_APP_SECRET || process.env.META_APP_SECRET;
+    const secret = env.META_APP_SECRET ?? process.env.META_APP_SECRET;
     if (!secret) return false;
     const signature = req.headers.get("x-hub-signature-256");
     if (!signature) return false;
@@ -78,31 +85,32 @@ class WhatsAppAdapter implements ChannelAdapter {
 
   normalizeInbound(payload: unknown): InboundMessage[] {
     const out: InboundMessage[] = [];
-    const body = payload as any;
-    for (const entry of body?.entry ?? []) {
-      for (const change of entry?.changes ?? []) {
-        const value = change?.value ?? {};
-        const contactName = value?.contacts?.[0]?.profile?.name as
-          | string
-          | undefined;
-        for (const msg of value?.messages ?? []) {
-          if (typeof msg?.from !== "string" || !msg.from ||
-              typeof msg?.id !== "string" || !msg.id) continue;
+    for (const entry of entries(record(payload).entry)) {
+      for (const change of entries(record(entry).changes)) {
+        const value = record(record(change).value);
+        const contactName = record(record(entries(value.contacts)[0]).profile).name;
+        for (const candidate of entries(value.messages)) {
+          const msg = record(candidate);
+          if (typeof msg.from !== "string" || !msg.from ||
+              typeof msg.id !== "string" || !msg.id) continue;
           const base = {
             channel: "WHATSAPP" as const,
-            externalId: msg.from as string,
-            messageId: msg.id as string,
+            externalId: msg.from,
+            messageId: msg.id,
             ...(typeof contactName === "string" ? { displayName: contactName } : {}),
           };
-          if (msg.type === "text" && typeof msg.text?.body === "string" && msg.text.body) {
-            out.push({ ...base, kind: "text", text: msg.text.body });
-          } else if (msg.type === "audio" && typeof msg.audio?.id === "string" && msg.audio.id) {
+          const text = record(msg.text).body;
+          const audio = record(msg.audio);
+          const interactive = record(msg.interactive);
+          if (msg.type === "text" && typeof text === "string" && text) {
+            out.push({ ...base, kind: "text", text });
+          } else if (msg.type === "audio" && typeof audio.id === "string" && audio.id) {
             out.push({
-              ...base, kind: "voice", mediaId: msg.audio.id,
-              mime: typeof msg.audio.mime_type === "string" ? msg.audio.mime_type : null,
+              ...base, kind: "voice", mediaId: audio.id,
+              mime: typeof audio.mime_type === "string" ? audio.mime_type : null,
             });
-          } else if (msg.type === "interactive" && msg.interactive?.type === "button_reply") {
-            const id: unknown = msg.interactive.button_reply?.id;
+          } else if (msg.type === "interactive" && interactive.type === "button_reply") {
+            const id = record(interactive.button_reply).id;
             if (typeof id === "string" && id.length > 0 && id.length <= 256 &&
                 id.trim() === id && !/[\u0000-\u001f\u007f]/.test(id)) {
               out.push({ ...base, kind: "button", buttonId: id });
@@ -182,8 +190,8 @@ class WhatsAppAdapter implements ChannelAdapter {
   }
 
   private async post(_externalId: string, payload: unknown): Promise<SendResult> {
-    const phoneId = env.WHATSAPP_PHONE_NUMBER_ID || process.env.WHATSAPP_PHONE_NUMBER_ID;
-    const token = env.WHATSAPP_TOKEN || process.env.WHATSAPP_TOKEN;
+    const phoneId = env.WHATSAPP_PHONE_NUMBER_ID ?? process.env.WHATSAPP_PHONE_NUMBER_ID;
+    const token = env.WHATSAPP_TOKEN ?? process.env.WHATSAPP_TOKEN;
 
     const res = await fetch(`${GRAPH}/${phoneId}/messages`, {
       method: "POST",

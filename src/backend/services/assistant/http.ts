@@ -28,7 +28,7 @@ export async function requireAssistantOwner(request: NextRequest): Promise<Assis
   const session = await authService.sessionFromRequest(request);
   if (!session) throw new UnauthorizedException("Unauthorized");
   const business = session.user.business;
-  if (!business || business.ownerId !== session.user.id) {
+  if (business?.ownerId !== session.user.id) {
     throw new ForbiddenException("Business owner required");
   }
   // Auth prefers the cookie, even if an Authorization header is also present.

@@ -9,6 +9,7 @@ vi.mock("@/server/db", () => ({
   db: {
     session: { findUnique: vi.fn(), delete: vi.fn() },
     payment: { aggregate: vi.fn() },
+    receipt: { aggregate: vi.fn() },
     invoice: { count: vi.fn(), aggregate: vi.fn(), findMany: vi.fn() },
     booking: { findMany: vi.fn() },
     orderLine: { findMany: vi.fn() },
@@ -27,6 +28,7 @@ const USER = { id: "user_1", name: "Owner", email: "owner@example.com" };
 beforeEach(() => {
   vi.clearAllMocks();
   mockAuthenticatedSession(mockedDb, { user: USER, business: BUSINESS });
+  mockedDb.receipt.aggregate.mockResolvedValue({ _sum: { amountPaid: null } });
 });
 
 describe("GET /api/dashboard", () => {

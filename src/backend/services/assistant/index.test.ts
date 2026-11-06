@@ -1,13 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-vi.mock("@/server/db", () => ({ db: { business: { findFirst: vi.fn() } } }));
+
+const objectContaining = (value: unknown): unknown => expect.objectContaining(value);
+const arrayContaining = (value: unknown[]): unknown => expect.arrayContaining(value);
+const businessFindFirst = vi.hoisted(() => vi.fn());
+vi.mock("@/server/db", () => ({ db: { business: { findFirst: businessFindFirst } } }));
 vi.mock("./store", () => ({ assertTurnCurrent: vi.fn(), saveReadPages: vi.fn(), saveClarification: vi.fn(), hasPendingReadPage: vi.fn(), claimTurnLease: vi.fn(), getConversation: vi.fn(), releaseTurn: vi.fn(), saveTurn: vi.fn(), loadRecent: vi.fn(), loadTurnMemory: vi.fn(), selectClarification: vi.fn(), hasPendingClarification: vi.fn(), hasEditingContext: vi.fn(), INTERRUPTED_TURN_REPLY: "Interrupted" }));
 vi.mock("./config", () => ({ assistantConfig: vi.fn(), TURN_TIMEOUT_MS: 25_000 }));
 vi.mock("./audio", () => ({ transcribeAudio: vi.fn(), transcriptPrefix: (text: string) => `🎙️ "${text}"\n\n`, AudioError: class AudioError extends Error {} }));
-vi.mock("./usage", async (original) => ({ ...await original<typeof import("./usage")>(), reserveUsage: vi.fn(), finishUsage: vi.fn() }));
-vi.mock("./loop", async (original) => ({ ...await original<typeof import("./loop")>(), runModelTurn: vi.fn() }));
+vi.mock("./usage", async (original) => ({ ...await original<typeof UsageModule>(), reserveUsage: vi.fn(), finishUsage: vi.fn() }));
+vi.mock("./loop", async (original) => ({ ...await original<typeof LoopModule>(), runModelTurn: vi.fn() }));
 vi.mock("./tools/registry", () => ({ dispatchTool: vi.fn(), buildTools: vi.fn() }));
 vi.mock("./openai", () => ({ getOpenAI: vi.fn(() => { throw new Error("No paid calls"); }) }));
-import { db } from "@/server/db";
+import type * as LoopModule from "./loop";
+import type * as UsageModule from "./usage";
 import { assistantService, AssistantBusyError, AssistantTimeoutError, continuationEvidence, type AssistantMessageInput } from "./index";
 import { assistantConfig } from "./config";
 import { claimTurnLease, loadRecent, loadTurnMemory, releaseTurn, saveTurn, assertTurnCurrent, saveReadPages, saveClarification, selectClarification } from "./store";
@@ -15,6 +20,7 @@ import { reserveUsage, finishUsage } from "./usage";
 import { runModelTurn } from "./loop";
 import { transcribeAudio } from "./audio";
 import { verifyOwnerPrice } from "./actions/amount";
+import { presentAssistantReply } from "../messaging/assistant";
 const claim = { status: "claimed" as const, conversationId: "c1", leaseToken: "lease1", memoryVersion: 2 };
 const input: AssistantMessageInput = { scope: { businessId: "b1", principalId: "p1", channel: "WEB" }, requestId: "req1", input: { kind: "text", text: "sales today" } };
 beforeEach(() => {
@@ -30,7 +36,7 @@ beforeEach(() => {
   vi.mocked(saveClarification).mockResolvedValue(undefined);
   vi.mocked(loadRecent).mockResolvedValue([]);
   vi.mocked(loadTurnMemory).mockResolvedValue({ clarification: null, editing: null });
-  vi.mocked(db.business.findFirst).mockResolvedValue({ name: "Shop", currency: "NGN", sells: "BOTH" } as Awaited<ReturnType<typeof db.business.findFirst>>);
+  businessFindFirst.mockResolvedValue({ name: "Shop", currency: "NGN", sells: "BOTH" });
   vi.mocked(runModelTurn).mockResolvedValue({ reply: "No sales today.", draft: null, toolRecords: [] });
 });
 afterEach(() => vi.useRealTimers());
@@ -53,17 +59,17 @@ describe("assistant service lifecycle", () => {
     const load = vi.fn();
     await assistantService.message({ ...input, input: { kind: "audio", load } });
     expect(load).not.toHaveBeenCalled(); expect(transcribeAudio).not.toHaveBeenCalled(); expect(runModelTurn).not.toHaveBeenCalled(); expect(finishUsage).not.toHaveBeenCalled();
-    expect(saveTurn).toHaveBeenCalledWith(input.scope, "req1", expect.objectContaining({ state: "DONE" }), expect.any(AbortSignal));
+    expect(saveTurn).toHaveBeenCalledWith(input.scope, "req1", objectContaining({ state: "DONE" }), expect.any(AbortSignal));
     expect(releaseTurn).toHaveBeenCalledWith(input.scope, "req1", "lease1");
   });
   it("persists transcript before interpretation and retains it on a model failure", async () => {
     vi.mocked(transcribeAudio).mockResolvedValue({ text: "Sales today", seconds: 12, providerRequestId: "audio1" });
     vi.mocked(runModelTurn).mockRejectedValue(new Error("timeout"));
     const reply = await assistantService.message({ ...input, input: { kind: "audio", load: vi.fn() } });
-    expect(saveTurn).toHaveBeenNthCalledWith(1, input.scope, "req1", expect.objectContaining({ state: "RUNNING", transcript: "Sales today" }), expect.any(AbortSignal));
+    expect(saveTurn).toHaveBeenNthCalledWith(1, input.scope, "req1", objectContaining({ state: "RUNNING", transcript: "Sales today" }), expect.any(AbortSignal));
     expect(reply.transcript).toBe("Sales today");
     expect(reply.reply).not.toContain("🎙️");
-    expect(finishUsage).toHaveBeenCalledWith("usage1", expect.objectContaining({ audioSeconds: 12, providerRequestIds: ["audio1"], outcome: "error" }));
+    expect(finishUsage).toHaveBeenCalledWith("usage1", objectContaining({ audioSeconds: 12, providerRequestIds: ["audio1"], outcome: "error" }));
   });
   it("sends progress at four seconds, tolerates its failure and clears timers", async () => {
     let complete!: (value: Awaited<ReturnType<typeof runModelTurn>>) => void;
@@ -84,8 +90,8 @@ describe("assistant service lifecycle", () => {
     const pending = assistantService.message(input);
     await vi.advanceTimersByTimeAsync(25_000); await pending;
     expect(signal?.aborted).toBe(true); expect(vi.getTimerCount()).toBe(0);
-    expect(finishUsage).toHaveBeenCalledWith("usage1", expect.objectContaining({ inputTokens: 30, outcome: "error", billingUnknown: true }));
-    expect(saveTurn).toHaveBeenCalledWith(input.scope, "req1", expect.objectContaining({ state: "DONE" }), expect.any(AbortSignal));
+    expect(finishUsage).toHaveBeenCalledWith("usage1", objectContaining({ inputTokens: 30, outcome: "error", billingUnknown: true }));
+    expect(saveTurn).toHaveBeenCalledWith(input.scope, "req1", objectContaining({ state: "DONE" }), expect.any(AbortSignal));
   });
   it("releases the exact lease even when usage finalization fails", async () => {
     vi.mocked(finishUsage).mockRejectedValue(new Error("db unavailable"));
@@ -138,8 +144,8 @@ describe("review regressions", () => {
       evidence: { text: "Create customer Ada", recentOwnerTexts: [], selectedIds: [] }, createdAt: new Date().toISOString() };
     vi.mocked(loadTurnMemory).mockResolvedValue({ clarification, editing: null });
     await assistantService.message({ ...input, input: { kind: "text", text: answer } });
-    expect(runModelTurn).toHaveBeenCalledWith(expect.objectContaining({ text: answer, clarification,
-      context: expect.objectContaining({ pendingClarification: clarification, evidence: expect.objectContaining({ text: answer, recentOwnerTexts: ["Create customer Ada"] }) }) }));
+    expect(runModelTurn).toHaveBeenCalledWith(objectContaining({ text: answer, clarification,
+      context: objectContaining({ pendingClarification: clarification, evidence: objectContaining({ text: answer, recentOwnerTexts: ["Create customer Ada"] }) }) }));
   });
   it.each(["create_customer", "create_product", "create_service"])("turns a duplicate %s selection into an explicit update-or-new-name decision", async (kind) => {
     // The stored schema/resolver tests validate the full shape; this runner must not retry the create tool.
@@ -151,7 +157,7 @@ describe("review regressions", () => {
     vi.mocked(selectClarification).mockReturnValue({ request, evidence, selected: clarification.choices[0]! });
     const reply = await assistantService.message({ ...input, input: { kind: "text", text: "1" } });
     expect(reply.reply).toContain("Tell me what to update");
-    expect(saveClarification).toHaveBeenCalledWith(input.scope, claim, expect.objectContaining({ choices: [], originalRequest: request }), evidence, expect.any(AbortSignal), { id: "existing", label: "Ada" });
+    expect(saveClarification).toHaveBeenCalledWith(input.scope, claim, objectContaining({ choices: [], originalRequest: request }), evidence, expect.any(AbortSignal), { id: "existing", label: "Ada" });
     expect(runModelTurn).not.toHaveBeenCalled();
   });
   it("retains pending request and action barrier after a paginated read and its last page", async () => {
@@ -169,8 +175,8 @@ describe("review regressions", () => {
     await assistantService.message({ ...input, input: { kind: "text", text: "Show the catalog" } });
     expect((await assistantService.message({ ...input, requestId: "req2", input: { kind: "text", text: "next" } })).reply).toContain("Last");
     await assistantService.message({ ...input, requestId: "req3", input: { kind: "text", text: "Change the phone" } });
-    expect(runModelTurn).toHaveBeenLastCalledWith(expect.objectContaining({ clarification, context: expect.objectContaining({ pendingClarification: clarification,
-      evidence: expect.objectContaining({ text: "Change the phone", recentOwnerTexts: expect.arrayContaining(["Create Ada"]) }) }) }));
+    expect(runModelTurn).toHaveBeenLastCalledWith(objectContaining({ clarification, context: objectContaining({ pendingClarification: clarification,
+      evidence: objectContaining({ text: "Change the phone", recentOwnerTexts: arrayContaining(["Create Ada"]) }) }) }));
   });
   it("serves exact subsequent report pages without quota or model work", async () => {
     vi.mocked(loadTurnMemory).mockResolvedValue({ clarification: null, editing: null,
@@ -190,7 +196,6 @@ describe("review regressions", () => {
 
 describe("canonical voice DTO to channel presentation", () => {
   it.each(["read", "draft", "clarification", "error"])("adds the transcript exactly once for %s and duplicate replay", async (kind) => {
-    const { presentAssistantReply } = await import("../messaging/assistant");
     vi.mocked(transcribeAudio).mockResolvedValue({ text: "Sales today", seconds: 1 });
     if (kind === "draft") vi.mocked(runModelTurn).mockResolvedValue({ reply: "Create invoice?", draft: { id: "draft-1", summary: "Create invoice?", status: "PENDING", expiresAt: "2026-11-06" }, toolRecords: [] });
     if (kind === "clarification") vi.mocked(runModelTurn).mockResolvedValue({ reply: "Which customer?\n1. Ada", draft: null, toolRecords: [] });

@@ -626,8 +626,8 @@ class OrderService {
         receiptUrl: order.receipt ? publicLink("receipt", order.receipt.publicId) : null,
         orderUrl: publicLink("order", order.publicId),
       });
-    } catch (error) {
-      console.warn("[Orders] Status email failed:", error);
+    } catch {
+      console.warn(`[Orders] Status email failed for ${id}`);
     }
   }
 

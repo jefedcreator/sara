@@ -37,6 +37,7 @@ export const PUT = withMiddleware<UpdateServiceValidatorSchema>(
       const payload = request.validatedData!;
       const user = request.user!;
       const { slug } = params;
+      if (!slug) throw new NotFoundException("Service not found");
       const business = user.business;
 
       if (!business) throw new NotFoundException("Business not found");

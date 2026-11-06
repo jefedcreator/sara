@@ -119,7 +119,7 @@ export async function requireAvailableStock(
 
   for (const optionId of optionIds) {
     const option = optionsById.get(optionId);
-    if (!option || option.product.businessId !== businessId) {
+    if (option?.product.businessId !== businessId) {
       throw new NotFoundException("Product option not found");
     }
     if (option.isActive === false || option.product.isActive === false) {

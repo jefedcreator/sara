@@ -1,17 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Prisma } from "@prisma/client";
 
-vi.mock("@/server/db", () => ({ db: { $transaction: vi.fn() } }));
-import { db } from "@/server/db";
+const transaction = vi.hoisted(() => vi.fn());
+vi.mock("@/server/db", () => ({ db: { $transaction: transaction } }));
 import { withSerializable } from "./transaction";
 
-const transaction = vi.mocked(db.$transaction);
 beforeEach(() => vi.resetAllMocks());
 
 describe("withSerializable", () => {
   it("passes the supplied transaction to work with bounded serializable settings", async () => {
     const tx = { marker: "tx" };
-    transaction.mockImplementationOnce(async (work: any) => work(tx));
+    transaction.mockImplementationOnce(async (work: (client: { marker: string }) => Promise<unknown>) => work(tx));
     const work = vi.fn().mockResolvedValue("committed");
     await expect(withSerializable(work)).resolves.toBe("committed");
     expect(work).toHaveBeenCalledWith(tx);

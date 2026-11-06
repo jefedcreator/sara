@@ -91,7 +91,14 @@ export async function runModelTurn(input: ModelTurnInput, dependencies?: ModelDe
     usage.addResponseUsage(response.usage, response.requestId);
     context.signal.throwIfAborted();
     // Preserve every output item in order, including the model's reasoning continuation.
-    protocolItems.push(...response.output);
+    for (const item of response.output) {
+      // This registry advertises only function tools. Preserve the complete
+      // supported continuation, including reasoning; reject hosted-tool output
+      // instead of coercing an incompatible SDK output union into input.
+      if (item.type === "message" || item.type === "reasoning" || item.type === "function_call") {
+        protocolItems.push(item);
+      } else throw new Error("ASSISTANT_UNEXPECTED_MODEL_OUTPUT");
+    }
     const calls = response.output.filter((item) => item.type === "function_call");
     if (calls.filter((call) => call.name.startsWith("draft_")).length > 1) {
       return { reply: MULTI_ACTION_REPLY, draft: null, toolRecords };

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { customerService } from "@/backend/services/customer";
 import {
   resolveDocumentLines,
@@ -107,7 +108,7 @@ class ReceiptService {
       select: { receiptNumber: true },
     });
     let receiptNumber = "RCP-1001";
-    if (lastReceipt && lastReceipt.receiptNumber.startsWith("RCP-")) {
+    if (lastReceipt?.receiptNumber.startsWith("RCP-")) {
       const n = parseInt(lastReceipt.receiptNumber.replace("RCP-", ""), 10);
       receiptNumber = `RCP-${isNaN(n) ? 1001 : n + 1}`;
     }
@@ -115,7 +116,7 @@ class ReceiptService {
     const createData: Prisma.ReceiptUncheckedCreateInput = {
       businessId: business.id,
       customerId: customer?.id ?? null,
-      slug: slugify(`${business.name}-${receiptNumber}`, { lower: true, strict: true }),
+      slug: slugify(`${business.name}-${receiptNumber}-${randomUUID()}`, { lower: true, strict: true }),
       receiptNumber,
       name: input.name ?? null,
       email: input.email ?? null,

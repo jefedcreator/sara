@@ -1,17 +1,21 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+import type { Prisma } from "@prisma/client";
 
-vi.mock("@/server/db", () => ({ db: {
-  assistantConversation: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
-  assistantAction: { findFirst: vi.fn(), findMany: vi.fn(), create: vi.fn(), updateMany: vi.fn() },
-  $transaction: vi.fn(),
-} }));
+type MockQuery = { where?: Record<string, unknown>; data?: Record<string, unknown> };
+type MockOperation = (args: MockQuery) => Promise<unknown>;
+const mocked = vi.hoisted(() => ({
+  assistantConversation: { findFirst: vi.fn<MockOperation>(), updateMany: vi.fn<MockOperation>(), update: vi.fn<MockOperation>() },
+  assistantAction: { findFirst: vi.fn<MockOperation>(), findMany: vi.fn<MockOperation>(), create: vi.fn<MockOperation>(), updateMany: vi.fn<MockOperation>() },
+  $transaction: vi.fn<(work: (tx: unknown) => Promise<unknown>) => Promise<unknown>>(),
+}));
+vi.mock("@/server/db", () => ({ db: mocked }));
 
-import { db } from "@/server/db";
 import type { AssistantScope } from "../types";
 import { assertDraftApprovableInTransaction, cancelDraft, changeDraft, createDraft, getPendingDraft } from "./drafts";
 import type { PreparedAction } from "./types";
 
-const mocked = db as any;
+// Only this boundary impersonates Prisma; state and mock operations stay typed.
+const transaction = mocked as unknown as Prisma.TransactionClient;
 const now = new Date("2026-11-04T12:00:00.000Z");
 const scope: AssistantScope = { businessId: "business-1", channel: "WHATSAPP", principalId: "owner-1" };
 const publication = { conversationId: "conversation-1", leaseToken: "generation-1" };
@@ -19,19 +23,26 @@ const prepared: PreparedAction<"create_customer"> = {
   kind: "create_customer", payload: { name: "Amaka", phone: null, email: null, address: null, notes: null },
   snapshot: { businessId: scope.businessId, businessCurrency: "NGN", originalRequest: { kind: "create_customer", name: "Amaka", phone: null, email: null, address: null, notes: null } },
 };
-let state: { conversation: any; actions: any[] };
+type ConversationState = Record<string, unknown> & {
+  id: string; memoryVersion: number; leaseToken: string; leaseExpiresAt: Date;
+  editingActionId: string | null; clarification: unknown;
+};
+let state: { conversation: ConversationState; actions: ReturnType<typeof action>[] };
 let failInsert: boolean;
 let nextId: number;
 
-function matches(row: any, where: any): boolean {
+function record(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+function matches(row: Record<string, unknown>, where: Record<string, unknown>): boolean {
   return Object.entries(where).every(([key, expected]) => {
-    if (key === "conversation") return matches(state.conversation, expected);
+    if (key === "conversation") return matches(state.conversation, record(expected));
     const actual = row[key];
     if (typeof expected === "object" && expected !== null && !(expected instanceof Date)) {
-      const filter = expected as any;
-      if ("gt" in filter) return actual > filter.gt;
-      if ("lte" in filter) return actual <= filter.lte;
-      if ("in" in filter) return filter.in.includes(actual);
+      const filter = record(expected);
+      if ("gt" in filter) return actual instanceof Date && filter.gt instanceof Date && actual > filter.gt;
+      if ("lte" in filter) return actual instanceof Date && filter.lte instanceof Date && actual <= filter.lte;
+      if ("in" in filter) return Array.isArray(filter.in) && filter.in.includes(actual);
     }
     return actual === expected;
   });
@@ -48,11 +59,12 @@ function action(overrides: Record<string, unknown> = {}) {
 /** Hold the next row-lock write open so assertions exercise elapsed lock waits. */
 function pauseNextConversationLock() {
   const acquire = mocked.assistantConversation.updateMany.getMockImplementation();
+  if (!acquire) throw new Error("Missing mock lock implementation");
   let release!: () => void;
   let entered!: () => void;
   const locked = new Promise<void>((resolve) => { entered = resolve; });
   const waiting = new Promise<void>((resolve) => { release = resolve; });
-  mocked.assistantConversation.updateMany.mockImplementationOnce(async (args: unknown) => {
+  mocked.assistantConversation.updateMany.mockImplementationOnce(async (args) => {
     entered();
     await waiting;
     return acquire(args);
@@ -70,26 +82,26 @@ beforeEach(() => {
     conversation: { id: publication.conversationId, ...scope, memoryVersion: 3, leaseToken: publication.leaseToken, leaseExpiresAt: new Date(now.getTime() + 30_000), editingActionId: null, clarification: null },
     actions: [],
   };
-  mocked.$transaction.mockImplementation(async (work: any) => {
+  mocked.$transaction.mockImplementation(async (work) => {
     const prior = structuredClone(state);
     try { return await work(mocked); }
     catch (error) { state = prior; throw error; }
   });
-  mocked.assistantConversation.findFirst.mockImplementation(async ({ where }: any) => matches(state.conversation, where) ? structuredClone(state.conversation) : null);
-  mocked.assistantConversation.updateMany.mockImplementation(async ({ where, data }: any) => {
-    if (!matches(state.conversation, where)) return { count: 0 };
+  mocked.assistantConversation.findFirst.mockImplementation(async ({ where }) => matches(state.conversation, where ?? {}) ? structuredClone(state.conversation) : null);
+  mocked.assistantConversation.updateMany.mockImplementation(async ({ where, data }) => {
+    if (!matches(state.conversation, where ?? {})) return { count: 0 };
     Object.assign(state.conversation, data);
     return { count: 1 };
   });
-  mocked.assistantConversation.update.mockImplementation(async ({ data }: any) => Object.assign(state.conversation, data));
-  mocked.assistantAction.findFirst.mockImplementation(async ({ where }: any) => state.actions.find((row) => matches(row, where)) ?? null);
-  mocked.assistantAction.findMany.mockImplementation(async ({ where }: any) => state.actions.filter((row) => matches(row, where)));
-  mocked.assistantAction.updateMany.mockImplementation(async ({ where, data }: any) => {
-    const found = state.actions.filter((row) => matches(row, where));
+  mocked.assistantConversation.update.mockImplementation(async ({ data }) => Object.assign(state.conversation, data));
+  mocked.assistantAction.findFirst.mockImplementation(async ({ where }) => state.actions.find((row) => matches(row, where ?? {})) ?? null);
+  mocked.assistantAction.findMany.mockImplementation(async ({ where }) => state.actions.filter((row) => matches(row, where ?? {})));
+  mocked.assistantAction.updateMany.mockImplementation(async ({ where, data }) => {
+    const found = state.actions.filter((row) => matches(row, where ?? {}));
     found.forEach((row) => Object.assign(row, data));
     return { count: found.length };
   });
-  mocked.assistantAction.create.mockImplementation(async ({ data }: any) => {
+  mocked.assistantAction.create.mockImplementation(async ({ data }) => {
     if (failInsert) throw new Error("INSERT_FAILED");
     const created = action({ id: `draft-${nextId++}`, ...data });
     state.actions.push(created);
@@ -106,8 +118,8 @@ describe("immutable draft publication", () => {
     const result = await createDraft(scope, prepared, 3, now, publication);
     expect(result).toEqual({ id: "draft-1", summary: "Create customer Amaka?", expiresAt: "2026-11-05T12:00:00.000Z", status: "PENDING" });
     expect(state.actions.map((row) => [row.id, row.status])).toEqual([["draft-old", "REPLACED"], ["draft-1", "PENDING"]]);
-    expect(state.actions[1].payload).toEqual(prepared.payload);
-    expect(state.actions[1].snapshot).toEqual(prepared.snapshot);
+    expect(state.actions[1]!.payload).toEqual(prepared.payload);
+    expect(state.actions[1]!.snapshot).toEqual(prepared.snapshot);
     expect(state.conversation.editingActionId).toBeNull();
     expect(mocked.assistantConversation.updateMany).toHaveBeenCalledWith({
       where: { id: publication.conversationId, ...scope }, data: { lastActiveAt: now },
@@ -138,7 +150,7 @@ describe("immutable draft publication", () => {
     state.actions.push(action());
     Object.assign(state.conversation, changes);
     await expect(createDraft(scope, prepared, 3, now, publication)).rejects.toMatchObject({ code: "ASSISTANT_TURN_STALE" });
-    expect(state.actions[0].status).toBe("PENDING");
+    expect(state.actions[0]!.status).toBe("PENDING");
     expect(mocked.assistantAction.create).not.toHaveBeenCalled();
     expect(mocked.assistantAction.updateMany).not.toHaveBeenCalled();
   });
@@ -154,7 +166,7 @@ describe("immutable draft publication", () => {
     state.actions.push(action());
     vi.setSystemTime(new Date(now.getTime() + 31_000));
     await expect(createDraft(scope, prepared, 3, now, publication)).rejects.toMatchObject({ code: "ASSISTANT_TURN_STALE" });
-    expect(state.actions[0].status).toBe("PENDING");
+    expect(state.actions[0]!.status).toBe("PENDING");
     expect(mocked.assistantAction.create).not.toHaveBeenCalled();
   });
 
@@ -188,7 +200,7 @@ describe("immutable draft publication", () => {
     Object.assign(state.conversation, changes);
     gate.release();
     await rejected;
-    expect(state.actions[0].status).toBe("PENDING");
+    expect(state.actions[0]!.status).toBe("PENDING");
     expect(mocked.assistantAction.create).not.toHaveBeenCalled();
   });
 
@@ -208,8 +220,8 @@ describe("immutable draft publication", () => {
     const pending = createDraft(scope, changing, 3, now, publication);
     changing.payload.name = "Different person";
     await pending;
-    expect(state.actions[0].payload.name).toBe("Amaka");
-    expect(state.actions[0].summary).toBe("Create customer Amaka?");
+    expect(state.actions[0]!.payload.name).toBe("Amaka");
+    expect(state.actions[0]!.summary).toBe("Create customer Amaka?");
   });
 });
 
@@ -219,53 +231,53 @@ describe("draft expiry, editing and cancellation", () => {
     const beforeExpiry = new Date(now.getTime() + 24 * 60 * 60 * 1000 - 1);
     expect(await getPendingDraft(scope, beforeExpiry)).toMatchObject({ id: "draft-old", status: "PENDING" });
     expect(await getPendingDraft(scope, new Date(beforeExpiry.getTime() + 1))).toBeNull();
-    expect(state.actions[0].status).toBe("EXPIRED");
+    expect(state.actions[0]!.status).toBe("EXPIRED");
   });
 
   it("marks expired previews EXPIRED instead of REPLACED during publication", async () => {
     state.actions.push(action({ expiresAt: now }));
     await createDraft(scope, prepared, 3, now, publication);
-    expect(state.actions[0].status).toBe("EXPIRED");
+    expect(state.actions[0]!.status).toBe("EXPIRED");
   });
 
   it("keeps changed text immutable and pending but refuses approval until a replacement is shown", async () => {
     state.actions.push(action());
-    const original = structuredClone(state.actions[0]);
+    const original = structuredClone(state.actions[0]!);
     expect(await changeDraft(scope, "draft-old")).toMatchObject({ id: "draft-old", status: "PENDING" });
-    expect(state.actions[0]).toEqual(original);
+    expect(state.actions[0]!).toEqual(original);
     expect(await getPendingDraft(scope, now)).toMatchObject({ id: "draft-old" });
-    await expect(assertDraftApprovableInTransaction(mocked, scope, "draft-old", now)).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EDITING" });
+    await expect(assertDraftApprovableInTransaction(transaction, scope, "draft-old", now)).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EDITING" });
     const replacement = await createDraft(scope, prepared, 3, now, publication);
-    await expect(assertDraftApprovableInTransaction(mocked, scope, replacement.id, now)).resolves.toMatchObject({ id: replacement.id });
+    await expect(assertDraftApprovableInTransaction(transaction, scope, replacement.id, now)).resolves.toMatchObject({ id: replacement.id });
     expect(state.conversation.editingActionId).toBeNull();
   });
 
   it.each(["REPLACED", "APPROVED", "CANCELLED", "INVALID"])("refuses edits and approval for %s IDs", async (status) => {
     state.actions.push(action({ status }));
     await expect(changeDraft(scope, "draft-old")).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_NOT_PENDING" });
-    await expect(assertDraftApprovableInTransaction(mocked, scope, "draft-old", now)).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_NOT_PENDING" });
+    await expect(assertDraftApprovableInTransaction(transaction, scope, "draft-old", now)).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_NOT_PENDING" });
   });
 
   it("persists expiry and clears editing when a late change request arrives", async () => {
     state.actions.push(action({ expiresAt: now }));
     state.conversation.editingActionId = "draft-old";
     await expect(changeDraft(scope, "draft-old")).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EXPIRED" });
-    expect(state.actions[0].status).toBe("EXPIRED");
+    expect(state.actions[0]!.status).toBe("EXPIRED");
     expect(state.conversation.editingActionId).toBeNull();
   });
 
   it("refuses expired approvals even before the expiry sweep", async () => {
     state.actions.push(action({ expiresAt: now }));
-    await expect(assertDraftApprovableInTransaction(mocked, scope, "draft-old", now)).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EXPIRED" });
+    await expect(assertDraftApprovableInTransaction(transaction, scope, "draft-old", now)).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EXPIRED" });
   });
 
   it("refuses approval if the preview expires at the boundary while waiting for its row lock", async () => {
     state.actions.push(action());
     const gate = pauseNextConversationLock();
-    const pending = assertDraftApprovableInTransaction(mocked, scope, "draft-old", now);
+    const pending = assertDraftApprovableInTransaction(transaction, scope, "draft-old", now);
     const rejected = expect(pending).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EXPIRED" });
     await gate.locked;
-    vi.setSystemTime(state.actions[0].expiresAt);
+    vi.setSystemTime(state.actions[0]!.expiresAt);
     gate.release();
     await rejected;
   });
@@ -273,7 +285,7 @@ describe("draft expiry, editing and cancellation", () => {
   it("refuses approval when editing starts while waiting for the row lock", async () => {
     state.actions.push(action());
     const gate = pauseNextConversationLock();
-    const pending = assertDraftApprovableInTransaction(mocked, scope, "draft-old", now);
+    const pending = assertDraftApprovableInTransaction(transaction, scope, "draft-old", now);
     const rejected = expect(pending).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EDITING" });
     await gate.locked;
     state.conversation.editingActionId = "draft-old";
@@ -287,10 +299,10 @@ describe("draft expiry, editing and cancellation", () => {
     const pending = changeDraft(scope, "draft-old");
     const rejected = expect(pending).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EXPIRED" });
     await gate.locked;
-    vi.setSystemTime(state.actions[0].expiresAt);
+    vi.setSystemTime(state.actions[0]!.expiresAt);
     gate.release();
     await rejected;
-    expect(state.actions[0].status).toBe("EXPIRED");
+    expect(state.actions[0]!.status).toBe("EXPIRED");
     expect(state.conversation.editingActionId).toBeNull();
   });
 
@@ -299,10 +311,10 @@ describe("draft expiry, editing and cancellation", () => {
     const gate = pauseNextConversationLock();
     const pending = getPendingDraft(scope, now);
     await gate.locked;
-    vi.setSystemTime(state.actions[0].expiresAt);
+    vi.setSystemTime(state.actions[0]!.expiresAt);
     gate.release();
     expect(await pending).toBeNull();
-    expect(state.actions[0].status).toBe("EXPIRED");
+    expect(state.actions[0]!.status).toBe("EXPIRED");
   });
 
   it("keeps elapsed previews EXPIRED when cancellation waits past their expiry", async () => {
@@ -310,10 +322,10 @@ describe("draft expiry, editing and cancellation", () => {
     const gate = pauseNextConversationLock();
     const pending = cancelDraft(scope, "draft-old");
     await gate.locked;
-    vi.setSystemTime(state.actions[0].expiresAt);
+    vi.setSystemTime(state.actions[0]!.expiresAt);
     gate.release();
     await pending;
-    expect(state.actions[0].status).toBe("EXPIRED");
+    expect(state.actions[0]!.status).toBe("EXPIRED");
   });
 
   it.each([
@@ -325,8 +337,8 @@ describe("draft expiry, editing and cancellation", () => {
     expect(await getPendingDraft(foreign, now)).toBeNull();
     await expect(changeDraft(foreign, "draft-old")).rejects.toMatchObject({ code: "ACTION_NOT_FOUND" });
     await expect(cancelDraft(foreign, "draft-old")).rejects.toMatchObject({ code: "ACTION_NOT_FOUND" });
-    await expect(assertDraftApprovableInTransaction(mocked, foreign, "draft-old", now)).rejects.toMatchObject({ code: "ACTION_NOT_FOUND" });
-    expect(state.actions[0].status).toBe("PENDING");
+    await expect(assertDraftApprovableInTransaction(transaction, foreign, "draft-old", now)).rejects.toMatchObject({ code: "ACTION_NOT_FOUND" });
+    expect(state.actions[0]!.status).toBe("PENDING");
   });
 
   it("rejects an ID from another conversation even inside the same business", async () => {
@@ -339,7 +351,7 @@ describe("draft expiry, editing and cancellation", () => {
     state.actions.push(action());
     state.conversation.editingActionId = "draft-old";
     await cancelDraft(scope);
-    expect(state.actions[0]).toMatchObject({ status: "CANCELLED", summary: "Create customer Amaka?", payload: prepared.payload });
+    expect(state.actions[0]!).toMatchObject({ status: "CANCELLED", summary: "Create customer Amaka?", payload: prepared.payload });
     expect(state.conversation.editingActionId).toBeNull();
     expect(await getPendingDraft(scope, now)).toBeNull();
   });
@@ -347,7 +359,7 @@ describe("draft expiry, editing and cancellation", () => {
   it("does not let a replaced ID cancel the current preview", async () => {
     state.actions.push(action({ status: "REPLACED" }), action({ id: "draft-current" }));
     await expect(cancelDraft(scope, "draft-old")).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_NOT_PENDING" });
-    expect(state.actions[1].status).toBe("PENDING");
+    expect(state.actions[1]!.status).toBe("PENDING");
   });
 });
 
@@ -358,11 +370,12 @@ describe("cancellation during final preview writes", () => {
     const controller = new AbortController();
     const target = phase === "insert" ? mocked.assistantAction.create : mocked.assistantConversation.update;
     const write = target.getMockImplementation();
+    if (!write) throw new Error("Missing mock write implementation");
     let entered!: () => void;
     let release!: () => void;
     const waiting = new Promise<void>((resolve) => { release = resolve; });
     const writing = new Promise<void>((resolve) => { entered = resolve; });
-    target.mockImplementationOnce(async (args: unknown) => { entered(); await waiting; return write(args); });
+    target.mockImplementationOnce(async (args) => { entered(); await waiting; return write(args); });
     const pending = createDraft(scope, prepared, 3, now, { ...publication, signal: controller.signal });
     const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
     await writing;

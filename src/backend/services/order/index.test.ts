@@ -638,7 +638,9 @@ describe("orderService.setStatus", () => {
     ).rejects.toBeInstanceOf(BadRequestException);
 
     expect(mockedDb.order.updateMany).not.toHaveBeenCalled();
-    expect(mockedDb.$transaction).not.toHaveBeenCalled();
+    expect(mockedDb.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable", timeout: 5000,
+    });
     expect(mockedEmail.sendOrderEmail).not.toHaveBeenCalled();
   });
 
@@ -692,6 +694,8 @@ describe("orderService.setStatus", () => {
     ["CANCELLED", "cancelled"],
   ] as const)("emails the customer when the order is %s", async (to, kind) => {
     mockedDb.order.findFirst.mockResolvedValue(makeOrder());
+    // Delivery reloads the committed order after the status transaction.
+    mockedDb.order.findUnique.mockResolvedValue(makeOrder({ status: to }));
 
     await orderService.setStatus(
       "biz_1",

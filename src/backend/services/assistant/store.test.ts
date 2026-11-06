@@ -1,31 +1,41 @@
 import { Prisma } from "@prisma/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/server/db", () => ({
-  db: {
+const mockedDb = vi.hoisted(() => ({
     assistantConversation: {
-      upsert: vi.fn(), findFirst: vi.fn(), findUniqueOrThrow: vi.fn(),
-      update: vi.fn(), updateMany: vi.fn(),
+      upsert: vi.fn<(args: Prisma.AssistantConversationUpsertArgs) => Promise<unknown>>(),
+      findFirst: vi.fn<(args: Prisma.AssistantConversationFindFirstArgs) => Promise<unknown>>(),
+      findUniqueOrThrow: vi.fn<(args: Prisma.AssistantConversationFindUniqueOrThrowArgs) => Promise<unknown>>(),
+      update: vi.fn<(args: { where: Record<string, unknown>; data: Record<string, unknown> }) => Promise<unknown>>(),
+      updateMany: vi.fn<(args: Prisma.AssistantConversationUpdateManyArgs) => Promise<{ count: number }>>(),
     },
     assistantTurn: {
-      findUnique: vi.fn(), findMany: vi.fn(), upsert: vi.fn(),
-      updateMany: vi.fn(), deleteMany: vi.fn(),
+      findUnique: vi.fn<(args: Prisma.AssistantTurnFindUniqueArgs) => Promise<unknown>>(),
+      findMany: vi.fn<(args: Prisma.AssistantTurnFindManyArgs) => Promise<unknown>>(),
+      upsert: vi.fn<(args: Prisma.AssistantTurnUpsertArgs) => Promise<unknown>>(),
+      create: vi.fn<(args: Prisma.AssistantTurnCreateArgs) => Promise<unknown>>(),
+      updateMany: vi.fn<(args: Prisma.AssistantTurnUpdateManyArgs) => Promise<{ count: number }>>(),
+      deleteMany: vi.fn(),
     },
-    assistantAction: { findFirst: vi.fn(), updateMany: vi.fn() },
-    assistantUsage: { findUnique: vi.fn(), update: vi.fn() },
-    $transaction: vi.fn(),
-  },
+    assistantAction: {
+      findFirst: vi.fn<(args: Prisma.AssistantActionFindFirstArgs) => Promise<unknown>>(),
+      updateMany: vi.fn<(args: Prisma.AssistantActionUpdateManyArgs) => Promise<{ count: number }>>(),
+    },
+    assistantUsage: {
+      findUnique: vi.fn<(args: Prisma.AssistantUsageFindUniqueArgs) => Promise<unknown>>(),
+      update: vi.fn(),
+    },
+    $transaction: vi.fn<(callback: (client: unknown) => Promise<unknown>) => Promise<unknown>>(),
 }));
+vi.mock("@/server/db", () => ({ db: mockedDb }));
 
-import { db } from "@/server/db";
 import {
-  assertConversation, claimTurn, claimTurnLease, getAction, INTERRUPTED_TURN_REPLY, loadRecent,
+  assertConversation, claimTurn, claimTurnLease, controlTurn, getAction, INTERRUPTED_TURN_REPLY, loadRecent,
   releaseTurn, resetMemory, saveTurn, assertTurnCurrent, loadTurnMemory, selectClarification,
   saveClarification, saveReadPages, hasPendingClarification, hasPendingReadPage,
 } from "./store";
 import type { AssistantScope } from "./types";
 
-const mockedDb = db as any;
 const scope: AssistantScope = {
   businessId: "biz_1", channel: "WHATSAPP", principalId: "identity_1",
 };
@@ -49,11 +59,12 @@ beforeEach(() => {
   vi.resetAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(now);
-  mockedDb.$transaction.mockImplementation((callback: any) => callback(mockedDb));
+  mockedDb.$transaction.mockImplementation((callback) => callback(mockedDb));
   mockedDb.assistantConversation.upsert.mockResolvedValue(conversation);
   mockedDb.assistantConversation.findFirst.mockResolvedValue(conversation);
   mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue(conversation);
   mockedDb.assistantConversation.updateMany.mockResolvedValue({ count: 1 });
+  mockedDb.assistantConversation.update.mockResolvedValue({ ...conversation, memoryVersion: 3 });
   mockedDb.assistantTurn.findUnique.mockResolvedValue(null);
   mockedDb.assistantUsage.findUnique.mockResolvedValue(null);
   mockedDb.assistantTurn.findMany.mockResolvedValue([]);
@@ -61,10 +72,69 @@ beforeEach(() => {
 });
 afterEach(() => vi.useRealTimers());
 
+describe("atomic typed controls", () => {
+  const pending = { id: "a1", summary: "Create an invoice?", expiresAt: new Date(now.getTime() + 60_000), status: "PENDING" };
+  it("cancels pending actions and fences active work in the same transaction as its DONE reply", async () => {
+    const result = await controlTurn(scope, "cancel-1", "cancel");
+    expect(result).toMatchObject({ requestId: "cancel-1", conversationId: "conv_1", draft: null, result: null });
+    expect(mockedDb.assistantConversation.update).toHaveBeenCalledWith({ where: { id: "conv_1" }, data: {
+      memoryVersion: { increment: 1 }, clarification: Prisma.DbNull, editingActionId: null,
+      leaseToken: null, leaseExpiresAt: null, lastActiveAt: now,
+    } });
+    expect(mockedDb.assistantAction.updateMany).toHaveBeenCalledWith({
+      where: { conversationId: "conv_1", businessId: scope.businessId, conversation: scope, status: "PENDING" }, data: { status: "CANCELLED" },
+    });
+    expect(mockedDb.assistantTurn.create).toHaveBeenCalledWith({ data: {
+      conversationId: "conv_1", requestId: "cancel-1", memoryVersion: 3, userText: "cancel", transcript: null,
+      toolRecords: [], state: "DONE", reply: { text: result.reply, draft: null, result: null },
+    } });
+    expect(mockedDb.assistantUsage.findUnique).not.toHaveBeenCalled();
+  });
+  it("replays an old cancellation without resetting memory or cancelling a newer draft", async () => {
+    mockedDb.assistantTurn.findUnique.mockResolvedValue(turnRow({ requestId: "cancel-1", reply: { text: "Cancelled.", draft: null, result: null } }));
+    expect(await controlTurn(scope, "cancel-1", "cancel")).toMatchObject({ requestId: "cancel-1", reply: "Cancelled." });
+    expect(mockedDb.assistantConversation.update).not.toHaveBeenCalled();
+    expect(mockedDb.assistantAction.updateMany).not.toHaveBeenCalled();
+    expect(mockedDb.assistantTurn.create).not.toHaveBeenCalled();
+  });
+  it("locks the full scope before reading replay state", async () => {
+    mockedDb.assistantConversation.updateMany.mockResolvedValue({ count: 0 });
+    await expect(controlTurn(scope, "r1", "cancel")).rejects.toMatchObject({ code: "CONVERSATION_NOT_FOUND" });
+    expect(mockedDb.assistantConversation.updateMany).toHaveBeenCalledWith({
+      where: { id: "conv_1", ...scope }, data: { memoryVersion: { increment: 0 } },
+    });
+    expect(mockedDb.assistantTurn.findUnique).not.toHaveBeenCalled();
+    expect(mockedDb.assistantAction.updateMany).not.toHaveBeenCalled();
+  });
+  it("leaves a valid pending draft available after menu while expiring elapsed drafts", async () => {
+    mockedDb.assistantAction.findFirst.mockResolvedValue(pending);
+    const result = await controlTurn(scope, "menu-1", "menu");
+    expect(result.draft).toEqual({ ...pending, expiresAt: pending.expiresAt.toISOString() });
+    expect(mockedDb.assistantAction.updateMany).toHaveBeenCalledExactlyOnceWith({
+      where: { conversationId: "conv_1", businessId: scope.businessId, conversation: scope, status: "PENDING", expiresAt: { lte: now } },
+      data: { status: "EXPIRED" },
+    });
+    expect(mockedDb.assistantAction.findFirst).toHaveBeenCalledWith({
+      where: { conversationId: "conv_1", businessId: scope.businessId, conversation: scope, status: "PENDING", expiresAt: { gt: now } },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    });
+  });
+  it("cannot replace a running request's input by reusing its id for cancel", async () => {
+    mockedDb.assistantTurn.findUnique.mockResolvedValue(turnRow({ state: "RUNNING", reply: null }));
+    await expect(controlTurn(scope, "r1", "cancel")).rejects.toMatchObject({ code: "ASSISTANT_BUSY" });
+    expect(mockedDb.assistantConversation.update).not.toHaveBeenCalled();
+    expect(mockedDb.assistantAction.updateMany).not.toHaveBeenCalled();
+  });
+  it.each(["", "approve:a1", "x".repeat(201)])("rejects reserved or malformed request ids", async (requestId) => {
+    await expect(controlTurn(scope, requestId, "cancel")).rejects.toMatchObject({ code: "ASSISTANT_INVALID_REQUEST_ID" });
+    expect(mockedDb.$transaction).not.toHaveBeenCalled();
+  });
+});
+
 describe("scope boundaries", () => {
   it("requires business, principal and channel for conversation access", async () => {
-    mockedDb.assistantConversation.findFirst.mockImplementation(({ where }: any) =>
-      where.businessId === scope.businessId && where.channel === scope.channel &&
+    mockedDb.assistantConversation.findFirst.mockImplementation(async ({ where }) =>
+      where?.businessId === scope.businessId && where.channel === scope.channel &&
       where.principalId === scope.principalId ? conversation : null,
     );
     await expect(assertConversation(scope, "conv_1")).resolves.toEqual(conversation);
@@ -92,7 +162,7 @@ describe("bounded memory with durable replay", () => {
     ]);
     expect((await loadRecent(scope, now)).map((turn) => turn.userText)).toEqual(["recent"]);
     expect(mockedDb.assistantTurn.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      take: 12, where: expect.objectContaining({ memoryVersion: 2, state: "DONE" }),
+      take: 12, where: expect.objectContaining({ memoryVersion: 2, state: "DONE" }) as unknown,
     }));
   });
   it("returns chronological history and counts tool content toward the budget", async () => {
@@ -152,7 +222,7 @@ describe("lease generations", () => {
     mockedDb.assistantTurn.findUnique.mockResolvedValue(turnRow({ memoryVersion: 2, state: "ERROR" }));
     mockedDb.assistantUsage.findUnique.mockResolvedValue({ id: "old-reservation" });
     await expect(claimTurnLease(scope, "r1")).resolves.toMatchObject({ reply: INTERRUPTED_TURN_REPLY });
-    expect(mockedDb.assistantTurn.upsert.mock.calls.at(-1)[0].update).not.toHaveProperty("memoryVersion");
+    expect(mockedDb.assistantTurn.upsert.mock.lastCall?.[0].update).not.toHaveProperty("memoryVersion");
     mockedDb.assistantConversation.updateMany.mockResolvedValue({ count: 0 });
     await expect(saveTurn(scope, "r1", savedTurn)).rejects.toMatchObject({ code: "ASSISTANT_TURN_STALE" });
     expect(mockedDb.assistantUsage.update).not.toHaveBeenCalled();
@@ -164,10 +234,10 @@ describe("lease generations", () => {
   it("captures the memory version only after the atomic lease acquisition", async () => {
     mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue({ ...conversation, memoryVersion: 3 });
     const claim = await claimTurnLease(scope, "r1");
-    expect(claim).toMatchObject({ status: "claimed", memoryVersion: 3, leaseToken: expect.any(String) });
+    expect(claim).toMatchObject({ status: "claimed", memoryVersion: 3, leaseToken: expect.any(String) as unknown });
     expect(mockedDb.assistantConversation.updateMany).toHaveBeenCalledWith({
       where: { id: "conv_1", OR: [{ leaseExpiresAt: null }, { leaseExpiresAt: { lte: now } }] },
-      data: { leaseToken: expect.any(String), leaseExpiresAt: new Date(now.getTime() + 30_000), lastActiveAt: now },
+      data: { leaseToken: expect.any(String) as unknown, leaseExpiresAt: new Date(now.getTime() + 30_000), lastActiveAt: now },
     });
   });
   it("gives a reclaimed request a new generation", async () => {
@@ -234,9 +304,9 @@ describe("post-lock generation checks", () => {
     const fresh = { ...conversation, lastActiveAt: now, editingActionId: "new-preview", clarification: { question: "new" } };
     mockedDb.assistantConversation.findUniqueOrThrow.mockResolvedValue(fresh);
     gate.release(); await pending;
-    expect(mockedDb.assistantConversation.updateMany.mock.calls[0][0].data).toEqual({ memoryVersion: { increment: 0 } });
-    expect(mockedDb.assistantConversation.updateMany.mock.calls[1][0].data).not.toHaveProperty("clarification");
-    expect(mockedDb.assistantConversation.updateMany.mock.calls[1][0].data).not.toHaveProperty("editingActionId");
+    expect(mockedDb.assistantConversation.updateMany.mock.calls[0]?.[0].data).toEqual({ memoryVersion: { increment: 0 } });
+    expect(mockedDb.assistantConversation.updateMany.mock.calls[1]?.[0].data).not.toHaveProperty("clarification");
+    expect(mockedDb.assistantConversation.updateMany.mock.calls[1]?.[0].data).not.toHaveProperty("editingActionId");
   });
   it("does not rewind activity when the locked conversation is busy", async () => {
     mockedDb.assistantConversation.upsert.mockResolvedValue({ ...conversation, lastActiveAt: new Date(0) });
@@ -282,7 +352,7 @@ describe("post-lock generation checks", () => {
     expect(selectClarification(state, "1")?.evidence.text).toBe("Create Ada");
   });
   it("keeps WEB and WhatsApp history scoped at the memory boundary", async () => {
-    mockedDb.assistantConversation.findFirst.mockImplementation(async ({ where }: any) => where.channel === scope.channel ? liveConversation : null);
+    mockedDb.assistantConversation.findFirst.mockImplementation(async ({ where }) => where?.channel === scope.channel ? liveConversation : null);
     await expect(loadTurnMemory({ ...scope, channel: "WEB" }, { conversationId: "conv_1", leaseToken: "generation-1", memoryVersion: 2 }, now)).rejects.toMatchObject({ code: "CONVERSATION_NOT_FOUND" });
     await expect(loadTurnMemory(scope, { conversationId: "conv_1", leaseToken: "generation-1", memoryVersion: 2 }, now)).resolves.toMatchObject({ clarification: null, editing: null });
   });
@@ -293,7 +363,7 @@ describe("independent conversation context slots", () => {
     let row = { ...liveConversation, clarification: null as unknown };
     mockedDb.assistantConversation.upsert.mockImplementation(async () => row);
     mockedDb.assistantConversation.findFirst.mockImplementation(async () => row);
-    mockedDb.assistantConversation.update.mockImplementation(async ({ data }: any) => { row = { ...row, ...data }; return row; });
+    mockedDb.assistantConversation.update.mockImplementation(async ({ data }) => { row = { ...row, ...data }; return row; });
     const fence = { conversationId: "conv_1", leaseToken: "generation-1", memoryVersion: 2 };
     const request = { kind: "create_customer" as const, name: "Ada", phone: null, email: null, address: null, notes: null };
     const evidence = { text: "Create Ada", recentOwnerTexts: ["Use Ada"], selectedIds: ["owned-a"] };
@@ -343,6 +413,6 @@ describe("fresh claim clock", () => {
     release(); await pending;
     expect(mockedDb.assistantConversation.updateMany).toHaveBeenNthCalledWith(2, expect.objectContaining({ data: expect.objectContaining({
       lastActiveAt: new Date(now.getTime() + 20_000), leaseExpiresAt: new Date(now.getTime() + 50_000),
-    }) }));
+    }) as unknown }));
   });
 });

@@ -56,7 +56,9 @@ describe("readBoundedBody", () => {
 
   it("sanitizes stream read failures", async () => {
     const response = new Response(new ReadableStream({ start(controller) { controller.error(new Error("private media URL")); } }));
-    await expect(readBoundedBody(response, 10, signal())).rejects.toMatchObject({ message: "AUDIO_UNREADABLE", cause: undefined });
+    const error: unknown = await readBoundedBody(response, 10, signal()).catch((error: unknown) => error);
+    expect(error).toMatchObject({ message: "AUDIO_UNREADABLE" });
+    expect(error).not.toHaveProperty("cause");
   });
 });
 
@@ -94,7 +96,9 @@ describe("downloadWhatsAppAudio", () => {
   it("sanitizes Graph metadata HTTP errors without reading their body", async () => {
     const response = new Response("private token and body", { status: 403 });
     fetchMock.mockResolvedValueOnce(response);
-    await expect(downloadWhatsAppAudio("123", signal())).rejects.toMatchObject({ message: "AUDIO_UNREADABLE", cause: undefined });
+    const error: unknown = await downloadWhatsAppAudio("123", signal()).catch((error: unknown) => error);
+    expect(error).toMatchObject({ message: "AUDIO_UNREADABLE" });
+    expect(error).not.toHaveProperty("cause");
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
@@ -102,7 +106,9 @@ describe("downloadWhatsAppAudio", () => {
     fetchMock.mockResolvedValueOnce(metadata()).mockResolvedValueOnce(new Response("private", { status: 500 }));
     await expect(downloadWhatsAppAudio("123", signal())).rejects.toThrow("AUDIO_UNREADABLE");
     fetchMock.mockRejectedValueOnce(new Error("private-token private-url"));
-    await expect(downloadWhatsAppAudio("123", signal())).rejects.toMatchObject({ message: "AUDIO_UNREADABLE", cause: undefined });
+    const error: unknown = await downloadWhatsAppAudio("123", signal()).catch((error: unknown) => error);
+    expect(error).toMatchObject({ message: "AUDIO_UNREADABLE" });
+    expect(error).not.toHaveProperty("cause");
   });
 
   it("bounds metadata with and without advertised length", async () => {

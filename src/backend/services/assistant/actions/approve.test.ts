@@ -1,11 +1,23 @@
 import { BadRequestException } from "@/utils/exceptions";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/server/db", () => ({ db: {
-  assistantConversation: { findFirst: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
-  assistantAction: { findFirst: vi.fn(), findUniqueOrThrow: vi.fn(), updateMany: vi.fn(), update: vi.fn() },
-  $transaction: vi.fn(),
-} }));
+type FakeRow = Record<string, unknown>;
+type FakeQuery = { where: FakeRow; data: FakeRow };
+const mocked = vi.hoisted(() => ({
+  assistantConversation: {
+    findFirst: vi.fn<(args: FakeQuery) => Promise<FakeRow | null>>(),
+    updateMany: vi.fn<(args: FakeQuery) => Promise<{ count: number }>>(),
+    update: vi.fn<(args: FakeQuery) => Promise<FakeRow>>(),
+  },
+  assistantAction: {
+    findFirst: vi.fn<(args: FakeQuery) => Promise<FakeRow | null>>(),
+    findUniqueOrThrow: vi.fn<(args: FakeQuery) => Promise<FakeRow>>(),
+    updateMany: vi.fn<(args: FakeQuery) => Promise<{ count: number }>>(),
+    update: vi.fn<(args: FakeQuery) => Promise<FakeRow>>(),
+  },
+  $transaction: vi.fn<(work: (client: unknown) => Promise<unknown>) => Promise<unknown>>(),
+}));
+vi.mock("@/server/db", () => ({ db: mocked }));
 
 vi.mock("../config", () => ({ assistantConfig: vi.fn() }));
 vi.mock("../usage", () => ({ recordApprovalUsage: vi.fn() }));
@@ -13,7 +25,6 @@ vi.mock("./resolve", () => ({ resolveDraft: vi.fn() }));
 vi.mock("./execute", () => ({ executeAction: vi.fn(), finalizeEffects: vi.fn() }));
 vi.mock("./summary", () => ({ renderSummary: vi.fn() }));
 
-import { db } from "@/server/db";
 import type { ActionResult } from "types/assistant";
 import { assistantConfig } from "../config";
 import type { AssistantScope } from "../types";
@@ -25,7 +36,6 @@ import { resolveDraft } from "./resolve";
 import type { DraftRequest } from "./schemas";
 import type { PreparedAction } from "./types";
 
-const mocked = db as any;
 const now = new Date("2026-11-04T12:00:00.000Z");
 const scope: AssistantScope = { businessId: "business-1", channel: "WHATSAPP", principalId: "owner-1" };
 const originalRequest: DraftRequest = {
@@ -51,17 +61,20 @@ const result: ActionResult = {
 };
 const effects = [{ kind: "invoice_pdf" as const, id: "invoice-1" }];
 
-let state: { conversation: any; actions: any[] };
+let state: { conversation: FakeRow; actions: FakeRow[] };
 
-function matches(row: any, where: any): boolean {
+function record(value: unknown): FakeRow {
+  return typeof value === "object" && value !== null ? value as FakeRow : {};
+}
+function matches(row: FakeRow, where: FakeRow): boolean {
   return Object.entries(where).every(([key, expected]) => {
-    if (key === "conversation") return matches(state.conversation, expected);
+    if (key === "conversation") return matches(state.conversation, record(expected));
     const actual = row[key];
     if (typeof expected === "object" && expected !== null && !(expected instanceof Date)) {
-      const filter = expected as any;
-      if ("gt" in filter) return actual > filter.gt;
-      if ("lte" in filter) return actual <= filter.lte;
-      if ("in" in filter) return filter.in.includes(actual);
+      const filter = record(expected);
+      if ("gt" in filter) return actual instanceof Date && filter.gt instanceof Date && actual > filter.gt;
+      if ("lte" in filter) return actual instanceof Date && filter.lte instanceof Date && actual <= filter.lte;
+      if ("in" in filter) return Array.isArray(filter.in) && filter.in.includes(actual);
     }
     return actual === expected;
   });
@@ -97,32 +110,32 @@ beforeEach(() => {
     actions: [],
   };
 
-  mocked.$transaction.mockImplementation(async (work: any) => {
+  mocked.$transaction.mockImplementation(async (work) => {
     const prior = structuredClone(state);
     try { return await work(mocked); }
     catch (caught) { state = prior; throw caught; }
   });
-  mocked.assistantConversation.findFirst.mockImplementation(async ({ where }: any) =>
+  mocked.assistantConversation.findFirst.mockImplementation(async ({ where }) =>
     matches(state.conversation, where) ? structuredClone(state.conversation) : null);
-  mocked.assistantConversation.updateMany.mockImplementation(async ({ where, data }: any) => {
+  mocked.assistantConversation.updateMany.mockImplementation(async ({ where, data }) => {
     if (!matches(state.conversation, where)) return { count: 0 };
     Object.assign(state.conversation, data);
     return { count: 1 };
   });
-  mocked.assistantConversation.update.mockImplementation(async ({ data }: any) => Object.assign(state.conversation, data));
-  mocked.assistantAction.findFirst.mockImplementation(async ({ where }: any) =>
+  mocked.assistantConversation.update.mockImplementation(async ({ data }) => Object.assign(state.conversation, data));
+  mocked.assistantAction.findFirst.mockImplementation(async ({ where }) =>
     state.actions.find((row) => matches(row, where)) ?? null);
-  mocked.assistantAction.findUniqueOrThrow.mockImplementation(async ({ where }: any) => {
+  mocked.assistantAction.findUniqueOrThrow.mockImplementation(async ({ where }) => {
     const found = state.actions.find((row) => row.id === where.id);
     if (!found) throw new Error("NOT_FOUND");
     return structuredClone(found);
   });
-  mocked.assistantAction.updateMany.mockImplementation(async ({ where, data }: any) => {
+  mocked.assistantAction.updateMany.mockImplementation(async ({ where, data }) => {
     const found = state.actions.filter((row) => matches(row, where));
     found.forEach((row) => Object.assign(row, data));
     return { count: found.length };
   });
-  mocked.assistantAction.update.mockImplementation(async ({ where, data }: any) => {
+  mocked.assistantAction.update.mockImplementation(async ({ where, data }) => {
     const found = state.actions.find((row) => row.id === where.id);
     if (!found) throw new Error("NOT_FOUND");
     Object.assign(found, data);
@@ -203,7 +216,7 @@ describe("approveAction", () => {
 
     const reply = await approveAction(scope, "draft-1", now);
     expect(reply.status).toBe("changed");
-    expect(state.actions[0].status).toBe("INVALID");
+    expect(state.actions[0]!.status).toBe("INVALID");
     expect(executeAction).not.toHaveBeenCalled();
   });
 
@@ -213,8 +226,26 @@ describe("approveAction", () => {
 
     const reply = await approveAction(scope, "draft-1", now);
     expect(reply.status).toBe("changed");
-    expect(state.actions[0].status).toBe("INVALID");
+    expect(state.actions[0]!.status).toBe("INVALID");
     expect(executeAction).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["invoiceStatus", "SENT", "OVERDUE"],
+    ["currentPhone", "+2348031234567", "+2348037654321"],
+    ["catalogLines", [{ catalogPriceMinor: 500000 }], [{ catalogPriceMinor: 600000 }]],
+  ])("invalidates changed material %s even when payload and summary stay identical", async (key, before, after) => {
+    state.actions.push(action({ snapshot: { ...prepared.snapshot, [key]: before } }));
+    vi.mocked(resolveDraft).mockResolvedValue({ ...prepared, snapshot: { ...prepared.snapshot, [key]: after } });
+    expect((await approveAction(scope, "draft-1", now)).status).toBe("changed");
+    expect(state.actions[0]!.status).toBe("INVALID");
+    expect(executeAction).not.toHaveBeenCalled();
+  });
+
+  it("ignores timestamp-only changes during material revalidation", async () => {
+    state.actions.push(action({ snapshot: { ...prepared.snapshot, updatedAt: now.toISOString() } }));
+    vi.mocked(resolveDraft).mockResolvedValue({ ...prepared, snapshot: { ...prepared.snapshot, updatedAt: new Date(now.getTime() + 1000).toISOString() } });
+    expect((await approveAction(scope, "draft-1", now)).status).toBe("approved");
   });
 
   it("surfaces a changed invoice status as INVALID with the safe domain explanation", async () => {
@@ -228,7 +259,7 @@ describe("approveAction", () => {
       result: null,
       draft: null,
     });
-    expect(state.actions[0].status).toBe("INVALID");
+    expect(state.actions[0]!.status).toBe("INVALID");
     expect(executeAction).not.toHaveBeenCalled();
   });
 
@@ -243,7 +274,7 @@ describe("approveAction", () => {
     const reply = await approveAction(scope, "draft-1", now);
     expect(reply.status).toBe("changed");
     expect(reply.reply).toContain("Which customer should I use?");
-    expect(state.actions[0].status).toBe("INVALID");
+    expect(state.actions[0]!.status).toBe("INVALID");
     expect(executeAction).not.toHaveBeenCalled();
   });
 
@@ -251,7 +282,7 @@ describe("approveAction", () => {
     state.actions.push(action({ expiresAt: new Date(now.getTime() - 1) }));
     const reply = await approveAction(scope, "draft-1", now);
     expect(reply.status).toBe("expired");
-    expect(state.actions[0].status).toBe("EXPIRED");
+    expect(state.actions[0]!.status).toBe("EXPIRED");
     expect(executeAction).not.toHaveBeenCalled();
   });
 
@@ -279,7 +310,7 @@ describe("approveAction", () => {
     state.actions.push(action());
     state.conversation.editingActionId = "draft-1";
     await expect(approveAction(scope, "draft-1", now)).rejects.toMatchObject({ code: "ASSISTANT_DRAFT_EDITING" });
-    expect(state.actions[0].status).toBe("PENDING");
+    expect(state.actions[0]!.status).toBe("PENDING");
     expect(executeAction).not.toHaveBeenCalled();
   });
 
@@ -296,7 +327,7 @@ describe("approveAction", () => {
     vi.mocked(finalizeEffects).mockRejectedValue(new Error("pdf unavailable"));
     const reply = await approveAction(scope, "draft-1", now);
     expect(reply.status).toBe("approved");
-    expect(state.actions[0].status).toBe("APPROVED");
+    expect(state.actions[0]!.status).toBe("APPROVED");
   });
 
   it("returns the saved result even when approval usage logging fails", async () => {
@@ -335,11 +366,12 @@ describe("approveAction", () => {
   it("returns an already-done result when another approval won the claim", async () => {
     state.actions.push(action());
     const updateMany = mocked.assistantAction.updateMany.getMockImplementation();
-    mocked.assistantAction.updateMany.mockImplementationOnce(async (args: any) => {
+    mocked.assistantAction.updateMany.mockImplementationOnce(async (args) => {
       if (args.data.status === "APPROVED") {
         state.actions[0] = action({ status: "APPROVED", result, approvedAt: now });
         return { count: 0 };
       }
+      if (!updateMany) throw new Error("Mock implementation missing");
       return updateMany(args);
     });
 
@@ -351,11 +383,12 @@ describe("approveAction", () => {
   it("returns cancelled when a cancellation won the claim", async () => {
     state.actions.push(action());
     const updateMany = mocked.assistantAction.updateMany.getMockImplementation();
-    mocked.assistantAction.updateMany.mockImplementationOnce(async (args: any) => {
+    mocked.assistantAction.updateMany.mockImplementationOnce(async (args) => {
       if (args.data.status === "APPROVED") {
         state.actions[0] = action({ status: "CANCELLED" });
         return { count: 0 };
       }
+      if (!updateMany) throw new Error("Mock implementation missing");
       return updateMany(args);
     });
 

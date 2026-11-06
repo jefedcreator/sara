@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockedEnv = vi.hoisted(
+const mockedEnv = vi.hoisted<{
+  OPENAI_API_KEY?: string; OPENAI_ASSISTANT_MODEL: string;
+  OPENAI_TRANSCRIBE_MODEL: string; ASSISTANT_ENABLED: boolean; ASSISTANT_DAILY_LIMIT: number;
+}>(
   () =>
     ({
       OPENAI_API_KEY: "sk-test",
@@ -8,13 +11,7 @@ const mockedEnv = vi.hoisted(
       OPENAI_TRANSCRIBE_MODEL: "whisper-1",
       ASSISTANT_ENABLED: true,
       ASSISTANT_DAILY_LIMIT: 100,
-    }) as {
-      OPENAI_API_KEY?: string;
-      OPENAI_ASSISTANT_MODEL: string;
-      OPENAI_TRANSCRIBE_MODEL: string;
-      ASSISTANT_ENABLED: boolean;
-      ASSISTANT_DAILY_LIMIT: number;
-    },
+    }),
 );
 
 vi.mock("@/env", () => ({ env: mockedEnv }));
@@ -80,6 +77,16 @@ describe("readAssistantSettings", () => {
 });
 
 describe("assistantConfig", () => {
+  it("keeps the off switch and numeric quota valid when global validation is skipped", () => {
+    vi.stubEnv("SKIP_ENV_VALIDATION", "1");
+    vi.stubEnv("ASSISTANT_ENABLED", "false");
+    vi.stubEnv("ASSISTANT_DAILY_LIMIT", "12");
+    vi.stubEnv("OPENAI_API_KEY", "test-key");
+    expect(assistantConfig()).toMatchObject({ enabled: false, available: false, dailyLimit: 12 });
+    vi.stubEnv("ASSISTANT_DAILY_LIMIT", "0");
+    expect(() => assistantConfig()).toThrow();
+  });
+
   it("maps the already-transformed runtime boolean without reparsing it", () => {
     mockedEnv.OPENAI_API_KEY = "sk-test";
     mockedEnv.ASSISTANT_ENABLED = false;

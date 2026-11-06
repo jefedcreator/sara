@@ -791,6 +791,15 @@ describe("invoiceMutations.updateInTransaction", () => {
 });
 
 describe("invoiceMutations.finalize", () => {
+  it("isolates post-commit email failures and continues later effects", async () => {
+    mockedDb.invoice.findUnique.mockResolvedValue(makeInvoice());
+    mockedEmailInvoice.mockRejectedValueOnce(new Error("private provider response"));
+    await expect(invoiceMutations.finalize([
+      { kind: "invoice_email", id: "inv_1" }, { kind: "order_email", id: "ord_1" },
+    ])).resolves.toBeUndefined();
+    expect(orderService.finalizeStatus).toHaveBeenCalledWith("ord_1");
+  });
+
   it("runs effects: invoice_pdf, receipt_pdf, order_email, and invoice_email", async () => {
     const committedInvoice = makeInvoice({
       status: "SENT",

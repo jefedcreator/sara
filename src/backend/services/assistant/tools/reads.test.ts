@@ -1,31 +1,33 @@
 import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/server/db", () => ({ db: {
-  business: { findFirst: vi.fn() },
-  service: { findMany: vi.fn(), findFirst: vi.fn() },
-  product: { findFirst: vi.fn() },
-  order: { count: vi.fn() },
-  orderLine: { groupBy: vi.fn() },
-} }));
-vi.mock("@/backend/services/customer", () => ({ customerService: { list: vi.fn(), detail: vi.fn(), ownedBy: vi.fn(), resolve: vi.fn() } }));
-vi.mock("@/backend/services/dashboard", () => ({ dashboardService: {
-  unpaidInvoices: vi.fn(), unpaidInvoiceSummary: vi.fn(), bookingsInRange: vi.fn(),
-  ordersToSendOut: vi.fn(), summaryForPeriod: vi.fn(), revenueByItem: vi.fn(),
-} }));
-vi.mock("@/backend/services/documents", () => ({ documentService: { find: vi.fn() } }));
-vi.mock("@/backend/services/product", () => ({ productService: { list: vi.fn(), adjustStock: vi.fn() } }));
+const { db, customerService, dashboardService, documentService, productService } = vi.hoisted(() => ({
+  db: {
+    business: { findFirst: vi.fn() },
+    service: { findMany: vi.fn(), findFirst: vi.fn() },
+    product: { findFirst: vi.fn() },
+    order: { count: vi.fn() },
+    orderLine: { groupBy: vi.fn() },
+  },
+  customerService: { list: vi.fn(), detail: vi.fn(), ownedBy: vi.fn(), resolve: vi.fn() },
+  dashboardService: {
+    unpaidInvoices: vi.fn(), unpaidInvoiceSummary: vi.fn(), bookingsInRange: vi.fn(),
+    ordersToSendOut: vi.fn(), summaryForPeriod: vi.fn(), revenueByItem: vi.fn(),
+  },
+  documentService: { find: vi.fn() },
+  productService: { list: vi.fn(), adjustStock: vi.fn() },
+}));
+vi.mock("@/server/db", () => ({ db }));
+vi.mock("@/backend/services/customer", () => ({ customerService }));
+vi.mock("@/backend/services/dashboard", () => ({ dashboardService }));
+vi.mock("@/backend/services/documents", () => ({ documentService }));
+vi.mock("@/backend/services/product", () => ({ productService }));
 vi.mock("@/server/share", () => ({
   serviceLink: (slug: string) => `https://sara.test/services/${slug}`,
   productLink: (slug: string) => `https://sara.test/products/${slug}`,
   publicLink: (kind: string, publicId: string) => `https://sara.test/${kind}s/${publicId}`,
 }));
 
-import { customerService } from "@/backend/services/customer";
-import { dashboardService } from "@/backend/services/dashboard";
-import { documentService } from "@/backend/services/documents";
-import { productService } from "@/backend/services/product";
-import { db } from "@/server/db";
 import { BadRequestException, NotFoundException } from "@/utils/exceptions";
 
 import type { AssistantScope } from "../types";
@@ -42,7 +44,7 @@ const customer = {
 
 beforeEach(() => {
   vi.resetAllMocks();
-  vi.mocked(db.business.findFirst).mockResolvedValue({ currency: "NGN" } as never);
+  vi.mocked(db.business.findFirst).mockResolvedValue({ currency: "NGN" });
   vi.mocked(db.service.findMany).mockResolvedValue([]);
   vi.mocked(db.orderLine.groupBy).mockResolvedValue([]);
   vi.mocked(productService.list).mockResolvedValue([]);
@@ -114,18 +116,18 @@ describe("executeRead", () => {
   it("reports effective option prices and stock after active owned checkout holds", async () => {
     vi.mocked(db.service.findMany).mockResolvedValue([{
       id: "service_1", name: "Lekki 4B", price: new Prisma.Decimal(45000), isActive: true, bookingMode: "NIGHTLY", duration: 1440, minUnits: 2, maxUnits: 10,
-    }] as never);
+    }]);
     vi.mocked(productService.list).mockResolvedValue([{
       id: "product_1", businessId: "biz_1", name: "Frontal wig", price: new Prisma.Decimal(10000), isActive: true, tracksStock: true,
       options: [
         { id: "option_1", name: '18"', price: null, stock: 8 },
         { id: "option_2", name: '20"', price: new Prisma.Decimal(12500), stock: 4 },
       ],
-    }] as never);
+    }]);
     vi.mocked(db.orderLine.groupBy).mockResolvedValue([
       { productOptionId: "option_1", _sum: { quantity: 3 } },
       { productOptionId: "option_2", _sum: { quantity: 9 } },
-    ] as never);
+    ]);
     const output = await executeRead(scope, { name: "list_items", query: null, includeInactive: true }, now);
     expect(productService.list).toHaveBeenCalledWith("biz_1", { includeInactive: true });
     expect(db.service.findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { businessId: "biz_1" } }));
@@ -145,7 +147,7 @@ describe("executeRead", () => {
     vi.mocked(productService.list).mockResolvedValue(Array.from({ length: 24 }, (_, index) => ({
       id: `product_${index}`, name: "Wig", price: new Prisma.Decimal(10000), isActive: true, tracksStock: false,
       options: [{ id: `option_${index}`, name: "Long", price: null, stock: 0 }],
-    })) as never);
+    })));
     const output = await executeRead(scope, { name: "list_items", query: "Long", includeInactive: false }, now);
     expect((output.data as Prisma.JsonObject).items).toHaveLength(20);
     expect(output.data).toMatchObject({ total: 24, truncated: true });
@@ -258,7 +260,7 @@ describe("executeRead", () => {
 
   it.each(["service", "product"] as const)("only shares active owned %s IDs", async (kind) => {
     const delegate = kind === "service" ? db.service : db.product;
-    vi.mocked(delegate.findFirst).mockResolvedValue({ id: "item_1", name: "Braids", slug: "braids" } as never);
+    vi.mocked(delegate.findFirst).mockResolvedValue({ id: "item_1", name: "Braids", slug: "braids" });
     const output = await executeRead(scope, { name: "share_link", kind, id: "item_1" }, now);
     expect(delegate.findFirst).toHaveBeenCalledWith({ where: { id: "item_1", businessId: "biz_1", isActive: true }, select: { id: true, name: true, slug: true } });
     expect(output.text).toBe(`Braids: https://sara.test/${kind}s/braids`);

@@ -142,7 +142,7 @@ export function renderSummary<K extends DraftRequestKind>(
     }
     case "update_order": {
       const p = payload as ResolvedPayloadByKind["update_order"];
-      output = [`Update order ${text(s.orderNumber)}?`, `Status: ${text(s.currentStatus)} → ${p.status}`, ...(p.status === "CANCELLED" ? restock(s) : ["Stock is unchanged."]), ...email("Email order update to", s.clientEmail)];
+      output = [`Update order ${text(s.orderNumber)}?`, ...(s.fulfilment ? [`Fulfilment: ${s.fulfilment === "PICKUP" ? "Pickup" : "Delivery"}`, ...(s.deliveryAddress ? [`Delivery address: ${text(s.deliveryAddress)}`] : [])] : []), `Status: ${text(s.currentStatus)} → ${p.status}`, ...(p.status === "CANCELLED" ? restock(s) : ["Stock is unchanged."]), ...email("Email order update to", s.clientEmail)];
       break;
     }
     case "adjust_stock": {
@@ -193,10 +193,15 @@ export function renderSummary<K extends DraftRequestKind>(
       output = [`Update service ${text(s.serviceName)}?`];
       const labels = { name: "Name", description: "Description", duration: "Duration (minutes)", bookingMode: "Booking mode", availableFrom: "Available from (WAT)", availableTo: "Available to (WAT)", checkInTime: "Check-in (WAT)", checkOutTime: "Check-out (WAT)", minUnits: "Minimum units", maxUnits: "Maximum units" } as const;
       for (const key of Object.keys(labels) as Array<keyof typeof labels>) {
-        if (p.fields.includes(key)) output.push(`${labels[key]}: ${p[key] === null ? "Clear" : p[key]}`);
+        if (p.fields.includes(key)) output.push(`${labels[key]}: ${p[key] ?? "Clear"}`);
       }
       if (p.fields.includes("price")) output.push(`Price: ${money(s.currentPrice, currency())} → ${money(p.priceMinor, currency())}`);
       if (p.fields.includes("isActive")) output.push(`Active: ${p.isActive ? "Yes" : "No"}`);
+      if (p.fields.includes("bookingMode") && p.bookingMode !== "NIGHTLY") {
+        const current = object(s.currentService);
+        if (current.checkInTime && !p.fields.includes("checkInTime")) output.push("Check-in (WAT): Clear");
+        if (current.checkOutTime && !p.fields.includes("checkOutTime")) output.push("Check-out (WAT): Clear");
+      }
       break;
     }
     case "create_customer": {

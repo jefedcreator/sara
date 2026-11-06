@@ -92,7 +92,7 @@ export async function createDraft(
     });
     const publishedAt = new Date();
     publication.signal?.throwIfAborted();
-    if (!current || current.memoryVersion !== memoryVersion ||
+    if (current?.memoryVersion !== memoryVersion ||
         current.leaseToken !== publication.leaseToken ||
         !current.leaseExpiresAt || current.leaseExpiresAt.getTime() <= publishedAt.getTime()) {
       throw error("ASSISTANT_TURN_STALE");

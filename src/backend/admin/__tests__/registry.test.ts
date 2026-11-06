@@ -77,8 +77,11 @@ describe("sara admin registry", () => {
     ]);
   });
 
-  it("excludes only the verification token", () =>
-    expect(Object.keys(adminRegistry.excluded)).toEqual(["VerificationToken"]));
+  it("excludes verification tokens and internal assistant lifecycle records", () =>
+    expect(Object.keys(adminRegistry.excluded)).toEqual([
+      "AssistantConversation", "AssistantTurn", "AssistantAction", "AssistantUsage",
+      "AssistantDailyUsage", "ProcessedChatMessage", "VerificationToken",
+    ]));
 
   it("exposes nothing secret", () =>
     expect(

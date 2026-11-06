@@ -17,8 +17,8 @@ export function DraftCard({ draft, busy, editing, now, onApprove, onChange }: {
   busy: boolean;
   editing: boolean;
   now: Date;
-  onApprove(): void;
-  onChange(): void;
+  onApprove: () => void;
+  onChange: () => void;
 }) {
   const expired = draft.status === "PENDING" && !(Date.parse(draft.expiresAt) > now.getTime());
   const disabled = busy || !canApproveDraft(draft, editing, now);

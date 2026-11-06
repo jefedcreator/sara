@@ -202,14 +202,20 @@ class InvoiceMutations {
   /** Run only after commit; every finalizer reloads through the global client. */
   async finalize(effects: Effect[]): Promise<void> {
     for (const effect of effects) {
-      if (effect.kind === "invoice_pdf") await finalizeInvoice(effect.id);
-      if (effect.kind === "receipt_pdf") await finalizeReceipt(effect.id);
-      if (effect.kind === "order_email") await orderService.finalizeStatus(effect.id);
-      if (effect.kind === "invoice_email") {
-        const invoice = await db.invoice.findUnique({ where: { id: effect.id }, include: invoiceInclude });
-        if (invoice && (invoice.status === "SENT" || invoice.status === "OVERDUE") && invoice.clientEmail) {
-          await emailInvoice(invoice, invoice.business);
+      try {
+        if (effect.kind === "invoice_pdf") await finalizeInvoice(effect.id);
+        if (effect.kind === "receipt_pdf") await finalizeReceipt(effect.id);
+        if (effect.kind === "order_email") await orderService.finalizeStatus(effect.id);
+        if (effect.kind === "invoice_email") {
+          const invoice = await db.invoice.findUnique({ where: { id: effect.id }, include: invoiceInclude });
+          if (invoice && (invoice.status === "SENT" || invoice.status === "OVERDUE") && invoice.clientEmail) {
+            await emailInvoice(invoice, invoice.business);
+          }
         }
+      } catch {
+        // The write already committed. A remote failure must not invite the
+        // caller to repeat it or expose customer/provider response content.
+        console.warn(`[Invoices] ${effect.kind} failed for ${effect.id}`);
       }
     }
   }

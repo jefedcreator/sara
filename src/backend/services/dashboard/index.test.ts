@@ -8,6 +8,7 @@ vi.mock("@/server/db", () => ({
     product: { findMany: vi.fn() },
     invoice: { findMany: vi.fn(), groupBy: vi.fn(), aggregate: vi.fn(), count: vi.fn() },
     payment: { aggregate: vi.fn() },
+    receipt: { aggregate: vi.fn() },
   },
 }));
 
@@ -30,6 +31,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-11-04T12:00:00+01:00"));
+  mockedDb.receipt.aggregate.mockResolvedValue({ _sum: { amountPaid: null } });
 });
 afterEach(() => vi.useRealTimers());
 
@@ -166,6 +168,19 @@ describe("dashboardService shared reads", () => {
     mockedDb.invoice.aggregate.mockResolvedValue({ _sum: { total: "900000", amountPaid: "50000" } });
     expect(await dashboardService.summaryForPeriod("biz_1", range)).toEqual({ revenue: 45000.5, unpaidCount: 30, unpaidTotal: 850000 });
     expect(mockedDb.payment.aggregate).toHaveBeenCalledWith({ where: { businessId: "biz_1", createdAt: { gte: range.from, lt: range.to } }, _sum: { amount: true } });
+  });
+
+  it("counts amount-only and service cash receipts without double-counting linked payment receipts", async () => {
+    const range = { from: today("00:00"), to: daysFromNow(1, "00:00") };
+    mockedDb.payment.aggregate.mockResolvedValue({ _sum: { amount: "45000.50" } });
+    mockedDb.receipt.aggregate.mockResolvedValue({ _sum: { amountPaid: "15000" } });
+    mockedDb.invoice.count.mockResolvedValue(0);
+    mockedDb.invoice.aggregate.mockResolvedValue({ _sum: { total: null, amountPaid: null } });
+    expect((await dashboardService.summaryForPeriod("biz_1", range)).revenue).toBe(60000.5);
+    expect(mockedDb.receipt.aggregate).toHaveBeenCalledWith({
+      where: { businessId: "biz_1", paymentId: null, createdAt: { gte: range.from, lt: range.to } },
+      _sum: { amountPaid: true },
+    });
   });
 });
 

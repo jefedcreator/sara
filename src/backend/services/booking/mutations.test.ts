@@ -43,6 +43,13 @@ describe("booking mutation core", () => {
     }) }));
   });
 
+  it("does not confirm an expired pending reservation over another booking", async () => {
+    booking.status = "PENDING";
+    tx.booking.findFirst.mockResolvedValueOnce(booking).mockResolvedValueOnce({ id: "b2" });
+    await expect(bookingMutations.updateInTransaction(client(), "biz_1", "b1", { status: "CONFIRMED" })).rejects.toThrow("already booked");
+    expect(tx.booking.update).not.toHaveBeenCalled();
+  });
+
   it.each(["COMPLETED", "CANCELLED"])("rejects transitions from terminal %s", async (status) => {
     booking.status = status;
     await expect(bookingMutations.updateInTransaction(client(), "biz_1", "b1", { status: "CONFIRMED" })).rejects.toThrow("Cannot transition");
@@ -141,9 +148,9 @@ describe("booking post-commit sync", () => {
       committed = true;
       return result;
     });
-    vi.mocked(db.booking.findUnique).mockImplementationOnce(async () => {
+    vi.mocked(db.booking.findUnique).mockImplementationOnce(() => {
       expect(committed).toBe(true);
-      return { ...booking, status: "CANCELLED" } as never;
+      return Promise.resolve({ ...booking, status: "CANCELLED" }) as never;
     });
     await bookingMutations.update("biz_1", "b1", { status: "CANCELLED" });
     expect(emailService.sendBookingCancellationEmail).toHaveBeenCalledOnce();

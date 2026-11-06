@@ -1,39 +1,30 @@
 import type { ResponseUsage } from "openai/resources/responses/responses";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockedEnv = vi.hoisted(
+const objectContaining = (value: unknown): unknown => expect.objectContaining(value);
+
+const mockedEnv = vi.hoisted<{
+  OPENAI_API_KEY?: string; OPENAI_ASSISTANT_MODEL: string;
+  OPENAI_TRANSCRIBE_MODEL: string; ASSISTANT_ENABLED: boolean; ASSISTANT_DAILY_LIMIT: number;
+}>(
   () =>
     ({
-      OPENAI_API_KEY: "sk-test" as string | undefined,
+      OPENAI_API_KEY: "sk-test",
       OPENAI_ASSISTANT_MODEL: "gpt-5.4-mini",
       OPENAI_TRANSCRIBE_MODEL: "whisper-1",
       ASSISTANT_ENABLED: true,
       ASSISTANT_DAILY_LIMIT: 100,
-    }) as {
-      OPENAI_API_KEY?: string;
-      OPENAI_ASSISTANT_MODEL: string;
-      OPENAI_TRANSCRIBE_MODEL: string;
-      ASSISTANT_ENABLED: boolean;
-      ASSISTANT_DAILY_LIMIT: number;
-    },
+    }),
 );
 
 vi.mock("@/env", () => ({ env: mockedEnv }));
-vi.mock("@/server/db", () => {
-  const db: any = {
-    assistantUsage: {
-      findUnique: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      upsert: vi.fn(),
-    },
-    $transaction: vi.fn(),
-  };
-  return { db };
-});
+const mockedDb = vi.hoisted(() => ({
+  assistantUsage: { findUnique: vi.fn(), create: vi.fn(), update: vi.fn(), upsert: vi.fn() },
+  $transaction: vi.fn(),
+}));
+vi.mock("@/server/db", () => ({ db: mockedDb }));
 vi.mock("./store", () => ({ getConversation: vi.fn() }));
 
-import { db } from "@/server/db";
 
 import { getConversation } from "./store";
 import {
@@ -46,7 +37,6 @@ import {
 } from "./usage";
 import type { AssistantScope } from "./types";
 
-const mockedDb = db as any;
 const mockedGetConversation = vi.mocked(getConversation);
 
 const scope: AssistantScope = {
@@ -78,7 +68,7 @@ function transactionClient(options?: {
     assistantUsage: {
       create: vi.fn().mockResolvedValue({ id: options?.createId ?? "usage_1" }),
     },
-    $queryRaw: vi.fn().mockResolvedValue(options?.dailyRows ?? [{ count: 1 }]),
+    $queryRaw: vi.fn<(parts: TemplateStringsArray, ...values: unknown[]) => Promise<{ count: number }[]>>().mockResolvedValue(options?.dailyRows ?? [{ count: 1 }]),
   };
 }
 
@@ -93,7 +83,7 @@ beforeEach(() => {
   mockedDb.assistantUsage.findUnique.mockResolvedValue(null);
   mockedDb.assistantUsage.update.mockResolvedValue({});
   mockedDb.assistantUsage.upsert.mockResolvedValue({});
-  mockedDb.$transaction.mockImplementation(async (callback: any) =>
+  mockedDb.$transaction.mockImplementation(async (callback: (tx: ReturnType<typeof transactionClient>) => Promise<unknown>) =>
     callback(transactionClient()),
   );
 });
@@ -172,7 +162,7 @@ describe("reserveUsage", () => {
   });
   it("creates the unique reservation then conditionally increments the Lagos day", async () => {
     const tx = transactionClient();
-    mockedDb.$transaction.mockImplementation(async (callback: any) =>
+    mockedDb.$transaction.mockImplementation(async (callback: (tx: ReturnType<typeof transactionClient>) => Promise<unknown>) =>
       callback(tx),
     );
 
@@ -181,7 +171,7 @@ describe("reserveUsage", () => {
     });
 
     expect(tx.assistantUsage.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({
+      data: objectContaining({
         conversationId: "conv_1",
         businessId: "biz_1",
         requestId: "r1",
@@ -225,7 +215,7 @@ describe("reserveUsage", () => {
 
   it("rolls back and returns null when the conditional increment loses", async () => {
     const tx = transactionClient({ dailyRows: [] });
-    mockedDb.$transaction.mockImplementation(async (callback: any) =>
+    mockedDb.$transaction.mockImplementation(async (callback: (tx: ReturnType<typeof transactionClient>) => Promise<unknown>) =>
       callback(tx),
     );
 
@@ -236,7 +226,7 @@ describe("reserveUsage", () => {
   it("allows only the final slot when two reservations race the daily cap", async () => {
     mockedEnv.ASSISTANT_DAILY_LIMIT = 1;
     let count = 0;
-    mockedDb.$transaction.mockImplementation(async (callback: any) => {
+    mockedDb.$transaction.mockImplementation(async (callback: (tx: ReturnType<typeof transactionClient>) => Promise<unknown>) => {
       const tx = transactionClient();
       tx.$queryRaw.mockImplementation(async () => count < 1 ? [{ count: ++count }] : []);
       return callback(tx);
@@ -280,18 +270,18 @@ describe("finishUsage", () => {
     expect(mockedDb.assistantUsage.update).not.toHaveBeenCalled();
     await finishUsage("usage_1", { outcome: "answered", durationMs: 1200, providerRequestIds: ["original-provider-request"] });
     expect(mockedDb.assistantUsage.update).toHaveBeenCalledTimes(1);
-    expect(mockedDb.assistantUsage.update).toHaveBeenCalledWith({ where: { id: "usage_1" }, data: expect.objectContaining({ inputTokens: 500, cachedTokens: 100, outputTokens: 20, providerRequestIds: ["original-provider-request"] }) });
+    expect(mockedDb.assistantUsage.update).toHaveBeenCalledWith({ where: { id: "usage_1" }, data: objectContaining({ inputTokens: 500, cachedTokens: 100, outputTokens: 20, providerRequestIds: ["original-provider-request"] }) });
     expect(mockedDb.$transaction).not.toHaveBeenCalled();
   });
   it("keeps prior tokens when a later accounting patch omits counters", async () => {
     mockedDb.assistantUsage.findUnique.mockResolvedValue({ model: "gpt-5.4-mini", mode: "TEXT", audioSeconds: null, inputTokens: 1000, cachedTokens: 400, outputTokens: 100, durationMs: 1200 });
     await finishUsage("usage_1", { outcome: "answered" });
-    expect(mockedDb.assistantUsage.update).toHaveBeenCalledWith({ where: { id: "usage_1" }, data: expect.objectContaining({ inputTokens: 1000, cachedTokens: 400, outputTokens: 100, estimatedCostUsd: "0.00093000" }) });
+    expect(mockedDb.assistantUsage.update).toHaveBeenCalledWith({ where: { id: "usage_1" }, data: objectContaining({ inputTokens: 1000, cachedTokens: 400, outputTokens: 100, estimatedCostUsd: "0.00093000" }) });
   });
   it("cannot turn an uncertain aborted request into a zero-cost success", async () => {
     mockedDb.assistantUsage.findUnique.mockResolvedValue({ model: "gpt-5.4-mini", mode: "TEXT", audioSeconds: null, inputTokens: 100, cachedTokens: 0, outputTokens: 20, durationMs: 1200 });
     await finishUsage("usage_1", { outcome: "answered", billingUnknown: true, estimatedCostUsd: "0.00000000" });
-    expect(mockedDb.assistantUsage.update).toHaveBeenCalledWith({ where: { id: "usage_1" }, data: expect.objectContaining({ estimatedCostUsd: null, pricingVersion: null }) });
+    expect(mockedDb.assistantUsage.update).toHaveBeenCalledWith({ where: { id: "usage_1" }, data: objectContaining({ estimatedCostUsd: null, pricingVersion: null }) });
   });
   it("patches summed tokens, elapsed time and the computed cost", async () => {
     mockedDb.assistantUsage.findUnique.mockResolvedValue({
@@ -341,7 +331,7 @@ describe("finishUsage", () => {
 
     expect(mockedDb.assistantUsage.update).toHaveBeenCalledWith({
       where: { id: "usage_1" },
-      data: expect.objectContaining({
+      data: objectContaining({
         audioSeconds: 30,
         outcome: "error",
         estimatedCostUsd: null,
@@ -365,7 +355,7 @@ describe("finishUsage", () => {
 
     expect(mockedDb.assistantUsage.update).toHaveBeenCalledWith({
       where: { id: "usage_1" },
-      data: expect.objectContaining({
+      data: objectContaining({
         estimatedCostUsd: null,
         pricingVersion: null,
       }),
@@ -392,7 +382,7 @@ describe("recordApprovalUsage", () => {
           requestId: "approve:action_1",
         },
       },
-      create: expect.objectContaining({
+      create: objectContaining({
         conversationId: "conv_1",
         businessId: "biz_1",
         requestId: "approve:action_1",
@@ -404,7 +394,7 @@ describe("recordApprovalUsage", () => {
         durationMs: 1500,
         outcome: "approved",
       }),
-      update: expect.objectContaining({
+      update: objectContaining({
         estimatedCostUsd: "0.00000000",
         durationMs: 1500,
         outcome: "approved",

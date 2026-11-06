@@ -12,6 +12,13 @@ const GRAPH = "https://graph.facebook.com/v21.0";
 const TEXT_CHUNK_LIMIT = 1_000;
 const APPROVAL_PROMPT = "Reply yes to send, or change something to edit.";
 
+function record(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+function entries(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
 /** Preserve every character, favouring a line/word boundary and never splitting a surrogate pair. */
 function textChunks(text: string): string[] {
   const chunks: string[] = [];
@@ -63,19 +70,20 @@ class InstagramAdapter implements ChannelAdapter {
 
   normalizeInbound(payload: unknown): InboundMessage[] {
     const out: InboundMessage[] = [];
-    const body = payload as any;
-    for (const entry of body?.entry ?? []) {
-      for (const event of entry?.messaging ?? []) {
-        const msg = event?.message;
-        if (!msg || msg.is_echo || typeof msg.text !== "string" || !msg.text ||
-            typeof event.sender?.id !== "string" || !event.sender.id ||
+    for (const entry of entries(record(payload).entry)) {
+      for (const candidate of entries(record(entry).messaging)) {
+        const event = record(candidate);
+        const msg = record(event.message);
+        const senderId = record(event.sender).id;
+        if (msg.is_echo || typeof msg.text !== "string" || !msg.text ||
+            typeof senderId !== "string" || !senderId ||
             typeof msg.mid !== "string" || !msg.mid) continue;
         out.push({
           channel: "INSTAGRAM",
           kind: "text",
-          externalId: String(event.sender?.id),
-          text: String(msg.text),
-          messageId: String(msg.mid),
+          externalId: senderId,
+          text: msg.text,
+          messageId: msg.mid,
         });
       }
     }

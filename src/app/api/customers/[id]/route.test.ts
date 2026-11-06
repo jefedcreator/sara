@@ -5,8 +5,8 @@ import {
   mockAuthenticatedSession,
 } from "@/backend/test-utils/mock-request";
 
-vi.mock("@/server/db", () => ({
-  db: {
+vi.mock("@/server/db", () => {
+  const db = {
     session: { findUnique: vi.fn(), delete: vi.fn() },
     customer: { findFirst: vi.fn(), update: vi.fn() },
     booking: { findMany: vi.fn() },
@@ -14,8 +14,9 @@ vi.mock("@/server/db", () => ({
     receipt: { aggregate: vi.fn(), findMany: vi.fn() },
     payment: { aggregate: vi.fn() },
     order: { findMany: vi.fn() },
-  },
-}));
+  };
+  return { db: { ...db, $transaction: vi.fn(async (callback: (tx: typeof db) => Promise<unknown>) => callback(db)) } };
+});
 
 import { db } from "@/server/db";
 import { GET, PUT } from "./route";

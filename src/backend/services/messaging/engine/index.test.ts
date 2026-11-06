@@ -1,5 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("@/backend/services/assistant/config", () => ({ assistantConfig: vi.fn() }));
+vi.mock("@/backend/services/assistant/store", () => ({
+  controlTurn: vi.fn(), hasEditingContext: vi.fn(), hasPendingClarification: vi.fn(), hasPendingReadPage: vi.fn(),
+}));
+vi.mock("@/backend/services/assistant/actions/drafts", () => ({ getPendingDraft: vi.fn() }));
+vi.mock("../assistant", () => ({
+  parseAssistantButton: vi.fn((id: string) => id === "assistant:send:a" ? { action: "send", actionId: "a" } : null),
+  routeAssistantMessage: vi.fn(),
+}));
 vi.mock("../session", () => ({
   chatSessionService: {
     findIdentity: vi.fn(),
@@ -41,6 +50,10 @@ import { intentDispatcher, type ItemOption } from "../dispatch";
 import { linkingService } from "../linking";
 import { chatSessionService } from "../session";
 import { conversationEngine, mainMenuText } from "./index";
+import { assistantConfig } from "@/backend/services/assistant/config";
+import { getPendingDraft } from "@/backend/services/assistant/actions/drafts";
+import { controlTurn, hasEditingContext, hasPendingClarification, hasPendingReadPage } from "@/backend/services/assistant/store";
+import { routeAssistantMessage } from "../assistant";
 
 const mockedSession = chatSessionService as any;
 const mockedDispatch = intentDispatcher as any;
@@ -82,6 +95,12 @@ function lastSavedContext() {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.mocked(assistantConfig).mockReturnValue({ enabled: false, available: false, dailyLimit: 100, model: "gpt-5.4-mini", transcribeModel: "whisper-1" });
+  vi.mocked(hasEditingContext).mockResolvedValue(false);
+  vi.mocked(hasPendingClarification).mockResolvedValue(false);
+  vi.mocked(hasPendingReadPage).mockResolvedValue(false);
+  vi.mocked(getPendingDraft).mockResolvedValue(null);
+  vi.mocked(routeAssistantMessage).mockResolvedValue({ text: "Assistant answer" });
   mockedSession.isStale.mockReturnValue(false);
   mockedSession.findIdentity.mockResolvedValue(IDENTITY);
   mockedSession.getOrCreateSession.mockResolvedValue(IDENTITY.session);
@@ -100,14 +119,14 @@ describe("linking", () => {
 });
 
 describe("idempotency", () => {
-  it("leaves nontext input for future assistant routing without consuming a menu claim", async () => {
+  it("routes linked nontext input only after a durable claim", async () => {
     for (const message of [
       { channel: "WHATSAPP" as const, externalId: "234800", messageId: "voice", kind: "voice" as const, mediaId: "media1", mime: "audio/ogg" },
       { channel: "WHATSAPP" as const, externalId: "234800", messageId: "button", kind: "button" as const, buttonId: "assistant:send:a" },
-    ]) expect(await conversationEngine.handle(message)).toBeNull();
-    expect(mockedSession.findIdentity).not.toHaveBeenCalled();
-    expect(mockedSession.claimMessage).not.toHaveBeenCalled();
-    expect(mockedSession.save).not.toHaveBeenCalled();
+    ]) expect(await conversationEngine.handle(message)).toEqual({ text: "Assistant answer" });
+    expect(mockedSession.findIdentity).toHaveBeenCalledTimes(2);
+    expect(mockedSession.claimMessage).toHaveBeenCalledTimes(2);
+    expect(routeAssistantMessage).toHaveBeenCalledTimes(2);
     expect(mockedDispatch.createInvoice).not.toHaveBeenCalled();
   });
 
@@ -897,6 +916,97 @@ describe("progress loading state", () => {
     expect(onProgress).toHaveBeenCalledWith({ text: "Creating invoice... ⏳" });
     expect(mockedDispatch.createInvoice).toHaveBeenCalled();
     expect(reply?.text).toContain("Invoice INV-1001 created ✅");
+  });
+});
+
+describe("assistant routing precedence", () => {
+  const scope = { businessId: "biz_1", channel: "WHATSAPP", principalId: "id_1" };
+  const pending = { id: "a", status: "PENDING" as const, summary: "Exact preview", expiresAt: "2099-01-01T00:00:00.000Z" };
+  beforeEach(() => {
+    vi.mocked(assistantConfig).mockReturnValue({ enabled: true, available: true, dailyLimit: 100, model: "gpt-5.4-mini", transcribeModel: "whisper-1" });
+  });
+
+  it("sends a main-menu sentence with linked scope and the existing progress hook", async () => {
+    const onProgress = vi.fn();
+    expect(await conversationEngine.handle(inbound("What did I sell today?"), { onProgress })).toEqual({ text: "Assistant answer" });
+    expect(routeAssistantMessage).toHaveBeenCalledWith(scope, inbound("What did I sell today?"), { onProgress });
+  });
+
+  it("keeps a valid main-menu number and typed menu amounts in the menu flow", async () => {
+    expect((await conversationEngine.handle(inbound("1")))?.text).toBe("Customer's name?");
+    mockedSession.getOrCreateSession.mockResolvedValue({ ...IDENTITY.session, state: "INVOICE_AMOUNT", context: { customerName: "Tolu" } });
+    expect((await conversationEngine.handle(inbound("45000")))?.text).toBe("What's it for? (or 'skip')");
+    expect(routeAssistantMessage).not.toHaveBeenCalled();
+  });
+
+  it.each(["yes", "send it", "change something"])("routes exact %s to a pending assistant draft before legacy confirmation", async (input) => {
+    vi.mocked(getPendingDraft).mockResolvedValue(pending);
+    mockedSession.getOrCreateSession.mockResolvedValue({ ...IDENTITY.session, state: "INVOICE_CONFIRM", context: { customerName: "Tolu", amount: 5000 } });
+    expect(await conversationEngine.handle(inbound(input))).toEqual({ text: "Assistant answer" });
+    expect(routeAssistantMessage).toHaveBeenCalled();
+    expect(mockedDispatch.createInvoice).not.toHaveBeenCalled();
+  });
+
+  it("routes clarification digits before main-menu digits and edits before legacy amounts", async () => {
+    vi.mocked(hasPendingClarification).mockResolvedValue(true);
+    await conversationEngine.handle(inbound("1"));
+    expect(routeAssistantMessage).toHaveBeenCalledTimes(1);
+    vi.mocked(hasPendingClarification).mockResolvedValue(false);
+    vi.mocked(hasEditingContext).mockResolvedValue(true);
+    mockedSession.getOrCreateSession.mockResolvedValue({ ...IDENTITY.session, state: "INVOICE_AMOUNT", context: { customerName: "Tolu" } });
+    await conversationEngine.handle(inbound("Make it three", "edit"));
+    expect(routeAssistantMessage).toHaveBeenCalledTimes(2);
+  });
+
+  it("serves report pagination before menu flow routing", async () => {
+    vi.mocked(hasPendingReadPage).mockResolvedValue(true);
+    await conversationEngine.handle(inbound("next"));
+    expect(routeAssistantMessage).toHaveBeenCalled();
+  });
+
+  it.each(["menu", "0", "cancel"])("resets assistant memory and the menu for %s", async (input) => {
+    vi.mocked(hasPendingClarification).mockResolvedValue(true);
+    vi.mocked(hasEditingContext).mockResolvedValue(true);
+    const response = await conversationEngine.handle(inbound(input));
+    expect(controlTurn).toHaveBeenCalledWith(scope, "m1", input === "cancel" ? "cancel" : "menu");
+    expect(response?.text).toContain(mainMenuText("SERVICES"));
+    expect(routeAssistantMessage).not.toHaveBeenCalled();
+  });
+
+  it("a voice note leaves the invoice flow; unlinked voice never reaches the assistant", async () => {
+    const voice: InboundMessage = { channel: "WHATSAPP", externalId: "234800", messageId: "voice", kind: "voice", mediaId: "123", mime: "audio/ogg" };
+    mockedSession.getOrCreateSession.mockResolvedValue({ ...IDENTITY.session, state: "INVOICE_AMOUNT", context: { customerName: "Tolu" } });
+    await conversationEngine.handle(voice);
+    expect(mockedSession.save).toHaveBeenCalledWith("sess_1", { state: "MAIN_MENU", context: null, lastProcessedMsgId: "voice" });
+    expect(routeAssistantMessage).toHaveBeenCalledWith(scope, voice, undefined);
+    vi.mocked(routeAssistantMessage).mockClear();
+    mockedSession.findIdentity.mockResolvedValue(null);
+    await conversationEngine.handle({ ...voice, messageId: "unlinked" });
+    expect(routeAssistantMessage).not.toHaveBeenCalled();
+  });
+
+  it("does not reinterpret a rejected approval as a legacy invoice confirmation", async () => {
+    vi.mocked(getPendingDraft).mockResolvedValue(pending);
+    vi.mocked(routeAssistantMessage).mockRejectedValue(new Error("ASSISTANT_DRAFT_EXPIRED"));
+    mockedSession.getOrCreateSession.mockResolvedValue({ ...IDENTITY.session, state: "INVOICE_CONFIRM", context: { customerName: "Tolu", amount: 5000 } });
+    expect((await conversationEngine.handle(inbound("yes")))?.text).toContain("Nothing was changed");
+    expect(mockedDispatch.createInvoice).not.toHaveBeenCalled();
+  });
+
+  it("ignores unsupported buttons and durable duplicate messages without assistant calls", async () => {
+    expect(await conversationEngine.handle({ channel: "WHATSAPP", externalId: "234800", messageId: "unknown", kind: "button", buttonId: "not-assistant" })).toBeNull();
+    mockedSession.claimMessage.mockResolvedValue(false);
+    expect(await conversationEngine.handle(inbound("What did I sell?", "duplicate"))).toBeNull();
+    expect(routeAssistantMessage).not.toHaveBeenCalled();
+  });
+
+  it("keeps off-switch free text in the menu but explicitly routes visible draft controls", async () => {
+    vi.mocked(assistantConfig).mockReturnValue({ enabled: false, available: false, dailyLimit: 100, model: "gpt-5.4-mini", transcribeModel: "whisper-1" });
+    expect((await conversationEngine.handle(inbound("What did I sell?")))?.text).toBe(mainMenuText("SERVICES"));
+    expect(routeAssistantMessage).not.toHaveBeenCalled();
+    vi.mocked(getPendingDraft).mockResolvedValue(pending);
+    await conversationEngine.handle(inbound("yes", "control"));
+    expect(routeAssistantMessage).toHaveBeenCalled();
   });
 });
 

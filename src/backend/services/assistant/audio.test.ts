@@ -31,7 +31,9 @@ describe("transcribeAudio", () => {
     const abortSignal = signal();
     expect(await transcribeAudio(ogg(), abortSignal)).toEqual({ text: "Send an invoice", seconds: 20, providerRequestId: "req_audio_1" });
     expect(mocks.parse).toHaveBeenCalledWith(ogg().bytes, { mimeType: "audio/ogg" }, { duration: true, skipCovers: true });
-    expect(mocks.create).toHaveBeenCalledWith({ file: expect.objectContaining({ name: "voice.ogg", type: "audio/ogg" }), model: "whisper-1", language: "en", response_format: "verbose_json" }, { signal: abortSignal });
+    const upload: unknown = mocks.create.mock.calls[0]?.[0];
+    expect(upload).toMatchObject({ file: { name: "voice.ogg", type: "audio/ogg" }, model: "whisper-1", language: "en", response_format: "verbose_json" });
+    expect(mocks.create.mock.calls[0]?.[1]).toEqual({ signal: abortSignal });
   });
 
   it("defers the loader and never invokes it while unavailable", async () => {
@@ -68,7 +70,9 @@ describe("transcribeAudio", () => {
   it("rejects corrupt bytes, parser errors and containers without audio", async () => {
     await expect(transcribeAudio({ bytes: new Uint8Array([1, 2]), mime: "audio/ogg" }, signal())).rejects.toThrow("AUDIO_UNREADABLE");
     mocks.parse.mockRejectedValueOnce(new Error("secret parser body"));
-    await expect(transcribeAudio(ogg(), signal())).rejects.toMatchObject({ message: "AUDIO_UNREADABLE", cause: undefined });
+    const parseError: unknown = await transcribeAudio(ogg(), signal()).catch((error: unknown) => error);
+    expect(parseError).toMatchObject({ message: "AUDIO_UNREADABLE" });
+    expect(parseError).not.toHaveProperty("cause");
     mocks.parse.mockResolvedValueOnce({ format: { container: "Ogg", trackInfo: [] } });
     await expect(transcribeAudio(ogg(), signal())).rejects.toThrow("AUDIO_UNREADABLE");
     expect(mocks.create).not.toHaveBeenCalled();
@@ -117,7 +121,8 @@ describe("transcribeAudio", () => {
     mocks.response.mockRejectedValueOnce(Object.assign(new Error("https://private.invalid sk-secret"), { request_id: "req_failed", body: "private audio" }));
     try { await transcribeAudio(ogg(), signal()); throw new Error("expected failure"); } catch (error) {
       expect(error).toBeInstanceOf(AudioError);
-      expect(error).toMatchObject({ message: "AUDIO_UNREADABLE", billingUnknown: true, providerRequestId: "req_failed", cause: undefined });
+      expect(error).toMatchObject({ message: "AUDIO_UNREADABLE", billingUnknown: true, providerRequestId: "req_failed" });
+      expect(error).not.toHaveProperty("cause");
       expect(JSON.stringify(error)).not.toMatch(/private|sk-secret/);
     }
   });
@@ -135,7 +140,8 @@ describe("transcribeAudio", () => {
     { mime: "audio/x-m4a", bytes: [0, 0, 0, 12, 0x66, 0x74, 0x79, 0x70, 0, 0, 0, 0], filename: "voice.mp4" },
   ])("selects container filename for $mime", async ({ mime, bytes, filename }) => {
     await transcribeAudio({ bytes: new Uint8Array(bytes), mime }, signal());
-    expect(mocks.create).toHaveBeenCalledWith(expect.objectContaining({ file: expect.objectContaining({ name: filename }) }), expect.anything());
+    const upload: unknown = mocks.create.mock.calls[0]?.[0];
+    expect(upload).toMatchObject({ file: { name: filename } });
   });
 
   it("rejects video tracks even under an audio MIME", async () => {

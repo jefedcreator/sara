@@ -1,71 +1,41 @@
 #!/usr/bin/env node
+import path from "node:path";
+import { createServer, loadEnv } from "vite";
 
-/**
- * Sara Assistant Evaluation CLI
- * 
- * Run: yarn eval:assistant --live (for live model evaluation)
- * Default: uses canned model responses for deterministic assertions
- * 
- * Note: This script uses dynamic imports to avoid ES module path resolution issues.
- */
-
-import { createRequire } from 'node:module';
-const require = createRequire(import.meta.url);
-
-const LIVE_MODE = process.argv.includes('--live');
-
-async function main() {
-  console.log(`Running Sara Assistant Evaluation (${LIVE_MODE ? 'LIVE' : 'canned'} mode)...\n`);
-
-  // Dynamically import the evaluation module and cases
-  // Use relative paths from the project root
-  try {
-    // Import evaluation functions
-    const { evaluateCases } = await import('../src/backend/services/assistant/evaluation.js');
-    const { EVALUATION_CASES } = await import('../evals/assistant/cases.js');
-
-    const results = await evaluateCases(EVALUATION_CASES);
-
-    // Print summary
-    console.log(`\n=== Evaluation Summary ===`);
-    console.log(`Total cases: ${EVALUATION_CASES.length}`);
-    console.log(`Passed: ${results.passed}`);
-    console.log(`Failed: ${results.failed.length}`);
-    
-    if (results.failed.length > 0) {
-      console.log(`\n=== Failed Cases ===`);
-      for (const failure of results.failed) {
-        console.log(`  ${failure.id}: ${failure.reason}`);
-      }
-    }
-
-    if (results.timingsMs.length > 0) {
-      const totalTime = results.timingsMs.reduce((a, b) => a + b, 0);
-      const avgTime = totalTime / results.timingsMs.length;
-      console.log(`\n=== Timings ===`);
-      console.log(`Total: ${totalTime}ms`);
-      console.log(`Average: ${avgTime.toFixed(2)}ms per case`);
-      console.log(`Min: ${Math.min(...results.timingsMs)}ms`);
-      console.log(`Max: ${Math.max(...results.timingsMs)}ms`);
-    }
-
-    if (results.estimatedCostUsd) {
-      console.log(`\n=== Cost Estimate ===`);
-      console.log(`Estimated: ${results.estimatedCostUsd}`);
-    }
-
-    // Exit with appropriate code
-    const exitCode = results.failed.length > 0 ? 1 : 0;
-    process.exit(exitCode);
-  } catch (error) {
-    console.error('Error loading evaluation modules:', error);
-    console.log('\nNote: This script requires ES modules. Make sure you are running it with Node.js 16+.');
-    console.log('The imports use .js extensions which may need to be .ts if running from source.');
-    process.exit(1);
-  }
+const live = process.argv.includes("--live");
+// Ordinary replay has no credentials and makes no paid calls. Only --live loads
+// local provider configuration. The fixture dispatcher is used in both modes.
+if (live) Object.assign(process.env, loadEnv("development", process.cwd(), ""));
+else {
+  process.env.SKIP_ENV_VALIDATION = "1";
+  process.env.OPENAI_ASSISTANT_MODEL = "gpt-5.4-mini";
 }
-
-main().catch((error) => {
-  console.error('Evaluation error:', error);
+if (live && !process.env.OPENAI_API_KEY?.trim()) {
+  console.error("OPENAI_API_KEY is required for --live; no provider calls made.");
   process.exit(1);
+}
+const server = await createServer({
+  configFile: false, server: { middlewareMode: true, watch: null, hmr: false, ws: false },
+  optimizeDeps: { noDiscovery: true, include: [] },
+  oxc: { jsx: { runtime: "automatic" } },
+  resolve: { alias: { "@": path.resolve("src"), types: path.resolve("types") } },
 });
+try {
+  const { evaluateCases } = await server.ssrLoadModule("/src/backend/services/assistant/evaluation.ts");
+  let dependencies;
+  if (live) {
+    const { getOpenAI } = await server.ssrLoadModule("/src/backend/services/assistant/openai.ts");
+    dependencies = { responses: getOpenAI().responses };
+  }
+  const result = await evaluateCases(undefined, dependencies);
+  const failures = new Map(result.failed.map((failure) => [failure.id, failure.reason]));
+  for (let n = 1; n <= 30; n += 1) {
+    const id = String(n).padStart(2, "0");
+    console.log(`${id} ${failures.has(id) ? `FAIL ${failures.get(id)}` : "PASS"}`);
+  }
+  console.log(`${live ? "Live" : "Replay"}: ${result.passed}/30 passed; input ${result.usage.inputTokens}, cached ${result.usage.cachedTokens}, output ${result.usage.outputTokens} tokens; estimated USD ${result.estimatedCostUsd ?? "unknown"}; ${result.timingsMs.reduce((n, ms) => n + ms, 0)}ms`);
+  process.exitCode = result.failed.length ? 1 : 0;
+} catch {
+  console.error("Evaluation could not start. Check configuration and run yarn typecheck.");
+  process.exitCode = 1;
+} finally { await server.close(); }

@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { customerService } from "@/backend/services/customer";
 import {
   resolveDocumentLines,
@@ -63,7 +64,7 @@ class InvoiceService {
       select: { invoiceNumber: true },
     });
     let invoiceNumber = "INV-1001";
-    if (lastInvoice && lastInvoice.invoiceNumber.startsWith("INV-")) {
+    if (lastInvoice?.invoiceNumber.startsWith("INV-")) {
       const n = parseInt(lastInvoice.invoiceNumber.replace("INV-", ""), 10);
       invoiceNumber = `INV-${isNaN(n) ? 1001 : n + 1}`;
     }
@@ -107,7 +108,9 @@ class InvoiceService {
     const createData: Prisma.InvoiceUncheckedCreateInput = {
       businessId: business.id,
       customerId: customer?.id ?? null,
-      slug: slugify(`${business.name}-${invoiceNumber}`, { lower: true, strict: true }),
+      // Names are not unique across businesses. Keep slugs independent of the
+      // document-number constraint so numbering races can retry that constraint.
+      slug: slugify(`${business.name}-${invoiceNumber}-${randomUUID()}`, { lower: true, strict: true }),
       clientName: input.name,
       clientEmail: input.email ?? null,
       clientPhone: input.phone ?? null,

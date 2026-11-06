@@ -306,4 +306,4 @@ Day chips and time pills in a grid: available = white with hairline, selected = 
 - **Don't** add a second accent colour or gradients beyond a two-stop tint of mint.
 - **Don't** use small uppercase tracked eyebrow labels above headings.
 - **Don't** build icon-grid feature rows without a real exchange, number or document inside.
-- **Don't** describe Sara as AI or a chatbot in UI text, except the single sentence that reveals the capability: "Sara uses AI to understand plain English and turn voice notes into text".
+- **Don't** lead with AI or chatbot positioning. Explain the benefit first and disclose the capability truthfully: "Sara uses AI to understand plain English and turn voice notes into text." Never claim Sara is not AI. Until the release checks in `docs/assistant-operations.md` pass, keep voice and plain-English examples in release documentation rather than public marketing.

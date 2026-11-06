@@ -172,6 +172,12 @@ export const adminRegistry: AdminRegistry = {
     },
   ],
   excluded: {
+    AssistantConversation: "Internal scoped conversation memory and execution leases.",
+    AssistantTurn: "Private conversation records and durable request replay results.",
+    AssistantAction: "Immutable approvals must use the scoped assistant lifecycle.",
+    AssistantUsage: "Internal request accounting; not an owner-facing usage screen.",
+    AssistantDailyUsage: "Atomic quota counters must only change through reservations.",
+    ProcessedChatMessage: "Durable provider replay claims must not be edited.",
     VerificationToken: "Sign-in tokens with no single id.",
   },
 };

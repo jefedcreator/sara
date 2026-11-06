@@ -15,8 +15,8 @@ import { VoiceStatus } from "./voice-status";
 
 export function AssistantPanel({ open, onOpenChange, returnFocus }: {
   open: boolean;
-  onOpenChange(open: boolean): void;
-  returnFocus?(): void;
+  onOpenChange: (open: boolean) => void;
+  returnFocus?: () => void;
 }) {
   const assistant = useAssistant();
   const [text, setText] = useState("");

@@ -28,6 +28,7 @@ export const GET = withMiddleware<unknown>(
     try {
       const user = request.user!;
       const { slug } = params;
+      if (!slug) throw new NotFoundException("Booking not found");
 
       const booking = await db.booking.findUnique({
         where: { slug },
@@ -88,6 +89,7 @@ export const PUT = withMiddleware<UpdateBookingValidatorSchema>(
       const payload = request.validatedData!;
       const user = request.user!;
       const { slug } = params;
+      if (!slug) throw new NotFoundException("Booking not found");
 
       const business = user.business;
       if (!business) throw new NotFoundException("Business not found");
@@ -122,6 +124,7 @@ export const DELETE = withMiddleware<unknown>(
     try {
       const user = request.user!;
       const { slug } = params;
+      if (!slug) throw new NotFoundException("Booking not found");
 
       const business = user.business;
       if (!business) throw new NotFoundException("Business not found");

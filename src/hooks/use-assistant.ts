@@ -9,6 +9,7 @@ import type { AssistantMessage } from "@/components/assistant/message-list";
 import { useAssistantApproveMutation, useAssistantChangeMutation, useAssistantMessageMutation } from "@/hooks/mutations/use-assistant-mutations";
 import type { AssistantMessageInput } from "@/utils/api";
 import type { RecordedAudio } from "@/utils/audio-recorder";
+import { nextAssistantDraftState } from "@/utils/assistant-draft-state";
 import { errorMessage } from "@/utils/axios";
 
 type Submission = { input: AssistantMessageInput; ownerId: string; wasEditing: boolean };
@@ -75,10 +76,10 @@ export function useAssistant() {
           ? { ...message, transcript: reply.transcript ?? undefined } : message));
       }
       addReply(reply.reply, reply.result);
-      // A read, quota reply or recoverable error does not cancel a server-side
-      // pending draft. Editing ends only when a replacement draft arrives.
-      setDraft((current) => reply.draft ?? current);
-      setEditing(reply.draft ? submission.wasEditing && reply.draft.id === draft?.id : submission.wasEditing);
+      const next = nextAssistantDraftState(draft, reply.draft, submission.wasEditing,
+        "text" in submission.input ? submission.input.text : undefined);
+      setDraft(next.draft);
+      setEditing(next.editing);
     } catch (cause) {
       if (!mounted.current) return;
       setError(errorMessage(cause, "Sara could not reply. Your message has not been confirmed."));
