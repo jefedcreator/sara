@@ -85,6 +85,11 @@ export function useAssistant() {
       // Only a transport failure offers upload/message retry. Reuse both the
       // same audio Blob and UUID; never create a second logical submission.
       setRetry(isAxiosError(cause) && !cause.response ? submission : null);
+      // Restore editing state for non-retryable errors (HTTP 409/422, etc.)
+      // so the draft remains actionable after the error is dismissed.
+      if (!isAxiosError(cause) || cause.response) {
+        setEditing(submission.wasEditing);
+      }
     } finally {
       finish();
     }
