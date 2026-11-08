@@ -3,7 +3,7 @@ import { googleCalendarService } from "@/backend/services/googleCalendar";
 import { InternalServerErrorException } from "@/utils/exceptions";
 import { randomBytes } from "node:crypto";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 
 /**
  * @description Returns (or redirects to, with ?redirect=true) the Google

@@ -1,5 +1,5 @@
 "use client";
-import { useMonoConnect } from "@/utils/hooks/useMonoConnect";
+import { useMonoConnect } from "@/hooks/use-mono-connect";
 import { env } from "@/env";
 import { useState } from "react";
 

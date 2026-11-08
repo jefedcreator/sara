@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 
 import { authService } from "@/backend/services/auth";
 import {
@@ -169,24 +169,27 @@ export function assistantResponse<T>(data: T): NextResponse<ApiResponse<T>> {
   return NextResponse.json({ status: 200, message: "Success", data });
 }
 
-/** Assistant-only exception envelope. Never log input, transcripts, file bytes or raw provider errors. */
-export async function withAssistantOwner(
-  request: NextRequest,
-  handler: (scope: AssistantScope) => Promise<Response>,
-): Promise<Response> {
-  try { return await handler(await requireAssistantOwner(request)); }
-  catch (error) {
-    let status = 500;
-    let message = "Internal server error";
-    const code = error !== null && typeof error === "object" && "code" in error ? error.code : undefined;
-    if (error instanceof HttpException) { status = error.statusCode; message = error.message; }
-    else if (code === "ASSISTANT_TIMEOUT") { status = 503; message = "That request took too long. Please try again."; }
-    else if (code === "ASSISTANT_UNAVAILABLE" || code === "ASSISTANT_DISABLED") { status = 503; message = "Sara's assistant is unavailable right now."; }
-    else if (code === "CONVERSATION_NOT_FOUND" || code === "ACTION_NOT_FOUND") { status = 404; message = "Conversation or draft not found"; }
-    else if (code === "ASSISTANT_BUSY" || code === "ASSISTANT_TURN_STALE" ||
-      code === "ASSISTANT_DRAFT_NOT_PENDING" || code === "ASSISTANT_DRAFT_EXPIRED" || code === "ASSISTANT_DRAFT_EDITING") {
-      status = 409; message = code === "ASSISTANT_BUSY" ? "Please wait for your current request to finish." : "This draft is no longer available for approval.";
-    } else if (error instanceof Error && error.name === "AbortError") { status = 400; message = "Request aborted"; }
-    return NextResponse.json({ status, message }, { status });
-  }
+/**
+ * Maps an assistant failure to the status and user-safe message the API
+ * answers with. Called by `withMiddleware`'s error path for routes that
+ * declare `assistantErrorMiddleware`; never logs the input, transcript, file
+ * bytes or the raw provider error.
+ */
+export function assistantErrorResponse(error: unknown): {
+  status: number;
+  message: string;
+  body: { status: number };
+} {
+  let status = 500;
+  let message = "Internal server error";
+  const code = error !== null && typeof error === "object" && "code" in error ? error.code : undefined;
+  if (error instanceof HttpException) { status = error.statusCode; message = error.message; }
+  else if (code === "ASSISTANT_TIMEOUT") { status = 503; message = "That request took too long. Please try again."; }
+  else if (code === "ASSISTANT_UNAVAILABLE" || code === "ASSISTANT_DISABLED") { status = 503; message = "Sara's assistant is unavailable right now."; }
+  else if (code === "CONVERSATION_NOT_FOUND" || code === "ACTION_NOT_FOUND") { status = 404; message = "Conversation or draft not found"; }
+  else if (code === "ASSISTANT_BUSY" || code === "ASSISTANT_TURN_STALE" ||
+    code === "ASSISTANT_DRAFT_NOT_PENDING" || code === "ASSISTANT_DRAFT_EXPIRED" || code === "ASSISTANT_DRAFT_EDITING") {
+    status = 409; message = code === "ASSISTANT_BUSY" ? "Please wait for your current request to finish." : "This draft is no longer available for approval.";
+  } else if (error instanceof Error && error.name === "AbortError") { status = 400; message = "Request aborted"; }
+  return { status, message, body: { status } };
 }

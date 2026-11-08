@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { ActionResult } from "types";
+import type { ActionResult } from "@/types";
 
 import { cn } from "@/utils/cn";
 

@@ -10,7 +10,7 @@ import {
 import { invoiceOrderSelect, publicBusinessSelect } from "@/backend/selects";
 import { db } from "@/server/db";
 import { invoiceMutations } from "@/backend/services/invoice/mutations";
-import { type ApiResponse, type InvoiceListItem } from "types";
+import { type ApiResponse, type InvoiceListItem } from "@/types";
 import {
   ForbiddenException,
   InternalServerErrorException,

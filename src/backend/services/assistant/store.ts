@@ -18,7 +18,7 @@ import type {
   DraftDto,
   DraftStatus,
   ResourceKind,
-} from "types/assistant";
+} from "@/types/assistant";
 
 import type {
   AssistantScope,

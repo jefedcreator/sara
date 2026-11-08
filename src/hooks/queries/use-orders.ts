@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import type { OrderDto, Page } from "types";
+import type { OrderDto, Page } from "@/types";
 
 import { api, type OrderListParams } from "@/utils/api";
 

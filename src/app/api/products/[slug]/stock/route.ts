@@ -18,7 +18,7 @@ import {
   NotFoundException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse, ProductOptionDto } from "types";
+import type { ApiResponse, ProductOptionDto } from "@/types";
 
 /**
  * @body StockAdjustValidatorSchema

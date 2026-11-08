@@ -23,7 +23,7 @@ import {
 } from "@/utils/exceptions";
 import { Prisma, type Invoice } from "@prisma/client";
 import { NextResponse } from "next/server";
-import type { ApiResponse, InvoiceListItem, PaginatedApiResponse } from "types";
+import type { ApiResponse, InvoiceListItem, PaginatedApiResponse } from "@/types";
 
 /**
  * @body InvoiceValidatorSchema

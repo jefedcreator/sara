@@ -21,7 +21,7 @@ import {
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import slugify from "slugify";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 
 export const runtime = "nodejs";
 

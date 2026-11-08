@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import type { PublicServiceDto } from "types";
+import type { PublicServiceDto } from "@/types";
 
 import { api } from "@/utils/api";
 

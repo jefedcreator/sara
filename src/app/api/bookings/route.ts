@@ -21,7 +21,7 @@ import {
 } from "@/utils/exceptions";
 import { type Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import type { ApiResponse, CreatedBooking, PaginatedApiResponse } from "types";
+import type { ApiResponse, CreatedBooking, PaginatedApiResponse } from "@/types";
 
 /**
  * @body BookingValidatorSchema

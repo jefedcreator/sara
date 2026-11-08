@@ -11,7 +11,7 @@ import { MAX_AUDIO_BYTES } from "./config";
 import {
   MAX_ASSISTANT_JSON_BYTES, MAX_ASSISTANT_MULTIPART_BYTES,
   readAssistantDraftInput, readAssistantInput, requireAssistantAction,
-  requireAssistantOwner, withAssistantOwner,
+  requireAssistantOwner, assistantErrorResponse,
 } from "./http";
 import { assertConversation, getAction } from "./store";
 
@@ -63,12 +63,11 @@ describe("assistant owner authentication", () => {
     const { request } = streamed([new Uint8Array(MAX_ASSISTANT_MULTIPART_BYTES + 1)]);
     const read = vi.spyOn(request.body!, "getReader");
     const parse = vi.spyOn(request, "formData");
-    const handler = vi.fn(async () => { await readAssistantInput(request, request.signal); return new Response(); });
-    const response = await withAssistantOwner(request, handler);
-    expect(response.status).toBe(401);
+    // The route's own order: authenticate, then read the body.
+    const handler = vi.fn(async () => { await requireAssistantOwner(request); await readAssistantInput(request, request.signal); return new Response(); });
+    await expect(handler()).rejects.toMatchObject({ statusCode: 401 });
     expect(read).not.toHaveBeenCalled();
     expect(parse).not.toHaveBeenCalled();
-    expect(handler).not.toHaveBeenCalled();
   });
   it.each([null, { id: "biz_1", ownerId: "other-owner" }])("rejects no business or a foreign owner", async (business) => {
     mockAuthenticatedSession(mockedDb, { user: { id: "owner1" }, business });

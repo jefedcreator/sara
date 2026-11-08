@@ -1,4 +1,4 @@
-import type { DashboardData } from "types";
+import type { DashboardData } from "@/types";
 
 import { formatMoney } from "@/utils/format";
 

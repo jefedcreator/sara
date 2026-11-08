@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import type { CustomerListItem } from "types";
+import type { CustomerListItem } from "@/types";
 import { describe, expect, it } from "vitest";
 
 import { CustomerRow } from "./customer-row";

@@ -1,5 +1,5 @@
 import { db } from "@/server/db";
-import type { AssistantReply } from "types/assistant";
+import type { AssistantReply } from "@/types/assistant";
 import { AudioError, transcribeAudio } from "./audio";
 import { assistantConfig, TURN_TIMEOUT_MS } from "./config";
 import { runModelTurn, clarificationText, readPageText, withinDeadline } from "./loop";

@@ -23,7 +23,7 @@ import {
   NotFoundException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse, ProductDto } from "types";
+import type { ApiResponse, ProductDto } from "@/types";
 
 /**
  * @pathParams slug

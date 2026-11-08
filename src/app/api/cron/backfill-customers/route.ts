@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 
 /**
  * @description Links existing bookings, invoices, receipts and payments to

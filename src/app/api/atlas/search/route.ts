@@ -3,8 +3,8 @@ import { atlasService } from "@/backend/services/atlas";
 import { atlasSearchQueryValidatorSchema, type AtlasSearchQueryValidatorSchema } from "@/backend/validators/atlas.validator";
 import { InternalServerErrorException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
-import type { AtlasSearchResponse } from "types/atlas";
+import type { ApiResponse } from "@/types";
+import type { AtlasSearchResponse } from "@/types/atlas";
 
 /**
  * @queryParams AtlasSearchQueryValidatorSchema

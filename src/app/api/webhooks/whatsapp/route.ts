@@ -1,5 +1,7 @@
+import { withMiddleware } from "@/backend/middleware";
 import { whatsAppAdapter } from "@/backend/services/messaging/channels/whatsapp";
 import { processInboundBatch } from "@/backend/services/messaging/process";
+import { env } from "@/env";
 import { after, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -24,20 +26,20 @@ function recordLog(type: string, data: unknown) {
   if (webhookLogs.length > MAX_LOGS) webhookLogs.pop();
 }
 
-export async function GET(request: Request) {
+export const GET = withMiddleware<unknown>(async (request) => {
   const url = new URL(request.url);
   if (url.searchParams.get("debug") === "1") {
     const token = url.searchParams.get("token");
-    const expected = (process.env.WHATSAPP_VERIFY_TOKEN ?? "").trim();
+    const expected = env.WHATSAPP_VERIFY_TOKEN?.trim() ?? "";
     if (!expected || token !== expected) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
     return NextResponse.json({ logs: webhookLogs });
   }
   return whatsAppAdapter.verify(request);
-}
+}, []);
 
-export async function POST(request: Request) {
+export const POST = withMiddleware<unknown>(async (request) => {
   const rawBody = await request.text();
   const signature = request.headers.get("x-hub-signature-256");
 
@@ -76,4 +78,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ status: "ok" }, { status: 200 });
-}
+}, []);

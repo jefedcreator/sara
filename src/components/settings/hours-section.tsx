@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { BusinessHoursDto } from "types";
+import type { BusinessHoursDto } from "@/types";
 
 import { Button, Notice, Switch, TimePicker } from "@/primitives";
 import type { BusinessHoursInput } from "@/utils/api";

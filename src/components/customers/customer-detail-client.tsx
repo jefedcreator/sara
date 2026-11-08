@@ -3,7 +3,7 @@
 import { ArrowLeft } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { useState } from "react";
-import type { CustomerDetail, TimelineEntry } from "types";
+import type { CustomerDetail, TimelineEntry } from "@/types";
 
 import { Panel } from "@/components/dashboard/panel";
 import { useCustomerQuery } from "@/hooks/queries/use-customers";

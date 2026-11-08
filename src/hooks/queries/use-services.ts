@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ServiceDto } from "types";
+import type { ServiceDto } from "@/types";
 
 import { api } from "@/utils/api";
 

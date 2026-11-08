@@ -14,7 +14,7 @@ import {
   NotFoundException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { CustomerListItem, PaginatedApiResponse } from "types";
+import type { CustomerListItem, PaginatedApiResponse } from "@/types";
 
 /**
  * @queryParams CustomerQueryValidatorSchema

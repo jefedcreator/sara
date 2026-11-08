@@ -1,8 +1,8 @@
 "use client";
 
-import type { ProductDto, ServiceDto } from "types";
+import type { ProductDto, ServiceDto } from "@/types";
 
-import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
+import { CopyLinkButton } from "@/components/landing/copy-link-button";
 import { Modal } from "@/primitives";
 import { productPath, servicePath } from "@/utils/public-links";
 

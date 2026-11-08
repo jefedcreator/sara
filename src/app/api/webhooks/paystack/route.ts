@@ -1,3 +1,4 @@
+import { withMiddleware } from "@/backend/middleware";
 import {
   blockingBookingsWhere,
   isSerializationFailure,
@@ -36,7 +37,7 @@ export const runtime = "nodejs";
  *              3. Bookings: checks idempotency, validates the booking, then
  *                 atomically confirms it and creates a Payment record.
  */
-export async function POST(request: Request) {
+export const POST = withMiddleware<unknown>(async (request) => {
   try {
     const rawBody = await request.text();
     const signature = request.headers.get("x-paystack-signature");
@@ -82,7 +83,7 @@ export async function POST(request: Request) {
     // Still return 200 to prevent Paystack from retrying endlessly
     return NextResponse.json({ status: "ok" }, { status: 200 });
   }
-}
+}, []);
 
 /**
  * @description Handles Paystack post-payment redirect (Callback URL).
@@ -93,7 +94,7 @@ export async function POST(request: Request) {
  *              with Paystack before following the `?b=<bookingSlug>`,
  *              `?o=<orderSlug>` or `?i=<invoicePublicId>` hint.
  */
-export async function GET(request: Request) {
+export const GET = withMiddleware<unknown>(async (request) => {
   const url = new URL(request.url);
   const reference =
     url.searchParams.get("reference") || url.searchParams.get("trxref");
@@ -210,7 +211,7 @@ export async function GET(request: Request) {
   }
 
   return NextResponse.redirect(new URL("/", baseUrl));
-}
+}, []);
 
 /**
  * Handles a successful charge event from Paystack.

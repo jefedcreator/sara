@@ -3,9 +3,9 @@
 import { PencilSimple } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
 import { useState } from "react";
-import type { ProductDto } from "types";
+import type { ProductDto } from "@/types";
 
-import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
+import { CopyLinkButton } from "@/components/landing/copy-link-button";
 import { Button, Input, LogoMark, Skeleton, StatusPill, Switch } from "@/primitives";
 import { cn } from "@/utils/cn";
 import { formatMoney } from "@/utils/format";

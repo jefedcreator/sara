@@ -1,4 +1,4 @@
-import type { ReceiptDto } from "types";
+import type { ReceiptDto } from "@/types";
 
 import { CopyLinkIconButton } from "@/components/copy-link-icon-button";
 import { DocumentCard, PdfIconButton } from "@/components/documents/document-card";

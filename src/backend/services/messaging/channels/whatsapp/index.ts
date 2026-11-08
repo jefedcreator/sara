@@ -46,7 +46,7 @@ class WhatsAppAdapter implements ChannelAdapter {
   channel: ChatChannel = "WHATSAPP";
 
   private getVerifyToken(): string | undefined {
-    return (env.WHATSAPP_VERIFY_TOKEN ?? process.env.WHATSAPP_VERIFY_TOKEN)?.trim();
+    return env.WHATSAPP_VERIFY_TOKEN?.trim();
   }
 
   verify(req: Request): Response {
@@ -71,7 +71,7 @@ class WhatsAppAdapter implements ChannelAdapter {
   }
 
   isAuthentic(req: Request, rawBody: string): boolean {
-    const secret = env.META_APP_SECRET ?? process.env.META_APP_SECRET;
+    const secret = env.META_APP_SECRET;
     if (!secret) return false;
     const signature = req.headers.get("x-hub-signature-256");
     if (!signature) return false;
@@ -190,8 +190,8 @@ class WhatsAppAdapter implements ChannelAdapter {
   }
 
   private async post(_externalId: string, payload: unknown): Promise<SendResult> {
-    const phoneId = env.WHATSAPP_PHONE_NUMBER_ID ?? process.env.WHATSAPP_PHONE_NUMBER_ID;
-    const token = env.WHATSAPP_TOKEN ?? process.env.WHATSAPP_TOKEN;
+    const phoneId = env.WHATSAPP_PHONE_NUMBER_ID;
+    const token = env.WHATSAPP_TOKEN;
 
     const res = await fetch(`${GRAPH}/${phoneId}/messages`, {
       method: "POST",

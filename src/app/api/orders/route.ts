@@ -15,7 +15,7 @@ import {
   NotFoundException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { OrderDto, PaginatedApiResponse } from "types";
+import type { OrderDto, PaginatedApiResponse } from "@/types";
 
 /**
  * @queryParams OrderQueryValidatorSchema

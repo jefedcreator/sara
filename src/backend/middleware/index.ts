@@ -1,7 +1,8 @@
 import { authService } from "@/backend/services/auth";
 import { env } from "@/env";
-import { parseHttpError } from "@/utils";
+import { logRequest, parseHttpError } from "@/utils";
 import { HttpException, UnauthorizedException } from "@/utils/exceptions";
+import * as Sentry from "@sentry/nextjs";
 import { NextResponse } from "next/server";
 import { type z } from "zod";
 import type {
@@ -39,12 +40,95 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
     context: { params: Record<string, string> },
   ) => Promise<Response>,
   middlewares: MiddlewareFunction<B, Q>[],
+  /**
+   * Turns a thrown error into the status and user-safe message this route
+   * answers with. Defaults to the exception's `statusCode` and `message`.
+   * A route with its own error vocabulary (the assistant's codes) passes one
+   * rather than bypassing the wrapper. `body` adds fields to the error
+   * envelope for clients that read the status from the body as well, and
+   * `response` replaces the JSON envelope entirely for routes that answer
+   * with a redirect (the OAuth routes).
+   */
+  errorFormatter: (
+    error: unknown,
+    request: AuthRequest<B, Q>,
+  ) => {
+    status: number;
+    message: string;
+    body?: Record<string, unknown>;
+    response?: Response;
+  } = (error) => ({
+    status:
+      error instanceof HttpException
+        ? error.statusCode
+        : ((error as { statusCode?: number }).statusCode ?? 500),
+    message: parseHttpError(error) ?? "Internal server error",
+  }),
 ) => {
   const executeRequest = async (
     req: NextResponse | Request | any,
     context: { params: Promise<Record<string, string>> } | any,
   ) => {
-    const request = req as AuthRequest<B, Q>;
+    const request = req as AuthRequest<B, Q> & { parsedBodyValue?: B };
+
+    // Parse the body lazily, on first read of `parsedBody`, so an auth
+    // middleware that rejects the request never touches it. Routes that read
+    // the body by hand (`readAssistantInput`, the webhooks) still get a
+    // pristine stream.
+    let bodyParsed = false;
+    const parseBody = async () => {
+      if (bodyParsed) return;
+      bodyParsed = true;
+      try {
+        const contentType =
+          request.headers.get("content-type") ?? "application/json";
+
+        if (contentType.includes("application/json")) {
+          const body = (await request.json().catch(() => null)) as B;
+          if (body) {
+            request.parsedBodyValue = body;
+            request.files = {};
+            request.rawFormData = undefined;
+          }
+        } else if (contentType.includes("multipart/form-data")) {
+          const formData = await request.formData();
+          request.rawFormData = formData;
+          const parsedBody: Record<string, unknown> = {};
+          const files: Record<string, File> = {};
+
+          for (const [key, value] of formData.entries()) {
+            if (value instanceof File) {
+              if (value.size > 0 && value.name) {
+                files[key] = value;
+              }
+            } else {
+              parsedBody[key] = value;
+            }
+          }
+
+          request.parsedBodyValue = { ...parsedBody, ...files } as B;
+          request.files = files;
+        }
+      } catch (_error) {
+        // A body that will not parse is left absent; the validator refuses it.
+      }
+    };
+    // A getter cannot be awaited, so `parsedBody` is a promise-backed
+    // property: the first read starts the parse and every read after it
+    // returns the same promise. `bodyValidatorMiddleware` awaits it.
+    let bodyPromise: Promise<B | undefined> | undefined;
+    Object.defineProperty(request, "parsedBody", {
+      configurable: true,
+      get() {
+        bodyPromise ??= parseBody().then(() => request.parsedBodyValue);
+        return bodyPromise;
+      },
+      set(value: B | undefined) {
+        request.parsedBodyValue = value;
+        bodyPromise = Promise.resolve(value);
+      },
+    });
+
     try {
       // Resolve and attach path parameters
       const resolvedParams = await (context?.params ?? Promise.resolve({}));
@@ -58,39 +142,9 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
         query[key] = value;
       });
       request.query = query as Q;
-
-      const contentType =
-        request.headers.get("content-type") ?? "application/json";
-
-      if (contentType.includes("application/json")) {
-        const body = (await request.json().catch(() => null)) as B;
-        if (body) {
-          request.parsedBody = body;
-          request.files = {};
-          request.rawFormData = undefined;
-        }
-      } else if (contentType.includes("multipart/form-data")) {
-        const formData = await request.formData();
-        request.rawFormData = formData;
-        const parsedBody: Record<string, unknown> = {};
-        const files: Record<string, File> = {};
-
-        for (const [key, value] of formData.entries()) {
-          if (value instanceof File) {
-            if (value.size > 0 && value.name) {
-              files[key] = value;
-            }
-          } else {
-            parsedBody[key] = value;
-          }
-        }
-        console.log("parsedBody", parsedBody);
-
-        request.parsedBody = parsedBody as B;
-        request.files = files;
-      }
     } catch (_error) {
-      // Silently handle parsing errors
+      // A request with no URL to parse still reaches the handler, which
+      // answers with its own error.
     }
 
     try {
@@ -104,62 +158,46 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
         }
       }
     } catch (error: any) {
-      console.error("Middleware execution error:", error);
+      Sentry.captureException(error, {
+        tags: { type: "middleware_error" },
+        extra: {
+          url: getExternalUrl(request.url),
+          method: request.method,
+          params: request.params,
+          query: request.query,
+        },
+        user: request.user
+          ? { id: request.user.id, email: request.user.email ?? undefined }
+          : undefined,
+      });
 
-      // Sentry.captureException(error, {
-      //   tags: {
-      //     type: 'middleware_error',
-      //   },
-      //   extra: {
-      //     url: getExternalUrl(request.url),
-      //     method: request.method,
-      //     params: request.params,
-      //     query: request.query,
-      //   },
-      //   user: request.user
-      //     ? { id: request.user.id, email: request.user.email ?? undefined }
-      //     : undefined,
-      // });
-
-      const statusCode =
-        error instanceof HttpException
-          ? error.statusCode
-          : (error.statusCode ?? 500);
-      return NextResponse.json(
-        { message: parseHttpError(error) ?? "Internal server error" },
-        { status: statusCode },
-      );
+      const formatted = errorFormatter(error, request);
+      if (formatted.response) return formatted.response;
+      const { status, message, body } = formatted;
+      return NextResponse.json({ ...body, message }, { status });
     }
 
     try {
       return await handler(request, { params: request.params! });
     } catch (error: any) {
-      console.error("Handler error:", error);
+      Sentry.captureException(error, {
+        tags: { type: "handler_error" },
+        extra: {
+          url: getExternalUrl(request.url),
+          method: request.method,
+          params: request.params,
+          query: request.query,
+          body: request.parsedBodyValue,
+        },
+        user: request.user
+          ? { id: request.user.id, email: request.user.email ?? undefined }
+          : undefined,
+      });
 
-      // Sentry.captureException(error, {
-      //   tags: {
-      //     type: 'handler_error',
-      //   },
-      //   extra: {
-      //     url: getExternalUrl(request.url),
-      //     method: request.method,
-      //     params: request.params,
-      //     query: request.query,
-      //     body: request.parsedBody,
-      //   },
-      //   user: request.user
-      //     ? { id: request.user.id, email: request.user.email ?? undefined }
-      //     : undefined,
-      // });
-
-      const statusCode =
-        error instanceof HttpException
-          ? error.statusCode
-          : (error.statusCode ?? 500);
-      return NextResponse.json(
-        { message: parseHttpError(error) ?? "Internal server error" },
-        { status: statusCode },
-      );
+      const formatted = errorFormatter(error, request);
+      if (formatted.response) return formatted.response;
+      const { status, message, body } = formatted;
+      return NextResponse.json({ ...body, message }, { status });
     }
   };
 
@@ -178,36 +216,13 @@ export const withMiddleware = <B = unknown, Q = QueryParameters>(
         })();
     const response = await executeRequest(req, context);
     const duration = Date.now() - startTime;
-    const statusCode = response.status;
-
-    let statusColor = "\x1b[32m";
-    if (statusCode >= 300) statusColor = "\x1b[36m";
-    if (statusCode >= 400) statusColor = "\x1b[33m";
-    if (statusCode >= 500) statusColor = "\x1b[31m";
-    const resetColor = "\x1b[0m";
-
-    const authReq = req as AuthRequest<B, Q>;
-    const sanitizedBody = authReq.parsedBody
-      ? JSON.parse(JSON.stringify(authReq.parsedBody))
-      : {};
-
-    const sensitiveKeys = ["password", "token", "creditCard"];
-    sensitiveKeys.forEach((key) => {
-      if (sanitizedBody[key]) sanitizedBody[key] = "*****";
-    });
-
-    const message = `${method} ${url} ${statusColor}${statusCode}${resetColor} - ${duration}ms`;
-
-    if (statusCode >= 500) {
-      console.error(message);
-    } else {
-      console.log(message);
-    }
-
-    if (Object.keys(sanitizedBody).length > 0) {
-      console.debug(`Payload: ${JSON.stringify(sanitizedBody)}`);
-    }
-
+    logRequest(
+      method,
+      url,
+      response.status,
+      duration,
+      (req as AuthRequest<B, Q> & { parsedBodyValue?: B }).parsedBodyValue,
+    );
     return response;
   };
 };
@@ -224,7 +239,7 @@ export const pathParamValidatorMiddleware =
 
     if (result.success) {
       return {
-        message: "Invalid ID parameter",
+        message: "",
         statusCode: 200,
         next: true,
       };
@@ -295,7 +310,8 @@ export const queryValidatorMiddleware =
     request: AuthRequest<unknown, z.infer<Q>>,
   ): Promise<MiddlewareResponse> => {
     try {
-      const searchParams = request.nextUrl.searchParams;
+      const searchParams =
+        request.nextUrl?.searchParams ?? new URL(request.url).searchParams;
       const query: Record<string, string> = {};
       searchParams.forEach((value, key) => {
         query[key] = value;
@@ -344,15 +360,13 @@ export const bodyValidatorMiddleware =
   async (
     request: AuthRequest<z.infer<B>, unknown>,
   ): Promise<MiddlewareResponse> => {
-    const body = request.parsedBody ?? {};
-    // const query = request.query ?? {};
-    const files = (request.files as Record<string, unknown>) ?? {};
-
-    const dataToValidate = {
-      ...(body as Record<string, unknown>),
-      // ...(query as Record<string, unknown>),
-      ...files,
-    };
+    // Validate the parsed body alone. Merging `request.files` in would hand a
+    // multipart schema a key per uploaded file, which a strict schema rejects
+    // for every upload that isn't declared on it. A schema that wants a file
+    // declares it (`z.instanceof(File).optional()`); `withMiddleware` has
+    // already put the files on the body for `multipart/form-data`.
+    const body = (await request.parsedBody) ?? {};
+    const dataToValidate = body as Record<string, unknown>;
     const result = schema.safeParse(dataToValidate);
 
     if (result.success) {

@@ -1,4 +1,4 @@
-import type { ApprovalReply, AssistantChannel, AssistantReply, ActionResult } from "types/assistant";
+import type { ApprovalReply, AssistantChannel, AssistantReply, ActionResult } from "@/types/assistant";
 
 import { assistantConfig } from "@/backend/services/assistant/config";
 import { assistantService } from "@/backend/services/assistant";

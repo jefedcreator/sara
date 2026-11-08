@@ -26,17 +26,22 @@ const optionalMoney = z
   })
   .transform((value) => (value === "" ? null : Number(value)));
 
-const optionSchema = z.object({
-  id: z.string().min(1).optional(),
-  name: z
-    .string()
-    .trim()
-    .max(MAX_NAME_LENGTH, `Keep the option name under ${MAX_NAME_LENGTH} characters`),
-  price: optionalMoney,
-  // Checked below only when the product tracks stock. Off means made to
-  // order, so every option's stock becomes 0.
-  stock: z.string().trim(),
-});
+const optionSchema = z
+  .object({
+    id: z.string().min(1).optional(),
+    name: z
+      .string()
+      .trim()
+      .max(
+        MAX_NAME_LENGTH,
+        `Keep the option name under ${MAX_NAME_LENGTH} characters`,
+      ),
+    price: optionalMoney,
+    // Checked below only when the product tracks stock. Off means made to
+    // order, so every option's stock becomes 0.
+    stock: z.string().trim(),
+  })
+  .strict();
 
 export const productFormSchema = z
   .object({
@@ -74,7 +79,10 @@ export const productFormSchema = z
       if (option.name) {
         const key = option.name.toLowerCase();
         if (names.has(key)) {
-          issue(["options", index, "name"], "Each option needs a different name");
+          issue(
+            ["options", index, "name"],
+            "Each option needs a different name",
+          );
         } else {
           names.set(key, index);
         }

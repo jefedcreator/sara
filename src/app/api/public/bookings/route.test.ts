@@ -19,6 +19,7 @@ function postReq(body: unknown) {
   });
 }
 
+const CONTEXT = { params: Promise.resolve({}) };
 const START = new Date(Date.now() + 24 * 3600 * 1000).toISOString();
 const END = new Date(Date.now() + 25 * 3600 * 1000).toISOString();
 
@@ -31,14 +32,14 @@ describe("POST /api/public/bookings", () => {
     });
     const res = await POST(postReq({
       serviceSlug: "haircut", startTime: START, endTime: END, clientName: "Ada",
-    }));
+    }), CONTEXT);
     expect(res.status).toBe(201);
     const json = await res.json();
     expect(json.data.paymentUrl).toBe("https://paystack.test/pay");
   });
 
   it("returns 422 when required fields are missing", async () => {
-    const res = await POST(postReq({ serviceSlug: "haircut" }));
+    const res = await POST(postReq({ serviceSlug: "haircut" }), CONTEXT);
     expect(res.status).toBe(422);
     expect(mockedBooking.createWithPayment).not.toHaveBeenCalled();
   });
@@ -47,7 +48,7 @@ describe("POST /api/public/bookings", () => {
     mockedBooking.createWithPayment.mockRejectedValue(new BadRequestException("Slot taken"));
     const res = await POST(postReq({
       serviceSlug: "haircut", startTime: START, endTime: END, clientName: "Ada",
-    }));
+    }), CONTEXT);
     expect(res.status).toBe(400);
   });
 });

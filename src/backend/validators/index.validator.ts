@@ -98,13 +98,17 @@ export const timeValidator = (field: string) =>
       `${field} must be in HH:MM 24-hour format (e.g. "08:00")`,
     );
 
-export const slugParamValidator = z.object({
-  slug: z.string().min(1, "slug is required"),
-});
+export const slugParamValidator = z
+  .object({
+    slug: z.string().min(1, "slug is required"),
+  })
+  .strict();
 
-export const nextAuthPathParamValidator = z.object({
-  nextauth: z.array(z.string().min(1)).min(1, "nextauth path is required"),
-});
+export const nextAuthPathParamValidator = z
+  .object({
+    nextauth: z.array(z.string().min(1)).min(1, "nextauth path is required"),
+  })
+  .strict();
 
 type StripDefault<S> =
   S extends z.ZodOptional<infer Inner>
@@ -130,6 +134,9 @@ export function withoutDefaults<T extends z.ZodRawShape>(shape: T) {
     return schema;
   };
   return Object.fromEntries(
-    Object.entries(shape).map(([key, schema]) => [key, strip(schema as z.ZodType)]),
+    Object.entries(shape).map(([key, schema]) => [
+      key,
+      strip(schema as z.ZodType),
+    ]),
   ) as unknown as { [K in keyof T]: StripDefault<T[K]> };
 }

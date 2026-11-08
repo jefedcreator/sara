@@ -3,7 +3,7 @@ import type { FunctionTool } from "openai/resources/responses/responses";
 import { z } from "zod";
 
 import { db } from "@/server/db";
-import type { DraftDto } from "types/assistant";
+import type { DraftDto } from "@/types/assistant";
 import { createDraft } from "../actions/drafts";
 import { resolveDraft } from "../actions/resolve";
 import { draftRequestSchema, type DraftRequest } from "../actions/schemas";

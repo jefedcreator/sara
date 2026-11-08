@@ -8,7 +8,7 @@ import {
   type FocusEvent,
   type KeyboardEvent,
 } from "react";
-import type { AtlasGeocodeResult } from "types/atlas";
+import type { AtlasGeocodeResult } from "@/types/atlas";
 
 // ---------------------------------------------------------------------------
 // AddressAutocomplete — Typeahead address input powered by Atlas geocoding

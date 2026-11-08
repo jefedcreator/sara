@@ -1,4 +1,4 @@
-import type { PublicServiceDto } from "types";
+import type { PublicServiceDto } from "@/types";
 
 import { availabilityService } from "@/backend/services/availability";
 import { db } from "@/server/db";

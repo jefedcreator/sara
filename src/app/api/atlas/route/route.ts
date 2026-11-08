@@ -1,8 +1,8 @@
 import { atlasService } from "@/backend/services/atlas";
 import { InternalServerErrorException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
-import type { AtlasRouteResult } from "types/atlas";
+import type { ApiResponse } from "@/types";
+import type { AtlasRouteResult } from "@/types/atlas";
 import { withMiddleware } from "@/backend/middleware";
 import { optionalAuthMiddleware, bodyValidatorMiddleware } from "@/backend/middleware";
 import { atlasRouteBodyValidatorSchema, type AtlasRouteBodyValidatorSchema } from "@/backend/validators/atlas.validator";

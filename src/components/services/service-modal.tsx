@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ImageSquare } from "@phosphor-icons/react/dist/ssr";
 import { useCallback, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import type { ServiceDto } from "types";
+import type { ServiceDto } from "@/types";
 
 import {
   serviceFormSchema,

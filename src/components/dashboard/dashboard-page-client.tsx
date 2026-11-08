@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { DashboardData, ProductDto, Sells, ServiceDto } from "types";
+import type { DashboardData, ProductDto, Sells, ServiceDto } from "@/types";
 
 import { DocumentModal } from "@/components/documents/document-modal";
 import { useDashboardQuery } from "@/hooks/queries/use-dashboard";

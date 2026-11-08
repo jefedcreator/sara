@@ -4,7 +4,7 @@ import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { useSearchParams } from "next/navigation";
 import { useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
-import type { InvoiceDto, Page, ServiceDto } from "types";
+import type { InvoiceDto, Page, ServiceDto } from "@/types";
 
 import type { PaymentFormSchema } from "@/backend/validators/document-form.validator";
 import { DOCUMENT_GRID, DocumentCardSkeleton } from "@/components/documents/document-card";

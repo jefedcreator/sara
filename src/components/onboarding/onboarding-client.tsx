@@ -5,7 +5,7 @@ import { isAxiosError } from "axios";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import type { Sells } from "types";
+import type { Sells } from "@/types";
 
 import {
   businessSetupFormSchema,
@@ -21,7 +21,7 @@ import {
   Notice,
   Segmented,
 } from "@/primitives";
-import { useMonoConnect } from "@/utils/hooks/useMonoConnect";
+import { useMonoConnect } from "@/hooks/use-mono-connect";
 
 const SELLING_OPTIONS = [
   { value: "SERVICES", label: "Services" },

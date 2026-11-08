@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import type { BusinessProfileDto } from "types";
+import type { BusinessProfileDto } from "@/types";
 
 import { Button, Field, Input, Notice, Segmented, Switch } from "@/primitives";
 import type { BusinessUpdateInput } from "@/utils/api";

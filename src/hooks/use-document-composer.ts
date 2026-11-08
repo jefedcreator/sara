@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { InvoiceDto, ProductDto, ReceiptDto } from "types";
+import type { InvoiceDto, ProductDto, ReceiptDto } from "@/types";
 
 import { optionLabel } from "@/utils/labels";
 

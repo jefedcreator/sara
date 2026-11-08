@@ -15,7 +15,7 @@ import {
 } from "@/utils/exceptions";
 import type { Customer } from "@prisma/client";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 
 /**
  * @body MergeCustomerValidatorSchema

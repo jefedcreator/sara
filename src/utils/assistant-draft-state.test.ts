@@ -1,4 +1,4 @@
-import type { DraftDto } from "types";
+import type { DraftDto } from "@/types";
 import { describe, expect, it } from "vitest";
 
 import { nextAssistantDraftState } from "./assistant-draft-state";

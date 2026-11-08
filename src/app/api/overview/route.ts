@@ -14,7 +14,7 @@ import {
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 
 // --- Query Validator ---
 

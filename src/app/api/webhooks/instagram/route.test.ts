@@ -17,6 +17,8 @@ import { instagramAdapter } from "@/backend/services/messaging/channels/instagra
 import { conversationEngine } from "@/backend/services/messaging/engine";
 import { GET, POST, maxDuration, runtime } from "./route";
 
+const CONTEXT = { params: Promise.resolve({}) };
+
 const handle = vi.mocked(conversationEngine.handle);
 function postReq(rawBody: string, validSignature = true) {
   const signature = crypto.createHmac("sha256", "app_secret").update(rawBody).digest("hex");
@@ -41,7 +43,7 @@ beforeEach(() => {
 
 describe("Instagram webhook", () => {
   it("preserves GET verification and deployment settings", async () => {
-    const response = await GET(new Request("https://x/api/webhooks/instagram?hub.mode=subscribe&hub.verify_token=ig_verify&hub.challenge=C9"));
+    const response = await GET(new Request("https://x/api/webhooks/instagram?hub.mode=subscribe&hub.verify_token=ig_verify&hub.challenge=C9"), CONTEXT);
     expect(await response.text()).toBe("C9");
     expect(runtime).toBe("nodejs");
     expect(maxDuration).toBe(60);
@@ -51,7 +53,7 @@ describe("Instagram webhook", () => {
     let finish!: (reply: OutboundMessage) => void;
     handle.mockImplementationOnce(() => new Promise((resolve) => { finish = resolve; }));
     const signedRequest = postReq(payload());
-    const response = await POST(signedRequest);
+    const response = await POST(signedRequest, CONTEXT);
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ status: "ok" });
     expect(handle).not.toHaveBeenCalled();
@@ -66,16 +68,16 @@ describe("Instagram webhook", () => {
   });
 
   it("verifies the exact raw body and schedules nothing for invalid or changed signatures", async () => {
-    expect((await POST(postReq(payload(), false))).status).toBe(403);
+    expect((await POST(postReq(payload(), false), CONTEXT)).status).toBe(403);
     const signed = postReq(payload());
     const changedBody = new Request(signed.url, { method: "POST", body: `${payload()} `, headers: signed.headers });
-    expect((await POST(changedBody)).status).toBe(403);
+    expect((await POST(changedBody, CONTEXT)).status).toBe(403);
     expect(callbacks).toHaveLength(0);
     expect(handle).not.toHaveBeenCalled();
   });
 
   it.each(["{private malformed", '{"entry":{}}'])("handles malformed verified payloads before scheduling: %s", async (rawBody) => {
-    expect((await POST(postReq(rawBody))).status).toBe(200);
+    expect((await POST(postReq(rawBody), CONTEXT)).status).toBe(200);
     expect(callbacks).toHaveLength(0);
     expect(handle).not.toHaveBeenCalled();
     expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("private malformed");
@@ -86,7 +88,7 @@ describe("Instagram webhook", () => {
     const response = await POST(postReq(payload([
       { sender: { id: "igsid_1" }, message: { mid: "mid_1", text: "Create an invoice" } },
       { sender: { id: "igsid_1" }, message: { mid: "mid_2", text: "send it" } },
-    ])));
+    ])), CONTEXT);
     expect(response.status).toBe(200);
     expect(normalize).toHaveBeenCalledTimes(1);
     expect(handle).not.toHaveBeenCalled();
@@ -102,7 +104,7 @@ describe("Instagram webhook", () => {
       { sender: { id: "igsid_1" }, message: { mid: "audio", attachments: [{ type: "audio", payload: { url: "https://media.test/private" } }] } },
       { sender: { id: "igsid_1" }, postback: { title: "Send it", payload: "assistant:send:a" } },
     ] }] });
-    expect((await POST(postReq(rawBody))).status).toBe(200);
+    expect((await POST(postReq(rawBody), CONTEXT)).status).toBe(200);
     expect(callbacks).toHaveLength(0);
     expect(handle).not.toHaveBeenCalled();
   });
@@ -115,7 +117,7 @@ describe("Instagram webhook", () => {
       await options?.onProgress?.({ text: "One moment…" });
       return { text: summary, buttons: [{ id: "assistant:send:a", title: "Send it" }] };
     });
-    await POST(postReq(payload()));
+    await POST(postReq(payload()), CONTEXT);
     expect(fetchMock).not.toHaveBeenCalled();
     await callbacks.shift()!();
     expect(handle).toHaveBeenCalledWith(expect.objectContaining({ channel: "INSTAGRAM", kind: "text", text: "yes" }), expect.any(Object));
@@ -133,7 +135,7 @@ describe("Instagram webhook", () => {
     await POST(postReq(payload([
       { sender: { id: "private-owner" }, message: { mid: "mid_1", text: "private transcript" } },
       { sender: { id: "other-owner" }, message: { mid: "mid_2", text: "hello" } },
-    ])));
+    ])), CONTEXT);
     await callbacks.shift()!();
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(console.error).toHaveBeenCalledWith("[Instagram] send_failed", { status: 400, code: 10 });

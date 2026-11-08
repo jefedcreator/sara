@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import type { InvoiceDto } from "types";
+import type { InvoiceDto } from "@/types";
 import { describe, expect, it, vi } from "vitest";
 
 import { InvoiceRow } from "./invoice-row";

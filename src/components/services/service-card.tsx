@@ -1,8 +1,8 @@
 import { PencilSimple, Trash } from "@phosphor-icons/react/dist/ssr";
 import Image from "next/image";
-import type { ServiceDto } from "types";
+import type { ServiceDto } from "@/types";
 
-import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
+import { CopyLinkButton } from "@/components/landing/copy-link-button";
 import { Button, LogoMark, Skeleton, StatusPill, Switch } from "@/primitives";
 import { cn } from "@/utils/cn";
 import { formatDuration, formatMoney, unitNoun } from "@/utils/format";

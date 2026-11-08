@@ -22,7 +22,7 @@ import {
 import { type Service } from "@prisma/client";
 import { addDays } from "@/utils/format";
 import { NextResponse } from "next/server";
-import type { ApiResponse, ServiceDetail, TimeSlot } from "types";
+import type { ApiResponse, ServiceDetail, TimeSlot } from "@/types";
 
 /**
  * @body UpdateServiceValidatorSchema

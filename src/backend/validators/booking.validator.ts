@@ -3,40 +3,50 @@ import { baseQueryValidatorSchema, dateValidator } from "./index.validator";
 
 const cuidValidator = z.string().cuid("id must be a valid cuid");
 
-export const bookingValidatorSchema = z.object({
-  serviceId: cuidValidator,
-  startTime: dateValidator("startTime"),
-  endTime: dateValidator("endTime").optional(),
-  units: z.coerce.number().int().min(1, "units must be at least 1").max(90, "units cannot exceed 90").optional(),
+export const bookingValidatorSchema = z
+  .object({
+    serviceId: cuidValidator,
+    startTime: dateValidator("startTime"),
+    endTime: dateValidator("endTime").optional(),
+    units: z.coerce
+      .number()
+      .int()
+      .min(1, "units must be at least 1")
+      .max(90, "units cannot exceed 90")
+      .optional(),
 
-  // Client Details
-  clientName: z
-    .string()
-    .min(1, "clientName cannot be empty")
-    .max(255, "clientName cannot exceed 255 characters"),
-  clientEmail: z.string().email("clientEmail must be a valid email").optional(),
-  clientPhone: z
-    .string()
-    .max(20, "clientPhone cannot exceed 20 characters")
-    .optional(),
+    // Client Details
+    clientName: z
+      .string()
+      .min(1, "clientName cannot be empty")
+      .max(255, "clientName cannot exceed 255 characters"),
+    clientEmail: z
+      .string()
+      .email("clientEmail must be a valid email")
+      .optional(),
+    clientPhone: z
+      .string()
+      .max(20, "clientPhone cannot exceed 20 characters")
+      .optional(),
 
-  notes: z
-    .string()
-    .max(1000, "notes cannot exceed 1000 characters")
-    .optional(),
+    notes: z
+      .string()
+      .max(1000, "notes cannot exceed 1000 characters")
+      .optional(),
 
-  // Client geolocation (optional — used for Atlas routing)
-  clientLat: z.coerce
-    .number()
-    .min(-90, "clientLat must be ≥ -90")
-    .max(90, "clientLat must be ≤ 90")
-    .optional(),
-  clientLong: z.coerce
-    .number()
-    .min(-180, "clientLong must be ≥ -180")
-    .max(180, "clientLong must be ≤ 180")
-    .optional(),
-});
+    // Client geolocation (optional — used for Atlas routing)
+    clientLat: z.coerce
+      .number()
+      .min(-90, "clientLat must be ≥ -90")
+      .max(90, "clientLat must be ≤ 90")
+      .optional(),
+    clientLong: z.coerce
+      .number()
+      .min(-180, "clientLong must be ≥ -180")
+      .max(180, "clientLong must be ≤ 180")
+      .optional(),
+  })
+  .strict();
 
 export const bookingQueryValidatorSchema = baseQueryValidatorSchema
   .partial()
@@ -121,11 +131,32 @@ export const bookingDetailsFormSchema = z
       .refine((v) => v === "" || /^\+?[\d\s-]{7,19}$/.test(v), {
         message: "Enter a valid phone number, like 0803 123 4567",
       }),
-    notes: z
-      .string()
-      .trim()
-      .max(1000, "Keep notes under 1,000 characters"),
+    notes: z.string().trim().max(1000, "Keep notes under 1,000 characters"),
   })
   .strict();
 
 export type BookingDetailsFormSchema = z.infer<typeof bookingDetailsFormSchema>;
+
+/**
+ * `POST /api/public/bookings` — the customer-facing booking page's payload.
+ * A slot booking sends `startTime`; stays and rentals send `units` and the
+ * server works out the end. Email is optional here; the form above requires
+ * it because confirmations go to it.
+ */
+export const publicBookingValidatorSchema = z
+  .object({
+    serviceSlug: z.string().min(1, "serviceSlug is required"),
+    startTime: z.coerce.date(),
+    // Slot services only; stays and rentals send units and the server works out the end.
+    endTime: z.coerce.date().optional(),
+    units: z.coerce.number().int().min(1).max(90).optional(),
+    clientName: z.string().min(1, "clientName is required").max(255),
+    clientEmail: z.string().email("clientEmail must be a valid email").optional(),
+    clientPhone: z.string().max(20).optional(),
+    notes: z.string().max(1000).optional(),
+  })
+  .strict();
+
+export type PublicBookingValidatorSchema = z.infer<
+  typeof publicBookingValidatorSchema
+>;

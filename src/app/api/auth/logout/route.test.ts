@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 vi.mock("@/backend/services/auth", () => ({
   authService: {
@@ -26,13 +26,13 @@ describe("POST /api/auth/logout", () => {
       method: "POST",
     });
 
-    const response = await POST(request);
+    const response = await POST(request, { params: Promise.resolve({}) });
 
     expect(authService.signOut).toHaveBeenCalledWith(request);
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
       "https://sara.84-12-92-46.sslip.io/",
     );
-    expect(response.cookies.get("sara-auth")?.value).toBe("");
+    expect((response as NextResponse).cookies.get("sara-auth")?.value).toBe("");
   });
 });

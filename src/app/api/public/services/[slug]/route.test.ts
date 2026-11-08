@@ -52,7 +52,7 @@ describe("GET /api/public/services/[slug]", () => {
     const res = await GET(req("garbage"), { params: Promise.resolve({ slug: "haircut" }) });
     expect(res.status).toBe(422);
     const json = await res.json();
-    expect(json.message).toBe("date must be in YYYY-MM-DD format");
+    expect(json.message).toBe("Invalid query parameter: date must be in YYYY-MM-DD format");
     expect(mockedAvail.getAvailableSlots).not.toHaveBeenCalled();
   });
 });

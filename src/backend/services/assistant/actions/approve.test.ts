@@ -25,7 +25,7 @@ vi.mock("./resolve", () => ({ resolveDraft: vi.fn() }));
 vi.mock("./execute", () => ({ executeAction: vi.fn(), finalizeEffects: vi.fn() }));
 vi.mock("./summary", () => ({ renderSummary: vi.fn() }));
 
-import type { ActionResult } from "types/assistant";
+import type { ActionResult } from "@/types/assistant";
 import { assistantConfig } from "../config";
 import type { AssistantScope } from "../types";
 import { recordApprovalUsage } from "../usage";

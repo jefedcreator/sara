@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { ProductDto } from "types";
+import type { ProductDto } from "@/types";
 
 import { lineStockWarning, stockWarning } from "./use-document-composer";
 

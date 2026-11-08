@@ -3,7 +3,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { useState } from "react";
-import type { PublicServiceDto } from "types";
+import type { PublicServiceDto } from "@/types";
 
 import type { BookingDetailsFormSchema } from "@/backend/validators/booking.validator";
 import { useCreatePublicBookingMutation } from "@/hooks/mutations/use-booking-mutations";

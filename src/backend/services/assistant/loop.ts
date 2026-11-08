@@ -1,6 +1,6 @@
 import type OpenAI from "openai";
 import type { ResponseCreateParamsNonStreaming, ResponseInput, ResponseOutputItem, ResponseUsage } from "openai/resources/responses/responses";
-import type { DraftDto } from "types/assistant";
+import type { DraftDto } from "@/types/assistant";
 import { assistantConfig, MAX_OUTPUT_TOKENS, MAX_ROUNDS } from "./config";
 import { lagosDay } from "./clock";
 import { getOpenAI } from "./openai";

@@ -10,7 +10,7 @@ import {
 import { publicBusinessSelect } from "@/backend/selects";
 import { customerService } from "@/backend/services/customer";
 import { db } from "@/server/db";
-import { type ApiResponse, type ReceiptListItem } from "types";
+import { type ApiResponse, type ReceiptListItem } from "@/types";
 import {
   BadRequestException,
   ForbiddenException,

@@ -4,7 +4,7 @@ import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { useSearchParams } from "next/navigation";
 import { useQueryStates } from "nuqs";
 import { useEffect, useRef, useState } from "react";
-import type { Page, ReceiptDto, ServiceDto } from "types";
+import type { Page, ReceiptDto, ServiceDto } from "@/types";
 
 import { DOCUMENT_GRID, DocumentCardSkeleton } from "@/components/documents/document-card";
 import { DocumentModal } from "@/components/documents/document-modal";

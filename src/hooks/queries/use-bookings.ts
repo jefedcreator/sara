@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import type { BookingDto, Page } from "types";
+import type { BookingDto, Page } from "@/types";
 
 import { api, type BookingListParams } from "@/utils/api";
 

@@ -22,7 +22,7 @@ import {
 } from "@/utils/exceptions";
 import { Prisma, type Receipt } from "@prisma/client";
 import { NextResponse } from "next/server";
-import type { ApiResponse, ReceiptListItem, PaginatedApiResponse } from "types";
+import type { ApiResponse, ReceiptListItem, PaginatedApiResponse } from "@/types";
 
 /**
  * @body ReceiptValidatorSchema

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { OrderDto } from "types";
+import type { OrderDto } from "@/types";
 
 import { CopyLinkIconButton } from "@/components/copy-link-icon-button";
 import { Button, Field, Input, StatusPill } from "@/primitives";

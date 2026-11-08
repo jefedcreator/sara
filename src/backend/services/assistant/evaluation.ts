@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import type { ResponseOutputItem, ResponseUsage } from "openai/resources/responses/responses";
-import type { DraftDto } from "types/assistant";
+import type { DraftDto } from "@/types/assistant";
 import { EVALUATION_CASES, type EvaluationCase } from "../../../../evals/assistant/cases";
 import { CANNED_CALLS } from "../../../../evals/assistant/canned";
 import { createFixtureDispatcher } from "../../../../evals/assistant/dispatcher";

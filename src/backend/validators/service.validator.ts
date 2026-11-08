@@ -1,7 +1,12 @@
 import { z } from "zod";
+import { daysBetween } from "@/utils/format";
+
 import { baseQueryValidatorSchema, withoutDefaults } from "./index.validator";
 
 const cuidValidator = z.string().cuid("id must be a valid cuid");
+
+/** A month plus the longest stay (90 nights). */
+const MAX_WINDOW_DAYS = 125;
 
 const serviceBaseSchema = z.object({
   name: z
@@ -144,7 +149,22 @@ export const serviceDetailQueryValidatorSchema = z
     /** A booking's slug whose own time counts as free (it's the one being moved). */
     exclude: z.string().max(255).optional(),
   })
-  .strict();
+  .strict()
+  .refine((query) => (query.from === undefined) === (query.to === undefined), {
+    message: "from and to go together",
+    path: ["from"],
+  })
+  .refine(
+    (query) =>
+      query.from === undefined ||
+      query.to === undefined ||
+      (daysBetween(query.from, query.to) >= 1 &&
+        daysBetween(query.from, query.to) <= MAX_WINDOW_DAYS),
+    {
+      message: `to must be 1 to ${MAX_WINDOW_DAYS} days after from`,
+      path: ["to"],
+    },
+  );
 
 export type ServiceValidatorSchema = z.infer<typeof serviceValidatorSchema>;
 export type UpdateServiceValidatorSchema = z.infer<

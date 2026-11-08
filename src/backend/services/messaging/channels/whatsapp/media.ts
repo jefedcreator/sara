@@ -66,7 +66,7 @@ function trustedMediaUrl(value: unknown): URL {
 export async function downloadWhatsAppAudio(mediaId: string, signal: AbortSignal): Promise<AudioInput> {
   throwIfAudioAborted(signal);
   if (!/^\d{1,100}$/.test(mediaId)) throw new AudioError("AUDIO_UNREADABLE");
-  const token = env.WHATSAPP_TOKEN ?? process.env.WHATSAPP_TOKEN;
+  const token = env.WHATSAPP_TOKEN;
   if (!token) throw new AudioError("AUDIO_UNREADABLE");
   const options = { headers: { Authorization: `Bearer ${token}` }, redirect: "error" as const, signal };
   try {

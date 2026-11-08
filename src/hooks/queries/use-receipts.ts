@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import type { Page, ReceiptDto } from "types";
+import type { Page, ReceiptDto } from "@/types";
 
 import { api } from "@/utils/api";
 

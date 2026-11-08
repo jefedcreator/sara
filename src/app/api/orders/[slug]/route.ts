@@ -15,7 +15,7 @@ import {
   NotFoundException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse, OrderDto } from "types";
+import type { ApiResponse, OrderDto } from "@/types";
 
 /**
  * @pathParams slug

@@ -2,7 +2,7 @@
 
 import { useQueryStates } from "nuqs";
 import { useState } from "react";
-import type { BookingDto, Page } from "types";
+import type { BookingDto, Page } from "@/types";
 
 import {
   useRescheduleBookingMutation,

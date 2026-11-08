@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { ProductDto } from "types";
+import type { ProductDto } from "@/types";
 
 import { api } from "@/utils/api";
 

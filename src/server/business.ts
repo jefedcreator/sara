@@ -6,7 +6,7 @@ import type {
   BusinessProfileDto,
   ProductDto,
   ServiceDto,
-} from "types";
+} from "@/types";
 
 import { db } from "@/server/db";
 

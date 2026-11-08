@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import type { OrderDto } from "types";
+import type { OrderDto } from "@/types";
 import { describe, expect, it } from "vitest";
 
 import { OrderRow } from "./order-row";

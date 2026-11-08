@@ -1,4 +1,4 @@
-import type { BookingDto } from "types";
+import type { BookingDto } from "@/types";
 
 import { CopyLinkIconButton } from "@/components/copy-link-icon-button";
 import { Button, StatusPill } from "@/primitives";

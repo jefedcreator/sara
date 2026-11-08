@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { CustomerListItem } from "types";
+import type { CustomerListItem } from "@/types";
 
 import { formatMoney } from "@/utils/format";
 

@@ -8,7 +8,7 @@ import type {
   OrderDto,
   Page,
   ReceiptDto,
-} from "types";
+} from "@/types";
 
 import {
   bookingListInclude,

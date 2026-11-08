@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse, DashboardData } from "types";
+import type { ApiResponse, DashboardData } from "@/types";
 
 export const runtime = "nodejs";
 

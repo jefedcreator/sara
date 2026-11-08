@@ -4,7 +4,7 @@ import type {
   AssistantChannel,
   AssistantReply,
   DraftDto,
-} from "types/assistant";
+} from "@/types/assistant";
 
 /**
  * The trusted identity of one assistant conversation.

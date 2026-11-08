@@ -5,9 +5,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent, type Keyboard
 
 import { useAssistant } from "@/hooks/use-assistant";
 import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
-import { Button } from "@/primitives/Button";
-import { Textarea } from "@/primitives/Input";
-import { Modal } from "@/primitives/Modal";
+import { Button, Modal, Textarea } from "@/primitives";
 
 import { DraftCard } from "./draft-card";
 import { MessageList } from "./message-list";

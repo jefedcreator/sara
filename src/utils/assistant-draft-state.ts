@@ -1,4 +1,4 @@
-import type { DraftDto } from "types";
+import type { DraftDto } from "@/types";
 
 /** Reconcile server previews without making an uncertain old draft actionable. */
 export function nextAssistantDraftState(

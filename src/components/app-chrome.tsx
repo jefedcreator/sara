@@ -6,8 +6,7 @@ import { usePathname } from "next/navigation";
 import { useRef, useState } from "react";
 
 import { AssistantPanel } from "@/components/assistant/assistant-panel";
-import { Wordmark } from "@/primitives";
-import { Button } from "@/primitives/Button";
+import { Button, Wordmark } from "@/primitives";
 import { cn } from "@/utils/cn";
 
 /** Everything the chat menu does, plus the setup the chat can't do. */

@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 
 /**
  * @description Disconnects Google Calendar from the authenticated user's

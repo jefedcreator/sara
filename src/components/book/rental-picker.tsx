@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { PublicServiceDto, TimeSlot } from "types";
+import type { PublicServiceDto, TimeSlot } from "@/types";
 
 import { usePublicPickupsQuery } from "@/hooks/queries/use-public-service";
 import { Notice } from "@/primitives";

@@ -5,7 +5,7 @@ import {
   InternalServerErrorException,
 } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 import { appBaseUrl } from "@/utils/url";
 
 export const runtime = "nodejs";

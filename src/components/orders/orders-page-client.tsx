@@ -2,7 +2,7 @@
 
 import { useQueryStates } from "nuqs";
 import { useState } from "react";
-import type { OrderDto, Page } from "types";
+import type { OrderDto, Page } from "@/types";
 
 import { useUpdateOrderMutation } from "@/hooks/mutations/use-order-mutations";
 import { useOrdersQuery } from "@/hooks/queries/use-orders";

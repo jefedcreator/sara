@@ -1,5 +1,5 @@
 import { cache } from "react";
-import type { PublicServiceDto } from "types";
+import type { PublicServiceDto } from "@/types";
 
 import { catalogService } from "@/backend/services/catalog";
 import { db } from "@/server/db";

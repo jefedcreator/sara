@@ -1,6 +1,6 @@
 import { withMiddleware } from "@/backend/middleware";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 
 interface HealthData {
   ok: boolean;

@@ -1,7 +1,5 @@
 import { env } from "@/env";
 import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
 
 // --- Constants ---
 
@@ -137,29 +135,7 @@ class PaystackService {
   private readonly baseUrl = "https://api.paystack.co";
 
   private getSecretKey(): string {
-    let key = process.env.PAYSTACK_SECRET_KEY || env.PAYSTACK_SECRET_KEY;
-
-    if (!key && process.env.NODE_ENV !== "production") {
-      try {
-        const cwd = process.cwd();
-        for (const file of [".env.local", ".env"]) {
-          const filePath = path.resolve(cwd, file);
-          if (fs.existsSync(filePath)) {
-            const content = fs.readFileSync(filePath, "utf-8");
-            const match = content.match(
-              /^PAYSTACK_SECRET_KEY\s*=\s*["']?([^"'\r\n]+)["']?/m,
-            );
-            if (match?.[1]) {
-              key = match[1].trim();
-              process.env.PAYSTACK_SECRET_KEY = key;
-              break;
-            }
-          }
-        }
-      } catch {
-        // Ignore filesystem read errors in restricted environments
-      }
-    }
+    const key = env.PAYSTACK_SECRET_KEY;
 
     if (!key) {
       throw new Error(
@@ -319,8 +295,7 @@ class PaystackService {
    * @returns `true` if the signature is valid.
    */
   verifyWebhookSignature(rawBody: string, signature: string): boolean {
-    let secretKey =
-      process.env.PAYSTACK_WEBHOOK_SECRET || env.PAYSTACK_WEBHOOK_SECRET;
+    let secretKey = env.PAYSTACK_WEBHOOK_SECRET;
 
     if (!secretKey) {
       try {

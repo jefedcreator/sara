@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import type { BusinessClosureDto, BusinessHoursDto } from "types";
+import type { BusinessClosureDto, BusinessHoursDto } from "@/types";
 
 import { api } from "@/utils/api";
 

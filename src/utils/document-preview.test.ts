@@ -1,4 +1,4 @@
-import type { InvoiceDto, ReceiptDto } from "types";
+import type { InvoiceDto, ReceiptDto } from "@/types";
 import { describe, expect, it } from "vitest";
 
 import { invoicePreview, PREVIEW_ITEMS, receiptPreview } from "./document-preview";

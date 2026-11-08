@@ -10,13 +10,13 @@ import type {
   ProductDto,
   ReceiptDto,
   ServiceDto,
-} from "types";
+} from "@/types";
 
 import {
   documentFormSchema,
   type DocumentFormSchema,
 } from "@/backend/validators/document-form.validator";
-import { CopyLinkButton } from "@/app/components/landing/CopyLinkButton";
+import { CopyLinkButton } from "@/components/landing/copy-link-button";
 import { optionLabel } from "@/utils/labels";
 import { useCustomersQuery } from "@/hooks/queries/use-customers";
 import { useProductsQuery } from "@/hooks/queries/use-products";

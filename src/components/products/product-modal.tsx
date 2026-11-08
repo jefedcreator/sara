@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Plus, X } from "@phosphor-icons/react/dist/ssr";
 import { useCallback, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import type { ProductDto } from "types";
+import type { ProductDto } from "@/types";
 
 import {
   productFormSchema,

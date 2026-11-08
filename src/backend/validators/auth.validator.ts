@@ -1,14 +1,18 @@
 import z from "zod";
 
-export const oauthAuthorizationQueryValidatorSchema = z.object({
-  next: z.string().optional(),
-});
+export const oauthAuthorizationQueryValidatorSchema = z
+  .object({
+    next: z.string().optional(),
+  })
+  .strict();
 
-export const oauthCallbackQueryValidatorSchema = z.object({
-  code: z.string().optional(),
-  state: z.string().optional(),
-  error: z.string().optional(),
-});
+export const oauthCallbackQueryValidatorSchema = z
+  .object({
+    code: z.string().optional(),
+    state: z.string().optional(),
+    error: z.string().optional(),
+  })
+  .strict();
 
 export type OAuthAuthorizationQueryValidatorSchema = z.infer<
   typeof oauthAuthorizationQueryValidatorSchema

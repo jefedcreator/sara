@@ -2,7 +2,7 @@ import {
   parseMoney,
   type DocumentFormSchema,
 } from "@/backend/validators/document-form.validator";
-import type { InvoiceDto, ReceiptDto } from "types";
+import type { InvoiceDto, ReceiptDto } from "@/types";
 
 import type { DocumentLineInput, ReceiptSaleInput } from "./api";
 

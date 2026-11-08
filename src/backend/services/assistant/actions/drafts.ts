@@ -1,7 +1,7 @@
 import { Prisma, type AssistantAction, type AssistantConversation } from "@prisma/client";
 
 import { db } from "@/server/db";
-import type { DraftDto } from "types/assistant";
+import type { DraftDto } from "@/types/assistant";
 
 import type { AssistantScope } from "../types";
 import { renderSummary } from "./summary";

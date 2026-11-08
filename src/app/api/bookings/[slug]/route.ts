@@ -16,7 +16,7 @@ import {
 } from "@/utils/exceptions";
 import { type Booking } from "@prisma/client";
 import { NextResponse } from "next/server";
-import type { ApiResponse, IBooking } from "types";
+import type { ApiResponse, IBooking } from "@/types";
 
 /**
  * @pathParams slug

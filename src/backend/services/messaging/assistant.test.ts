@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ActionResult, ApprovalReply, AssistantReply } from "types/assistant";
+import type { ActionResult, ApprovalReply, AssistantReply } from "@/types/assistant";
 
 // Keep these pure presentation tests independent of SDK/environment configuration.
 vi.mock("../assistant/config", () => ({ assistantConfig: vi.fn() }));

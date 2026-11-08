@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import type { PublicBookingInput } from "types";
+import type { PublicBookingInput } from "@/types";
 
 import { api } from "@/utils/api";
 

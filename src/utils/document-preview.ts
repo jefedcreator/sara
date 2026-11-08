@@ -1,4 +1,4 @@
-import type { InvoiceDto, ReceiptDto } from "types";
+import type { InvoiceDto, ReceiptDto } from "@/types";
 
 import { formatDate, INVOICE_STATUS, PAYMENT_METHOD } from "@/utils/labels";
 

@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useState } from "react";
-import type { CustomerDetail, CustomerListItem } from "types";
+import type { CustomerDetail, CustomerListItem } from "@/types";
 import { z } from "zod";
 
 import { useMergeCustomersMutation, useUpdateCustomerMutation } from "@/hooks/mutations/use-customer-mutations";

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { withMiddleware } from "@/backend/middleware";
 import type { AuthRequest } from "@/backend/middleware/types";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 import { HttpException } from "@/utils/exceptions";
 import { analyticsHandler } from "../handlers";
 import type * as AnalyticsKit from "../kit/analytics";

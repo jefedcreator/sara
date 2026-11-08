@@ -20,7 +20,7 @@ import {
 import { Prisma, type Service } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { serviceService } from "@/backend/services/service";
-import type { ApiResponse, ServiceListItem, PaginatedApiResponse } from "types";
+import type { ApiResponse, ServiceListItem, PaginatedApiResponse } from "@/types";
 
 /**
  * @body ServiceValidatorSchema

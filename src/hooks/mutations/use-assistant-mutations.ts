@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import type { ActionResult, ResourceKind } from "types";
+import type { ActionResult, ResourceKind } from "@/types";
 
 import { bookingKeys } from "@/hooks/queries/use-bookings";
 import { customerKeys } from "@/hooks/queries/use-customers";

@@ -3,7 +3,7 @@
 import { MagnifyingGlass } from "@phosphor-icons/react/dist/ssr";
 import { useQueryStates } from "nuqs";
 import { useEffect, useState } from "react";
-import type { CustomerListItem, Page } from "types";
+import type { CustomerListItem, Page } from "@/types";
 
 import { useCustomersQuery } from "@/hooks/queries/use-customers";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";

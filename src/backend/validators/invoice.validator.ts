@@ -40,55 +40,60 @@ export const invoiceItemValidatorSchema = z
     total: decimalValidator("total"),
   })
   .strict()
-  .refine((line) => [line.serviceId, line.productOptionId, line.name].some(Boolean), {
-    message: "A line needs a service, a product option or a name",
-    path: ["serviceId"],
-  });
+  .refine(
+    (line) => [line.serviceId, line.productOptionId, line.name].some(Boolean),
+    {
+      message: "A line needs a service, a product option or a name",
+      path: ["serviceId"],
+    },
+  );
 
-export const invoiceValidatorSchema = z.object({
-  // businessId: cuidValidator,
-  name: z
-    .string()
-    .min(1, "name cannot be empty")
-    .max(255, "name cannot exceed 255 characters"),
-  email: z
-    .string()
-    .email("email must be a valid email")
-    .max(255, "email cannot exceed 255 characters")
-    .nullable()
-    .optional(),
-  phone: z
-    .string()
-    .max(50, "phone cannot exceed 50 characters")
-    .nullable()
-    .optional(),
-  bookingId: optionalCuidValidator,
-  customerId: optionalCuidValidator,
-  // invoiceNumber: z
-  //     .string()
-  //     .max(255, "invoiceNumber cannot exceed 255 characters")
-  //     .optional(),
-  status: invoiceStatusValidatorSchema.default("DRAFT"),
-  currency: z
-    .string()
-    .max(10, "currency code too long")
-    .toUpperCase()
-    .default("NGN"),
-  subtotal: decimalValidator("subtotal"),
-  taxAmount: decimalValidator("taxAmount").default(0),
-  discount: decimalValidator("discount").default(0),
-  total: decimalValidator("total"),
-  amountPaid: decimalValidator("amountPaid").default(0),
-  dueAt: dateValidator("dueAt").nullable().optional(),
-  sentAt: dateValidator("sentAt").nullable().optional(),
-  paidAt: dateValidator("paidAt").nullable().optional(),
-  notes: z
-    .string()
-    .max(2000, "notes cannot exceed 2000 characters")
-    .nullable()
-    .optional(),
-  lines: z.array(invoiceItemValidatorSchema).optional(),
-});
+export const invoiceValidatorSchema = z
+  .object({
+    // businessId: cuidValidator,
+    name: z
+      .string()
+      .min(1, "name cannot be empty")
+      .max(255, "name cannot exceed 255 characters"),
+    email: z
+      .string()
+      .email("email must be a valid email")
+      .max(255, "email cannot exceed 255 characters")
+      .nullable()
+      .optional(),
+    phone: z
+      .string()
+      .max(50, "phone cannot exceed 50 characters")
+      .nullable()
+      .optional(),
+    bookingId: optionalCuidValidator,
+    customerId: optionalCuidValidator,
+    // invoiceNumber: z
+    //     .string()
+    //     .max(255, "invoiceNumber cannot exceed 255 characters")
+    //     .optional(),
+    status: invoiceStatusValidatorSchema.default("DRAFT"),
+    currency: z
+      .string()
+      .max(10, "currency code too long")
+      .toUpperCase()
+      .default("NGN"),
+    subtotal: decimalValidator("subtotal"),
+    taxAmount: decimalValidator("taxAmount").default(0),
+    discount: decimalValidator("discount").default(0),
+    total: decimalValidator("total"),
+    amountPaid: decimalValidator("amountPaid").default(0),
+    dueAt: dateValidator("dueAt").nullable().optional(),
+    sentAt: dateValidator("sentAt").nullable().optional(),
+    paidAt: dateValidator("paidAt").nullable().optional(),
+    notes: z
+      .string()
+      .max(2000, "notes cannot exceed 2000 characters")
+      .nullable()
+      .optional(),
+    lines: z.array(invoiceItemValidatorSchema).optional(),
+  })
+  .strict();
 
 export const updateInvoiceValidatorSchema = z
   .object({

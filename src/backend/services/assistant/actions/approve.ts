@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { withSerializable } from "@/backend/services/assistant/transaction";
 import { HttpException } from "@/utils/exceptions";
-import type { ActionResult, ApprovalReply, ResourceKind } from "types/assistant";
+import type { ActionResult, ApprovalReply, ResourceKind } from "@/types/assistant";
 
 import { assistantConfig } from "../config";
 import type { AssistantScope, Effect } from "../types";

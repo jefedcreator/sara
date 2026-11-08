@@ -1,4 +1,4 @@
-import type { TimeSlot } from "types";
+import type { TimeSlot } from "@/types";
 
 import { Skeleton } from "@/primitives";
 import { cn } from "@/utils/cn";

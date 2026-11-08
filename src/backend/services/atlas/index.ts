@@ -10,7 +10,7 @@ import type {
   AtlasRouteResult,
   AtlasSearchResponse,
   LatLon,
-} from "types/atlas";
+} from "@/types/atlas";
 
 // ---------------------------------------------------------------------------
 // AtlasService — typed HTTP client for the self-hosted Atlas server

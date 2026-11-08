@@ -2,8 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import AtlasMap, { type MapMarker } from "./AtlasMap";
-import type { AtlasRouteResult } from "types/atlas";
+import AtlasMap, { type MapMarker } from "./atlas-map";
+import type { AtlasRouteResult } from "@/types/atlas";
 
 // ---------------------------------------------------------------------------
 // RouteMap — Displays a route between a client location and a business

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import type { BusinessClosureDto, BusinessHoursDto, BusinessProfileDto } from "types";
+import type { BusinessClosureDto, BusinessHoursDto, BusinessProfileDto } from "@/types";
 
 import type { BusinessProfileFormSchema } from "@/backend/validators/business.validator";
 import {

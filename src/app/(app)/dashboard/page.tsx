@@ -1,5 +1,5 @@
 import { type Metadata } from "next";
-import type { ProductDto } from "types";
+import type { ProductDto } from "@/types";
 
 import { AppError } from "@/components/app-error";
 import { DashboardPageClient } from "@/components/dashboard/dashboard-page-client";

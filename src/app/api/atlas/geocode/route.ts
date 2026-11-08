@@ -1,8 +1,8 @@
 import { atlasService } from "@/backend/services/atlas";
 import { InternalServerErrorException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
-import type { AtlasGeocodeResult } from "types/atlas";
+import type { ApiResponse } from "@/types";
+import type { AtlasGeocodeResult } from "@/types/atlas";
 import { withMiddleware } from "@/backend/middleware";
 import { optionalAuthMiddleware, queryValidatorMiddleware } from "@/backend/middleware";
 import { atlasGeocodeQueryValidatorSchema, type AtlasGeocodeQueryValidatorSchema } from "@/backend/validators/atlas.validator";

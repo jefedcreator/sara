@@ -59,6 +59,8 @@ import { receiptService } from "@/backend/services/receipt";
 import { db } from "@/server/db";
 import { GET, POST } from "./route";
 
+const CONTEXT = { params: Promise.resolve({}) };
+
 const mockedDb = db as any;
 const mockedPaystack = paystackService as any;
 const mockedEmail = emailService as any;
@@ -117,6 +119,8 @@ function buildEvent() {
 function buildRequest(event: unknown) {
   const body = JSON.stringify(event);
   return {
+    url: "http://localhost:3000/api/webhooks/paystack",
+    method: "POST",
     text: async () => body,
     headers: { get: () => "valid-signature" },
   } as unknown as Request;
@@ -142,7 +146,7 @@ beforeEach(() => {
 
 describe("POST /api/webhooks/paystack charge.success", () => {
   it("sends a booking confirmation email after confirming the booking", async () => {
-    const response = await POST(buildRequest(buildEvent()));
+    const response = await POST(buildRequest(buildEvent()), CONTEXT);
 
     expect(response.status).toBe(200);
     expect(mockedEmail.sendBookingConfirmationEmail).toHaveBeenCalledWith(
@@ -159,7 +163,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
   });
 
   it("emails the owner about the paid booking", async () => {
-    await POST(buildRequest(buildEvent()));
+    await POST(buildRequest(buildEvent()), CONTEXT);
 
     expect(mockedEmail.sendNewBookingEmail).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -177,7 +181,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
       new Error("Resend down"),
     );
 
-    const response = await POST(buildRequest(buildEvent()));
+    const response = await POST(buildRequest(buildEvent()), CONTEXT);
 
     expect(response.status).toBe(200);
   });
@@ -190,7 +194,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     const event = buildEvent();
     event.data.customer.email = "";
 
-    await POST(buildRequest(event));
+    await POST(buildRequest(event), CONTEXT);
 
     expect(mockedEmail.sendBookingConfirmationEmail).not.toHaveBeenCalled();
   });
@@ -198,7 +202,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
   it("creates a Calendar event and persists the returned googleEventId", async () => {
     mockedCalendar.createEvent.mockResolvedValue({ googleEventId: "evt_1" });
 
-    await POST(buildRequest(buildEvent()));
+    await POST(buildRequest(buildEvent()), CONTEXT);
 
     expect(mockedCalendar.createEvent).toHaveBeenCalledWith(
       BOOKING.business,
@@ -214,7 +218,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
   it("still returns 200 when the Calendar sync fails", async () => {
     mockedCalendar.createEvent.mockRejectedValue(new Error("Google API down"));
 
-    const response = await POST(buildRequest(buildEvent()));
+    const response = await POST(buildRequest(buildEvent()), CONTEXT);
 
     expect(response.status).toBe(200);
     expect(mockedDb.booking.update).not.toHaveBeenCalledWith(
@@ -223,7 +227,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
   });
 
   it("creates a receipt and notifies the owner after confirming the booking", async () => {
-    const response = await POST(buildRequest(buildEvent()));
+    const response = await POST(buildRequest(buildEvent()), CONTEXT);
 
     expect(response.status).toBe(200);
     expect(mockedReceipt.create).toHaveBeenCalledWith(
@@ -250,7 +254,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
   it("still returns 200 and still attempts owner notification when receipt creation fails", async () => {
     mockedReceipt.create.mockRejectedValue(new Error("Receipt service down"));
 
-    const response = await POST(buildRequest(buildEvent()));
+    const response = await POST(buildRequest(buildEvent()), CONTEXT);
 
     expect(response.status).toBe(200);
     expect(mockedNotifier.notify).toHaveBeenCalledWith(
@@ -262,7 +266,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
   it("still returns 200 when owner notification fails", async () => {
     mockedNotifier.notify.mockRejectedValue(new Error("Notify channel down"));
 
-    const response = await POST(buildRequest(buildEvent()));
+    const response = await POST(buildRequest(buildEvent()), CONTEXT);
 
     expect(response.status).toBe(200);
   });
@@ -272,7 +276,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
       units: 3,
       service: { ...BOOKING.service, name: "Lekki 2-bed 4B", bookingMode: "NIGHTLY", price: 50 / 3 },
     });
-    await POST(buildRequest(buildEvent()));
+    await POST(buildRequest(buildEvent()), CONTEXT);
     expect(mockedReceipt.create).toHaveBeenCalledWith(
       expect.objectContaining({
         lines: [
@@ -284,7 +288,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
 
   it("confirms a late payment when the time is still free", async () => {
     mockedDb.booking.findUnique.mockResolvedValue({ ...BOOKING, holdExpiresAt: new Date(Date.now() - 60 * 1000) });
-    await POST(buildRequest(buildEvent()));
+    await POST(buildRequest(buildEvent()), CONTEXT);
     expect(mockedDb.booking.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ id: { not: "bkg_1" } }) }),
     );
@@ -297,7 +301,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     const real = mockedDb.$transaction.getMockImplementation();
     mockedDb.$transaction.mockRejectedValueOnce(Object.assign(new Error("conflict"), { code: "P2034" }));
     mockedDb.$transaction.mockImplementation(real);
-    const response = await POST(buildRequest(buildEvent()));
+    const response = await POST(buildRequest(buildEvent()), CONTEXT);
     expect(response.status).toBe(200);
     expect(mockedDb.$transaction).toHaveBeenCalledTimes(2);
     expect(mockedDb.booking.update).toHaveBeenCalledWith(
@@ -309,7 +313,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     mockedDb.$transaction.mockRejectedValueOnce(Object.assign(new Error("conflict"), { code: "P2034" }));
     mockedDb.$transaction.mockRejectedValueOnce(Object.assign(new Error("conflict"), { code: "P2034" }));
     
-    const response = await POST(buildRequest(buildEvent()));
+    const response = await POST(buildRequest(buildEvent()), CONTEXT);
     expect(response.status).toBe(500);
     expect(mockedDb.$transaction).toHaveBeenCalledTimes(2);
     const body = await response.json();
@@ -320,7 +324,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
     mockedDb.booking.findUnique.mockResolvedValue({ ...BOOKING, holdExpiresAt: new Date(Date.now() - 60 * 1000) });
     mockedDb.booking.findFirst.mockResolvedValue({ id: "bkg_other" });
 
-    const response = await POST(buildRequest(buildEvent()));
+    const response = await POST(buildRequest(buildEvent()), CONTEXT);
 
     expect(response.status).toBe(200);
     expect(mockedDb.booking.update).toHaveBeenCalledWith(
@@ -337,7 +341,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
   });
 
   it("records which booking the payment was for, so the booking finds its receipt", async () => {
-    await POST(buildRequest(buildEvent()));
+    await POST(buildRequest(buildEvent()), CONTEXT);
     expect(mockedDb.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ bookingId: BOOKING.id, reference: "ref_123" }),
     });
@@ -349,7 +353,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
       customerId: "cus_1",
     });
 
-    await POST(buildRequest(buildEvent()));
+    await POST(buildRequest(buildEvent()), CONTEXT);
 
     expect(mockedDb.payment.create).toHaveBeenCalledWith({
       data: expect.objectContaining({ customerId: "cus_1" }),
@@ -366,7 +370,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
       businessId: "biz_1",
     } as any;
 
-    const response = await POST(buildRequest(event));
+    const response = await POST(buildRequest(event), CONTEXT);
 
     expect(response.status).toBe(200);
     expect(mockedProcessOrderPayment).toHaveBeenCalledWith(
@@ -388,7 +392,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
       businessId: "biz_1",
     } as any;
 
-    const response = await POST(buildRequest(event));
+    const response = await POST(buildRequest(event), CONTEXT);
 
     expect(response.status).toBe(200);
     expect(mockedProcessOrderPayment).toHaveBeenCalled();
@@ -407,7 +411,7 @@ describe("POST /api/webhooks/paystack charge.success", () => {
       businessId: "biz_1",
     } as any;
 
-    const response = await POST(buildRequest(event));
+    const response = await POST(buildRequest(event), CONTEXT);
 
     expect(response.status).toBe(200);
     expect(mockedInvoicePayments.process).toHaveBeenCalledWith(
@@ -433,7 +437,7 @@ describe("GET /api/webhooks/paystack", () => {
     });
 
     const req = new Request("http://localhost:3000/api/webhooks/paystack?reference=ref_existing");
-    const res = await GET(req);
+    const res = await GET(req, CONTEXT);
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe(`http://localhost:3000/bookings/${BOOKING.publicId}`);
@@ -457,7 +461,7 @@ describe("GET /api/webhooks/paystack", () => {
     });
 
     const req = new Request("http://localhost:3000/api/webhooks/paystack?reference=ref_new");
-    const res = await GET(req);
+    const res = await GET(req, CONTEXT);
 
     expect(mockedPaystack.verifyTransaction).toHaveBeenCalledWith("ref_new");
     expect(res.status).toBe(307);
@@ -474,7 +478,7 @@ describe("GET /api/webhooks/paystack", () => {
     });
 
     const req = new Request("http://localhost:3000/api/webhooks/paystack?b=haircut-ada");
-    const res = await GET(req);
+    const res = await GET(req, CONTEXT);
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe(`http://localhost:3000/bookings/${BOOKING.publicId}`);
@@ -484,7 +488,7 @@ describe("GET /api/webhooks/paystack", () => {
     mockedDb.order.findUnique.mockResolvedValueOnce({ publicId: "ord_pub" });
 
     const req = new Request("http://localhost:3000/api/webhooks/paystack?o=tobi-hair-abc");
-    const res = await GET(req);
+    const res = await GET(req, CONTEXT);
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost:3000/orders/ord_pub");
@@ -503,7 +507,7 @@ describe("GET /api/webhooks/paystack", () => {
     });
 
     const req = new Request("http://localhost:3000/api/webhooks/paystack?reference=ref_order");
-    const res = await GET(req);
+    const res = await GET(req, CONTEXT);
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost:3000/orders/ord_pub");
@@ -531,7 +535,7 @@ describe("GET /api/webhooks/paystack", () => {
     });
 
     const req = new Request("http://localhost:3000/api/webhooks/paystack?reference=ref_order");
-    const res = await GET(req);
+    const res = await GET(req, CONTEXT);
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost:3000/orders/ord_pub");
@@ -547,7 +551,7 @@ describe("GET /api/webhooks/paystack", () => {
     mockedDb.invoice.findUnique.mockResolvedValueOnce({ publicId: "inv_pub" });
 
     const req = new Request("http://localhost:3000/api/webhooks/paystack?i=inv_pub");
-    const res = await GET(req);
+    const res = await GET(req, CONTEXT);
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost:3000/invoices/inv_pub");
@@ -566,7 +570,7 @@ describe("GET /api/webhooks/paystack", () => {
     });
 
     const req = new Request("http://localhost:3000/api/webhooks/paystack?reference=ref_inv");
-    const res = await GET(req);
+    const res = await GET(req, CONTEXT);
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost:3000/invoices/inv_pub");
@@ -590,7 +594,7 @@ describe("GET /api/webhooks/paystack", () => {
     });
 
     const req = new Request("http://localhost:3000/api/webhooks/paystack?reference=ref_inv&i=inv_pub");
-    const res = await GET(req);
+    const res = await GET(req, CONTEXT);
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost:3000/invoices/inv_pub");
@@ -604,7 +608,7 @@ describe("GET /api/webhooks/paystack", () => {
 
   it("falls back to home page when no query params are provided", async () => {
     const req = new Request("http://localhost:3000/api/webhooks/paystack");
-    const res = await GET(req);
+    const res = await GET(req, CONTEXT);
 
     expect(res.status).toBe(307);
     expect(res.headers.get("location")).toBe("http://localhost:3000/");

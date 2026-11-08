@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import type { DraftDto } from "types";
+import type { DraftDto } from "@/types";
 import { describe, expect, it } from "vitest";
 
 import { DraftCard } from "./draft-card";

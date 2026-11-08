@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ApprovalReply } from "types";
+import type { ApprovalReply } from "@/types";
 import { authenticatedCookies, mockAuthenticatedSession } from "@/backend/test-utils/mock-request";
 
 const { mockedDb, createInvoice } = vi.hoisted(() => ({ mockedDb: {

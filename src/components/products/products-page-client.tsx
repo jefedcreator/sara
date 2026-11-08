@@ -3,7 +3,7 @@
 import { Plus } from "@phosphor-icons/react/dist/ssr";
 import Link from "next/link";
 import { useState } from "react";
-import type { ProductDto } from "types";
+import type { ProductDto } from "@/types";
 
 import type { ProductFormOutput } from "@/backend/validators/product-form.validator";
 import {

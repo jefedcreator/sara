@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import type { InvoiceDto, Page } from "types";
+import type { InvoiceDto, Page } from "@/types";
 
 import { api, type InvoiceListParams } from "@/utils/api";
 

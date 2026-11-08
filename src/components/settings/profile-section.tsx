@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import type { BusinessProfileDto } from "types";
+import type { BusinessProfileDto } from "@/types";
 
 import {
   businessProfileFormSchema,

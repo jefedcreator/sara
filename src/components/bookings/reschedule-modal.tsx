@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { BookingDto, TimeSlot } from "types";
+import type { BookingDto, TimeSlot } from "@/types";
 
 import { DayStrip } from "@/components/book/day-strip";
 import { SlotGrid, SlotGridSkeleton } from "@/components/book/slot-grid";

@@ -1,3 +1,4 @@
+import { withMiddleware } from "@/backend/middleware";
 import { pageCard } from "@/server/og";
 import { CARDS, isCardKey } from "@/utils/metadata";
 
@@ -13,11 +14,11 @@ export function generateStaticParams() {
   return Object.keys(CARDS).map((card) => ({ card }));
 }
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ card: string }> },
-) {
-  const { card } = await params;
-  if (!isCardKey(card)) return new Response("Not found", { status: 404 });
-  return pageCard(card);
-}
+export const GET = withMiddleware<unknown>(
+  async (request) => {
+    const card = request.params?.card;
+    if (!card || !isCardKey(card)) return new Response("Not found", { status: 404 });
+    return pageCard(card);
+  },
+  [],
+);

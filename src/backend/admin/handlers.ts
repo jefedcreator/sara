@@ -1,7 +1,7 @@
 import type { AuthRequest } from "@/backend/middleware/types";
 import { NotFoundException } from "@/utils/exceptions";
 import { NextResponse } from "next/server";
-import type { ApiResponse, PaginatedApiResponse } from "types";
+import type { ApiResponse, PaginatedApiResponse } from "@/types";
 import {
   readAnalytics,
   type AdminAnalytics,

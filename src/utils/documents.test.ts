@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { InvoiceDto, ReceiptDto } from "types";
+import type { InvoiceDto, ReceiptDto } from "@/types";
 
 import type { DocumentFormSchema } from "@/backend/validators/document-form.validator";
 

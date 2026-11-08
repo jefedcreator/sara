@@ -1,6 +1,6 @@
 import type { InvoiceStatus, Prisma } from "@prisma/client";
 
-import type { DashboardData, ItemRevenue } from "types";
+import type { DashboardData, ItemRevenue } from "@/types";
 
 import { periodRange, type PeriodRange } from "@/backend/services/assistant/clock";
 import { activeBookingWhere } from "@/backend/services/booking/conflicts";

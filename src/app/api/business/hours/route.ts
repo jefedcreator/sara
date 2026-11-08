@@ -14,7 +14,7 @@ import {
 } from "@/utils/exceptions";
 import { type BusinessHours } from "@prisma/client";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 
 /**
  * @description Retrieves the authenticated user's business's weekly working

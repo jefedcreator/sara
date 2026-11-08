@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 
-import { LandingPage } from "@/app/components/landing/LandingPage";
+import { LandingPage } from "@/components/landing/landing-page";
 import { CARDS, pageMetadata } from "@/utils/metadata";
 
 // The card itself is app/opengraph-image.tsx.

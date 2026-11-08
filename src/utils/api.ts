@@ -26,7 +26,7 @@ import type {
   PublicServiceDto,
   Sells,
   ServiceDto,
-} from "types";
+} from "@/types";
 
 import http from "./axios";
 

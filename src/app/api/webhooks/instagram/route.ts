@@ -1,3 +1,4 @@
+import { withMiddleware } from "@/backend/middleware";
 import { instagramAdapter } from "@/backend/services/messaging/channels/instagram";
 import { processInboundBatch } from "@/backend/services/messaging/process";
 import { after, NextResponse } from "next/server";
@@ -5,11 +6,12 @@ import { after, NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-export async function GET(request: Request) {
-  return instagramAdapter.verify(request);
-}
+export const GET = withMiddleware<unknown>(
+  async (request) => instagramAdapter.verify(request),
+  [],
+);
 
-export async function POST(request: Request) {
+export const POST = withMiddleware<unknown>(async (request) => {
   const rawBody = await request.text();
 
   if (!instagramAdapter.isAuthentic(request, rawBody)) {
@@ -29,4 +31,4 @@ export async function POST(request: Request) {
   }
 
   return NextResponse.json({ status: "ok" }, { status: 200 });
-}
+}, []);

@@ -10,6 +10,7 @@ import type {
   AtlasReverseQueryValidatorSchema,
   AtlasSearchQueryValidatorSchema,
 } from "../validators/atlas.validator";
+import type { AssistantListQueryValidatorSchema } from "../validators/assistant.validator";
 
 export type MiddlewareResponse = {
   message: string;
@@ -22,25 +23,24 @@ export type MiddlewareFunction<B = unknown, Q = QueryParameters> = (
   req: AuthRequest<B, Q>,
 ) => Promise<MiddlewareResponse>;
 
-export interface I_JwtPayload {
-  workspaceId: string;
-  email: string;
-  uid: string;
-  permissions: any;
-}
-
 type Prettify<T> = {
   [K in keyof T]: T[K];
 } & {};
 
+/**
+ * The union of every query schema in the app, so `withMiddleware`'s default
+ * `Q` can name any route's parsed query. A route that needs a precise type
+ * passes its own: `withMiddleware<unknown, ServiceQueryValidatorSchema>(…)`.
+ */
 export type QueryParameters = Prettify<
   Partial<BaseQueryValidatorSchema> &
-  Partial<InvoiceQueryValidatorSchema> &
-  Partial<ReceiptQueryValidatorSchema> &
-  Partial<ServiceDetailQueryValidatorSchema> &
-  AtlasSearchQueryValidatorSchema &
-  AtlasGeocodeQueryValidatorSchema &
-  AtlasReverseQueryValidatorSchema
+    Partial<InvoiceQueryValidatorSchema> &
+    Partial<ReceiptQueryValidatorSchema> &
+    Partial<ServiceDetailQueryValidatorSchema> &
+    Partial<AssistantListQueryValidatorSchema> &
+    AtlasSearchQueryValidatorSchema &
+    AtlasGeocodeQueryValidatorSchema &
+    AtlasReverseQueryValidatorSchema
 >;
 
 export type AuthenticatedUser = User & {

@@ -18,7 +18,7 @@ import { db } from "@/server/db";
 import { productLink, publicLink, serviceLink } from "@/server/share";
 import type { ServiceValidatorSchema, UpdateServiceValidatorSchema } from "@/backend/validators/service.validator";
 import type { UpdateBookingValidatorSchema } from "@/backend/validators/booking.validator";
-import type { ActionResult, ResourceKind } from "types/assistant";
+import type { ActionResult, ResourceKind } from "@/types/assistant";
 import { BadRequestException, NotFoundException } from "@/utils/exceptions";
 
 import type { AssistantScope, Effect } from "../types";

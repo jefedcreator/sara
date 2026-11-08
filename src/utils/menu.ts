@@ -1,4 +1,4 @@
-import type { Sells } from "types";
+import type { Sells } from "@/types";
 
 /*
  * The chat menu, per what the business sells. Pure and client-safe: the Today

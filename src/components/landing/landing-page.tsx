@@ -12,17 +12,17 @@ import { LogoMark, Wordmark } from "@/primitives";
 import { cn } from "@/utils/cn";
 import { whatsappHref } from "@/utils/whatsapp";
 
-import { CopyLinkButton } from "./CopyLinkButton";
-import { HeroDemo } from "./HeroDemo";
-import { LandingMotion } from "./LandingMotion";
-import { LandingNav } from "./LandingNav";
+import { CopyLinkButton } from "./copy-link-button";
+import { HeroDemo } from "./hero-demo";
+import { LandingMotion } from "./landing-motion";
+import { LandingNav } from "./landing-nav";
 import { ARRIVE_ITEM, ARRIVE_SELF } from "./motion";
 import {
   ChatLink,
   OwnerMessage,
   SaraMessage,
   WhatsAppChat,
-} from "./WhatsAppChat";
+} from "./whats-app-chat";
 
 /*
  * Sara landing page, ported from landing/v1/impeccable (the app-wide design

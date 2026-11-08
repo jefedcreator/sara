@@ -2,7 +2,7 @@
 
 import { Plus } from "@phosphor-icons/react/dist/ssr";
 import { useState } from "react";
-import type { ServiceDto } from "types";
+import type { ServiceDto } from "@/types";
 
 import type { ServiceFormOutput } from "@/backend/validators/service-form.validator";
 import {

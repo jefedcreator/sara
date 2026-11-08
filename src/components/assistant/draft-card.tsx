@@ -1,6 +1,6 @@
-import type { DraftDto, DraftStatus } from "types";
+import type { DraftDto, DraftStatus } from "@/types";
 
-import { Button } from "@/primitives/Button";
+import { Button } from "@/primitives";
 import { cn } from "@/utils/cn";
 
 const labels: Record<DraftStatus, string> = {

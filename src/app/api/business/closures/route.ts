@@ -15,7 +15,7 @@ import {
 } from "@/utils/exceptions";
 import { type BusinessClosure } from "@prisma/client";
 import { NextResponse } from "next/server";
-import type { ApiResponse } from "types";
+import type { ApiResponse } from "@/types";
 
 /**
  * @description Lists the authenticated user's business's one-off closures

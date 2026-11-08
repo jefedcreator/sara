@@ -63,8 +63,9 @@ function requireDeliveryFee(
   }
 }
 
-export const businessValidatorSchema =
-  businessObjectSchema.superRefine(requireDeliveryFee);
+export const businessValidatorSchema = businessObjectSchema
+  .strict()
+  .superRefine(requireDeliveryFee);
 
 export const updateBusinessValidatorSchema = z
   .object(withoutDefaults(businessObjectSchema.shape))

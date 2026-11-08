@@ -2,7 +2,7 @@
 
 import { isAxiosError } from "axios";
 import { useEffect, useRef, useState } from "react";
-import type { ActionResult, DraftDto } from "types";
+import type { ActionResult, DraftDto } from "@/types";
 
 import { canApproveDraft } from "@/components/assistant/draft-card";
 import type { AssistantMessage } from "@/components/assistant/message-list";

@@ -9,7 +9,7 @@ import {
   NotFoundException,
 } from "@/utils/exceptions";
 import { publicPath } from "@/utils/public-links";
-import type { CustomerDetail, CustomerListItem, TimelineEntry } from "types";
+import type { CustomerDetail, CustomerListItem, TimelineEntry } from "@/types";
 
 import { nameKey, normalizeEmail, normalizePhone } from "./normalize";
 

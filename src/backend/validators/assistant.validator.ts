@@ -4,18 +4,35 @@ import { z } from "zod";
 export const assistantConversationIdSchema = z.string().trim().min(1).max(200);
 export const assistantRequestIdSchema = z.string().uuid();
 
-export const assistantMessageValidatorSchema = z.object({
-  requestId: assistantRequestIdSchema,
-  conversationId: assistantConversationIdSchema.optional(),
-  text: z.string().trim().min(1).max(4_096),
-}).strict();
+export const assistantMessageValidatorSchema = z
+  .object({
+    requestId: assistantRequestIdSchema,
+    conversationId: assistantConversationIdSchema.optional(),
+    text: z.string().trim().min(1).max(4_096),
+  })
+  .strict();
 
 /** Approval/edit requests never accept replacement payloads or tenant ids. */
-export const assistantDraftValidatorSchema = z.object({
-  conversationId: assistantConversationIdSchema,
-}).strict();
+export const assistantDraftValidatorSchema = z
+  .object({
+    conversationId: assistantConversationIdSchema,
+  })
+  .strict();
 
-export const assistantAudioFieldsSchema = z.object({
-  requestId: assistantRequestIdSchema,
-  conversationId: assistantConversationIdSchema.optional(),
-}).strict();
+export const assistantAudioFieldsSchema = z
+  .object({
+    requestId: assistantRequestIdSchema,
+    conversationId: assistantConversationIdSchema.optional(),
+  })
+  .strict();
+
+/** `GET /api/assistant/messages?conversationId=…` — the conversation to replay. */
+export const assistantListQueryValidatorSchema = z
+  .object({
+    conversationId: assistantConversationIdSchema.optional(),
+  })
+  .strict();
+
+export type AssistantListQueryValidatorSchema = z.infer<
+  typeof assistantListQueryValidatorSchema
+>;
