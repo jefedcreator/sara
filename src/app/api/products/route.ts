@@ -61,7 +61,7 @@ export const POST = withMiddleware<ProductValidatorSchema>(
       const response: ApiResponse<ProductDto> = {
         status: 201,
         message: "Product created successfully",
-        data: product as unknown as ProductDto,
+        data: product,
       };
 
       return NextResponse.json(response, { status: 201 });
@@ -107,7 +107,7 @@ export const GET = withMiddleware<unknown, ProductQueryValidatorSchema>(
       const response: ApiResponse<ProductDto[]> = {
         status: 200,
         message: "Products retrieved successfully",
-        data: products as unknown as ProductDto[],
+        data: products,
       };
 
       return NextResponse.json(response);

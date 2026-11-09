@@ -7,7 +7,7 @@ import {
   updateReceiptValidatorSchema,
   type UpdateReceiptValidatorSchema,
 } from "@/backend/validators/receipt.validator";
-import { publicBusinessSelect } from "@/backend/selects";
+import { receiptListInclude } from "@/backend/selects";
 import { customerService } from "@/backend/services/customer";
 import { db } from "@/server/db";
 import { type ApiResponse, type ReceiptListItem } from "@/types";
@@ -23,22 +23,6 @@ import { cloudinaryService } from "@/backend/services/cloudinary";
 import { generateReceiptPdf } from "@/backend/services/pdf";
 import { emailReceipt } from "@/backend/services/email/documents";
 import { resolveDocumentLines } from "@/backend/services/lines";
-
-const receiptInclude: Prisma.ReceiptInclude = {
-  payment: {
-    include: {
-      invoice: {
-        select: {
-          id: true,
-          slug: true,
-          invoiceNumber: true,
-        },
-      },
-    },
-  },
-  business: { select: publicBusinessSelect },
-  lines: { include: { service: true }, orderBy: { position: "asc" } },
-};
 
 /**
  * @body UpdateReceiptValidatorSchema
@@ -272,7 +256,7 @@ export const GET = withMiddleware<unknown>(
 
       const receipt = await db.receipt.findUnique({
         where: { slug },
-        include: receiptInclude,
+        include: receiptListInclude,
       });
 
       if (!receipt) {
@@ -288,7 +272,7 @@ export const GET = withMiddleware<unknown>(
       const response: ApiResponse<ReceiptListItem> = {
         status: 200,
         message: "Receipt retrieved successfully",
-        data: receipt as unknown as ReceiptListItem,
+        data: receipt,
       };
 
       return NextResponse.json(response);

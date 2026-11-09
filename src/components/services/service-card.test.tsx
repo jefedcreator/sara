@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ServiceDto } from "@/types";
 import { describe, expect, it, vi } from "vitest";
@@ -11,7 +12,7 @@ const MOCK_SERVICE: ServiceDto = {
   name: "Knotless Braids",
   description: "Waist length, includes hair extensions.",
   image: "https://res.cloudinary.com/demo/image/upload/v1/sample.jpg",
-  price: "25000",
+  price: new Prisma.Decimal("25000"),
   duration: 240,
   availableFrom: "08:00",
   availableTo: "17:00",
@@ -21,8 +22,8 @@ const MOCK_SERVICE: ServiceDto = {
   checkOutTime: null,
   minUnits: 1,
   maxUnits: 30,
-  createdAt: "2026-10-01T09:00:00.000Z",
-  updatedAt: "2026-10-01T09:00:00.000Z",
+  createdAt: new Date("2026-10-01T09:00:00.000Z"),
+  updatedAt: new Date("2026-10-01T09:00:00.000Z"),
 };
 
 describe("ServiceCard component", () => {

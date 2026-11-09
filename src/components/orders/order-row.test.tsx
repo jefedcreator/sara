@@ -1,10 +1,11 @@
+import { Prisma } from "@prisma/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { OrderDto } from "@/types";
 import { describe, expect, it } from "vitest";
 
 import { OrderRow } from "./order-row";
 
-const BASE_ORDER = {
+const BASE_ORDER: OrderDto = {
   id: "ord_1",
   slug: "ord-1022",
   publicId: "Xk39fjQ2aB7mN0pR",
@@ -12,12 +13,12 @@ const BASE_ORDER = {
   customerId: "cus_1",
   orderNumber: "ORD-1022",
   status: "READY",
-  source: "PRODUCT_LINK",
+  source: "ONLINE",
   fulfilment: "DELIVERY",
   deliveryAddress: "12 Allen Avenue, Ikeja",
-  deliveryFee: "3000",
-  subtotal: "90000",
-  total: "93000",
+  deliveryFee: new Prisma.Decimal("3000"),
+  subtotal: new Prisma.Decimal("90000"),
+  total: new Prisma.Decimal("93000"),
   currency: "NGN",
   holdExpiresAt: null,
   oversold: false,
@@ -27,12 +28,12 @@ const BASE_ORDER = {
   clientPhone: "+2348035550142",
   clientEmail: "tolu@example.com",
   notes: null,
-  paidAt: "2026-10-20T10:00:00.000Z",
+  paidAt: new Date("2026-10-20T10:00:00.000Z"),
   readyAt: null,
   completedAt: null,
   cancelledAt: null,
-  createdAt: "2026-10-20T09:00:00.000Z",
-  updatedAt: "2026-10-20T10:00:00.000Z",
+  createdAt: new Date("2026-10-20T09:00:00.000Z"),
+  updatedAt: new Date("2026-10-20T10:00:00.000Z"),
   lines: [
     {
       id: "line_1",
@@ -40,14 +41,14 @@ const BASE_ORDER = {
       productOptionId: "opt_1",
       name: 'Frontal wig — 20"',
       quantity: 2,
-      unitPrice: "45000",
-      total: "90000",
+      unitPrice: new Prisma.Decimal("45000"),
+      total: new Prisma.Decimal("90000"),
     },
   ],
   customer: { id: "cus_1", name: "Tolu Adeyemi", phone: "+2348035550142", email: "tolu@example.com" },
   invoice: null,
   receipt: null,
-} as unknown as OrderDto;
+};
 
 function render(overrides: Partial<OrderDto> = {}) {
   return renderToStaticMarkup(

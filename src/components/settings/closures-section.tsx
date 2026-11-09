@@ -37,7 +37,7 @@ export function ClosuresSection({
   const [open, setOpen] = useState(false);
   const [formKey, setFormKey] = useState(0);
   const upcoming = closures
-    .map((c) => ({ ...c, day: c.date.slice(0, 10) }))
+    .map((c) => ({ ...c, day: c.date.toISOString().slice(0, 10) }))
     .filter((c) => c.day >= today);
 
   return (

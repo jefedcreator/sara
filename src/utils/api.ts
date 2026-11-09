@@ -231,7 +231,9 @@ export type ReceiptUpdateInput = Partial<DocumentMoney> & {
 // Matches PAGE_SIZE in src/server/lists.ts, so server-seeded pages line up.
 const PAGE_SIZE = 20;
 
-async function page<T>(request: Promise<{ data: ApiResponse<T[]> & Omit<Page<T>, "data"> }>) {
+async function page<T>(
+  request: Promise<{ data: ApiResponse<T[]> & Omit<Page<T>, "data"> }>,
+): Promise<Page<T>> {
   const { data } = await request;
   return {
     data: data.data,
@@ -239,7 +241,7 @@ async function page<T>(request: Promise<{ data: ApiResponse<T[]> & Omit<Page<T>,
     page: data.page,
     size: data.size,
     totalPages: data.totalPages,
-  } satisfies Page<T>;
+  };
 }
 
 function toFormData(

@@ -58,7 +58,7 @@ export const POST = withMiddleware<StockAdjustValidatorSchema>(
       const response: ApiResponse<ProductOptionDto> = {
         status: 200,
         message: "Stock updated successfully",
-        data: option as unknown as ProductOptionDto,
+        data: option,
       };
 
       return NextResponse.json(response);

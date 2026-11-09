@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import type { ProductDto } from "@/types";
 
@@ -10,12 +11,12 @@ function product(overrides: Partial<ProductDto> = {}): ProductDto {
     businessId: "biz_1",
     name: "Shea butter 250ml",
     description: null,
-    price: "6500",
+    price: new Prisma.Decimal("6500"),
     photos: [],
     tracksStock: true,
     isActive: true,
-    createdAt: "2026-10-01T00:00:00.000Z",
-    updatedAt: "2026-10-01T00:00:00.000Z",
+    createdAt: new Date("2026-10-01T00:00:00.000Z"),
+    updatedAt: new Date("2026-10-01T00:00:00.000Z"),
     options: [
       { id: "opt_1", productId: "prod_1", name: "", price: null, stock: 9, position: 0, isActive: true },
     ],
@@ -42,7 +43,7 @@ describe("stockWarning", () => {
     const wig = product({
       name: "Frontal wig",
       options: [
-        { id: "opt_2", productId: "prod_1", name: '20"', price: "45000", stock: 3, position: 0, isActive: true },
+        { id: "opt_2", productId: "prod_1", name: '20"', price: new Prisma.Decimal("45000"), stock: 3, position: 0, isActive: true },
       ],
     });
     expect(

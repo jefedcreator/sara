@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Prisma } from "@prisma/client";
 import type { InvoiceDto, ReceiptDto } from "@/types";
 
 import type { DocumentFormSchema } from "@/backend/validators/document-form.validator";
@@ -119,18 +120,18 @@ const MOCK_INVOICE: InvoiceDto = {
   clientName: "Ada Lovelace",
   clientEmail: "ada@example.com",
   clientPhone: "+2348012345678",
-  subtotal: "25000",
-  taxAmount: "1875",
-  discount: "1000",
-  total: "25875",
-  amountPaid: "0",
-  dueAt: "2026-11-01T00:00:00.000Z",
-  sentAt: "2026-10-01T00:00:00.000Z",
+  subtotal: new Prisma.Decimal("25000"),
+  taxAmount: new Prisma.Decimal("1875"),
+  discount: new Prisma.Decimal("1000"),
+  total: new Prisma.Decimal("25875"),
+  amountPaid: new Prisma.Decimal("0"),
+  dueAt: new Date("2026-11-01T00:00:00.000Z"),
+  sentAt: new Date("2026-10-01T00:00:00.000Z"),
   paidAt: null,
   notes: "Urgent delivery",
   url: "https://cdn.test/inv.pdf",
-  createdAt: "2026-10-01T00:00:00.000Z",
-  updatedAt: "2026-10-01T00:00:00.000Z",
+  createdAt: new Date("2026-10-01T00:00:00.000Z"),
+  updatedAt: new Date("2026-10-01T00:00:00.000Z"),
   lines: [
     {
       id: "line_1",
@@ -140,8 +141,8 @@ const MOCK_INVOICE: InvoiceDto = {
       name: "Braids",
       description: "Braids",
       quantity: 1,
-      unitPrice: "25000",
-      total: "25000",
+      unitPrice: new Prisma.Decimal("25000"),
+      total: new Prisma.Decimal("25000"),
       position: 0,
       service: { id: "srv_1", name: "Braids" } as any,
     },
@@ -164,16 +165,16 @@ const MOCK_RECEIPT: ReceiptDto = {
   email: "bisi@example.com",
   phone: "+2348098765432",
   currency: "NGN",
-  subtotal: "15000",
-  taxAmount: "0",
-  discount: "0",
-  total: "15000",
-  amountPaid: "15000",
+  subtotal: new Prisma.Decimal("15000"),
+  taxAmount: new Prisma.Decimal("0"),
+  discount: new Prisma.Decimal("0"),
+  total: new Prisma.Decimal("15000"),
+  amountPaid: new Prisma.Decimal("15000"),
   paymentMethod: "CASH",
   notes: "Walk-in payment",
   url: "https://cdn.test/rcp.pdf",
-  createdAt: "2026-10-05T00:00:00.000Z",
-  updatedAt: "2026-10-05T00:00:00.000Z",
+  createdAt: new Date("2026-10-05T00:00:00.000Z"),
+  updatedAt: new Date("2026-10-05T00:00:00.000Z"),
   business: { id: "biz_1", name: "Sara Salon" } as any,
   payment: null,
   lines: [],
@@ -222,8 +223,8 @@ describe("documentToFormValues", () => {
       {
         ...MOCK_INVOICE,
         dueAt: null,
-        taxAmount: "0",
-        discount: "0",
+        taxAmount: new Prisma.Decimal("0"),
+        discount: new Prisma.Decimal("0"),
         clientEmail: null,
         clientPhone: null,
       },
@@ -238,7 +239,7 @@ describe("documentToFormValues", () => {
 
   it("converts dueAt when provided as a Date object", () => {
     const values = documentToFormValues(
-      { ...MOCK_INVOICE, dueAt: new Date("2026-11-01T00:00:00.000Z") as any },
+      { ...MOCK_INVOICE, dueAt: new Date("2026-11-01T00:00:00.000Z") },
       "invoice",
     );
     expect(values.dueAt).toBe("2026-11-01");
@@ -256,8 +257,8 @@ describe("documentToFormValues", () => {
             productOptionId: "opt_1",
             name: 'Frontal wig — 20"',
             quantity: 2,
-            unitPrice: "45000",
-            total: "90000",
+            unitPrice: new Prisma.Decimal("45000"),
+            total: new Prisma.Decimal("90000"),
           },
         ],
       },

@@ -26,8 +26,8 @@ function StayMove({ booking, onPick, picked }: { booking: BookingDto; onPick: (s
   const window = { from: month, to: addMonths(month, 1 + Math.ceil(booking.units / 30)) };
   const nights = useServiceNightsQuery(booking.service.slug, window.from, window.to, booking.slug, true);
   const free = new Set((nights.data?.nights ?? []).filter((n) => n.isAvailable).map((n) => n.date));
-  const checkInTime = booking.startTime.slice(11, 16);
-  const checkOutTime = booking.endTime.slice(11, 16);
+  const checkInTime = booking.startTime.toISOString().slice(11, 16);
+  const checkOutTime = booking.endTime.toISOString().slice(11, 16);
   const pickedCheckOut = picked ? addDays(picked, booking.units) : null;
 
   const days: CalendarDay[] = eachDate(month, addMonths(month, 1)).map((date) => {
@@ -106,7 +106,7 @@ export function RescheduleModal({
           <Modal.Dismiss />
           <Modal.Title>Reschedule {booking.clientName}</Modal.Title>
           <Modal.Description>
-            {booking.service.name}, now {booking.service.bookingMode === "SLOT" ? formatSlotMoment(booking.startTime) : bookingSpan({ bookingMode: booking.service.bookingMode, startTime: booking.startTime, endTime: booking.endTime, units: booking.units })}. {booking.service.bookingMode === "NIGHTLY" ? `Pick a new check-in; the stay keeps its ${unitCount("NIGHTLY", booking.units)}.` : "They'll get an email with the new time."}
+            {booking.service.name}, now {booking.service.bookingMode === "SLOT" ? formatSlotMoment(booking.startTime) : bookingSpan({ bookingMode: booking.service.bookingMode, startTime: booking.startTime.toISOString(), endTime: booking.endTime.toISOString(), units: booking.units })}. {booking.service.bookingMode === "NIGHTLY" ? `Pick a new check-in; the stay keeps its ${unitCount("NIGHTLY", booking.units)}.` : "They'll get an email with the new time."}
           </Modal.Description>
 
           {booking.service.bookingMode === "SLOT" ? (

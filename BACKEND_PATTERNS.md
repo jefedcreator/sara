@@ -249,6 +249,28 @@ export interface PaginatedApiResponse<T> extends ApiResponse<T> {
 
 Always return one of these two shapes from every handler.
 
+### Response data is the service's value, uncast
+
+`data` is whatever the service returned — the same type, untouched:
+
+```typescript
+const product = await productService.getBySlug(business.id, slug);
+
+const response: ApiResponse<ProductDto> = {
+  status: 200,
+  message: "Product retrieved successfully",
+  data: product, // not `product as ProductDto`, `as unknown as`, or `satisfies`
+};
+```
+
+- Never typecast response data (`as`, `as unknown as`, `satisfies`) to make a route compile.
+  If the service value does not fit the DTO, correct the DTO or the service.
+- DTOs (`ProductDto`, `OrderDto`, `BookingDto`, `InvoiceDto`, `ReceiptDto`, `ServiceDto`,
+  `CustomerDto`, `ServiceSlotsDto`, ...) are aliases or extensions of the service/Prisma
+  types. `Decimal` and `Date` stay as they are: no `Serialized<T>`, no JSON round trip.
+- Include shapes used by a route must match the DTO it declares (share the `include`
+  constant, e.g. `receiptListInclude`, rather than a second copy that drifts).
+
 ---
 
 ## 5. Middleware System
@@ -1395,3 +1417,5 @@ getBusyIntervals(business, date): Promise<{ start: Date; end: Date }[]> // [] if
 20. **External integration calls are best-effort and non-fatal.** Atlas routing, Google Calendar sync, and notification emails are all side effects of a booking operation, never a precondition for it. A failure in any of them is logged and swallowed — it never fails the booking create/cancel/reschedule that triggered it.
 
 21. **Optional configuration degrades to today's behavior, not an error.** No `BusinessHours` rows, no `BusinessClosure` rows, and no Google Calendar connection are all valid default states. Every scheduling feature checks for the absence of configuration and falls back to the simpler prior behavior rather than requiring setup before it works at all.
+
+22. **Response data is never typecast.** A handler puts the service's return value in `data` as-is — no `as`, `as unknown as`, or `satisfies`. DTOs mirror the service/Prisma types (`Decimal` stays `Decimal`, `Date` stays `Date`); there is no `Serialized<T>` and no JSON round trip. If a route will not compile without a cast, fix the DTO or the service. See §4 "Response data is the service's value, uncast".

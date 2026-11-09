@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import type { InvoiceDto, ReceiptDto } from "@/types";
 import { describe, expect, it } from "vitest";
 
@@ -22,32 +23,32 @@ const line = (name: string, description: string | null, quantity = 1) => ({
   name,
   description,
   quantity,
-  unitPrice: "3000",
-  total: String(3000 * quantity),
+  unitPrice: new Prisma.Decimal("3000"),
+  total: new Prisma.Decimal(3000 * quantity),
 });
 
-const INVOICE = {
+const INVOICE: InvoiceDto = {
   invoiceNumber: "INV-1012",
   status: "PARTIALLY_PAID",
   clientName: "Adaeze Okafor",
   clientEmail: "adaeze@example.com",
   clientPhone: null,
   currency: "NGN",
-  createdAt: "2026-09-30T09:00:00.000Z",
-  sentAt: "2026-10-01T09:00:00.000Z",
-  dueAt: "2026-10-12T00:00:00.000Z",
+  createdAt: new Date("2026-09-30T09:00:00.000Z"),
+  sentAt: new Date("2026-10-01T09:00:00.000Z"),
+  dueAt: new Date("2026-10-12T00:00:00.000Z"),
   paidAt: null,
   business,
   lines: [line("Knotless braids", ""), line("Extensions", "Hair extensions, colour 1B", 3)],
 } as unknown as InvoiceDto;
 
-const RECEIPT = {
+const RECEIPT: ReceiptDto = {
   receiptNumber: "RCP-1007",
   name: null,
   email: null,
   phone: "+234 803 555 0199",
   currency: "NGN",
-  createdAt: "2026-09-29T10:00:00.000Z",
+  createdAt: new Date("2026-09-29T10:00:00.000Z"),
   paymentMethod: "BANK_TRANSFER",
   business,
   lines: [line("Gele tying", null)],
@@ -79,7 +80,7 @@ describe("invoicePreview", () => {
   it("dates a draft by when it was made, and shows a paid date once paid", () => {
     const draft = invoicePreview({ ...INVOICE, sentAt: null, dueAt: null });
     expect(draft.meta).toEqual([["Issued", "30 Sep 2026"]]);
-    const paid = invoicePreview({ ...INVOICE, paidAt: "2026-10-05T09:00:00.000Z" });
+    const paid = invoicePreview({ ...INVOICE, paidAt: new Date("2026-10-05T09:00:00.000Z") });
     expect(paid.meta.at(-1)).toEqual(["Paid", "5 Oct 2026"]);
   });
 

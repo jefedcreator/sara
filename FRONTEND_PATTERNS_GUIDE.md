@@ -510,6 +510,29 @@ design system is the ruling. When a skill teaches something new, fold it into
 - **Compile-time contract proof (`src/types/contract.ts`):** Asserts type equality between service response types and documented API DTOs.
 - Route Handlers are composed with `withMiddleware(handler, [authMiddleware, bodyValidatorMiddleware(schema), ...])`.
 
+### Response data keeps the service's type — never typecast it
+
+What a service returns is what the route sends and what the client receives. Do not
+serialize it, reshape it, or force it into a different type on the way out.
+
+- **A route handler passes the service value straight through:** `data: product`, not
+  `data: product as ProductDto`, `as unknown as ProductDto`, or `satisfies ProductDto`.
+  If the types disagree, fix the type or the service — do not cast over the gap.
+- **DTOs describe the service's return type, not a JSON copy of it.** `ProductDto`,
+  `OrderDto`, `BookingDto`, `InvoiceDto`, `ReceiptDto`, `ServiceDto`, `CustomerDto`,
+  `ServiceSlotsDto`, `PublicBookingDto`, `PublicOrderDto` and friends are aliases (or
+  extensions) of the Prisma/service types. `Decimal` stays a `Decimal` and `Date` stays a
+  `Date`; there is no `Serialized<T>` mapping, and no `JSON.parse(JSON.stringify(...))`
+  round trip in `src/server/*`, `src/server/lists.ts` or route handlers.
+- **Client code reads the real types.** Format with helpers that accept both
+  (`formatMoney`, `formatDate`, `formatSlotTime`, `shortDay`, `dayMonth`, `bookingSpan`
+  all take `string | Date` or `Decimal`-like values). Call `Number(...)` / `.toISOString()`
+  where you need a primitive.
+- **Narrow a union with `in`, not a cast.** `"invoiceNumber" in doc` (not
+  `doc as InvoiceDto`) is how invoice and receipt rows are told apart.
+- **Tests build fixtures with the real types:** `new Prisma.Decimal("25000")`,
+  `new Date("2026-10-01T00:00:00.000Z")` — not strings cast through `as unknown as`.
+
 ### What the client must expect from the API
 
 - **Session cookie authentication:** `parcours_session` is `HttpOnly` and attached automatically via `withCredentials: true`.
@@ -532,6 +555,7 @@ design system is the ruling. When a skill teaches something new, fold it into
 - [ ] Route Handler(s) in `src/app/api/[resource]/route.ts` composed via `withMiddleware`
 - [ ] Fetch wrapper in `src/server/[resource].ts` (`get[Resource]`) with try/catch + typed fallback
 - [ ] Shared response DTOs in `src/types/index.ts` verified by `src/types/contract.ts`
+- [ ] Route returns the service value as-is — no `as`, `as unknown as` or `satisfies` cast on response data
 - [ ] Query key factory in `src/hooks/queries/use-[resource].ts`
 - [ ] Mutation hook in `src/hooks/mutations/use-[resource]-mutations.ts` with cache invalidation
 - [ ] `page.tsx` (Server Component): fetches initial data, passes as `initialData` prop

@@ -49,7 +49,7 @@ export const GET = withMiddleware<unknown>(
       const response: ApiResponse<OrderDto> = {
         status: 200,
         message: "Order retrieved successfully",
-        data: order as unknown as OrderDto,
+        data: order,
       };
 
       return NextResponse.json(response);
@@ -103,7 +103,7 @@ export const PUT = withMiddleware<UpdateOrderValidatorSchema>(
       const response: ApiResponse<OrderDto> = {
         status: 200,
         message: "Order updated successfully",
-        data: order as unknown as OrderDto,
+        data: order,
       };
 
       return NextResponse.json(response);

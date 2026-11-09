@@ -28,15 +28,15 @@ import type {
 
 /*
  * First pages for the list screens, in the same shape the API returns (same
- * includes, same page size, JSON round-tripped), so they can seed the
+ * includes, same page size, same service values), so they can seed the
  * client's queries directly.
  */
 
 export const PAGE_SIZE = 20;
 
-function toPage<T>(rows: unknown[], total: number, page: number): Page<T> {
+function toPage<T>(rows: T[], total: number, page: number): Page<T> {
   return {
-    data: JSON.parse(JSON.stringify(rows)) as T[],
+    data: rows,
     total,
     page,
     size: PAGE_SIZE,

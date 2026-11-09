@@ -1,3 +1,4 @@
+import { Prisma } from "@prisma/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { ReceiptDto } from "@/types";
 import { describe, expect, it, vi } from "vitest";
@@ -16,16 +17,16 @@ const BASE_RECEIPT: ReceiptDto = {
   email: "bisi@example.com",
   phone: "+2348098765432",
   currency: "NGN",
-  subtotal: "15000",
-  taxAmount: "0",
-  discount: "0",
-  total: "15000",
-  amountPaid: "15000",
+  subtotal: new Prisma.Decimal("15000"),
+  taxAmount: new Prisma.Decimal("0"),
+  discount: new Prisma.Decimal("0"),
+  total: new Prisma.Decimal("15000"),
+  amountPaid: new Prisma.Decimal("15000"),
   paymentMethod: "CASH",
   notes: "Walk-in payment",
   url: "https://cdn.test/rcp.pdf",
-  createdAt: "2026-10-05T00:00:00.000Z",
-  updatedAt: "2026-10-05T00:00:00.000Z",
+  createdAt: new Date("2026-10-05T00:00:00.000Z"),
+  updatedAt: new Date("2026-10-05T00:00:00.000Z"),
   business: { id: "biz_1", name: "Sara Salon" } as any,
   payment: null,
   lines: [],
@@ -76,7 +77,7 @@ describe("ReceiptRow component", () => {
           payment: {
             id: "pay_1",
             invoiceId: "inv_1",
-            amount: "15000",
+            amount: new Prisma.Decimal("15000"),
             method: "CASH",
             reference: null,
             businessId: "biz_1",
@@ -86,8 +87,8 @@ describe("ReceiptRow component", () => {
             clientName: null,
             clientEmail: null,
             clientPhone: null,
-            createdAt: "2026-10-05T00:00:00.000Z",
-            updatedAt: "2026-10-05T00:00:00.000Z",
+            createdAt: new Date("2026-10-05T00:00:00.000Z"),
+            updatedAt: new Date("2026-10-05T00:00:00.000Z"),
             invoice: { id: "inv_1", slug: "inv-1", invoiceNumber: "INV-1001" },
           },
         }}

@@ -1,3 +1,4 @@
+import type { Decimal } from "@prisma/client/runtime/library";
 import type {
   Invoice,
   Service,
@@ -5,7 +6,6 @@ import type {
   BusinessClosure,
   BusinessHours,
   Payment,
-  Prisma,
   Product,
   ProductOption,
   Receipt,
@@ -18,20 +18,6 @@ import type {
   OrderStatus,
   Customer,
 } from "@prisma/client";
-
-/**
- * A server value as it arrives over JSON: Decimals become strings (Prisma's
- * toJSON) and Dates become ISO strings. Client code types API data with this.
- */
-export type Serialized<T> = T extends Prisma.Decimal
-  ? string
-  : T extends Date
-    ? string
-    : T extends (infer U)[]
-      ? Serialized<U>[]
-      : T extends object
-        ? { [K in keyof T]: Serialized<T[K]> }
-        : T;
 
 export interface PaginationMeta {
   total: number;
@@ -136,18 +122,18 @@ export type IBooking = Booking & {
 
 // --- Client DTOs (JSON wire shapes) ---
 
-export type ServiceDto = Serialized<Service>;
+export type ServiceDto = Service;
 
-export type ProductOptionDto = Serialized<ProductOption>;
+export type ProductOptionDto = ProductOption;
 
 /** A product and its active options, ordered as the owner arranged them. */
-export type ProductDto = Serialized<Product> & {
+export type ProductDto = Product & {
   options: ProductOptionDto[];
 };
 
-export type BusinessHoursDto = Serialized<BusinessHours>;
+export type BusinessHoursDto = BusinessHours;
 
-export type BusinessClosureDto = Serialized<BusinessClosure>;
+export type BusinessClosureDto = BusinessClosure;
 
 export interface NightDto {
   date: string; // YYYY-MM-DD
@@ -189,7 +175,7 @@ export interface PublicBookingInput {
   notes?: string;
 }
 
-export type PublicBookingDto = Serialized<Booking> & {
+export type PublicBookingDto = Booking & {
   paymentUrl: string;
   paymentReference: string;
 };
@@ -206,7 +192,7 @@ export interface PublicOrderInput {
   clientEmail?: string | null;
 }
 
-export type PublicOrderDto = Serialized<Order> & {
+export type PublicOrderDto = Order & {
   paymentUrl: string;
   paymentReference: string;
 };
@@ -305,17 +291,17 @@ export interface Page<T> {
 }
 
 /** GET /api/bookings row. */
-export type BookingDto = Serialized<Booking> & {
-  service: { id: string; name: string; slug: string; price: string; duration: number; bookingMode: BookingMode };
+export type BookingDto = Booking & {
+  service: { id: string; name: string; slug: string; price: Decimal; duration: number; bookingMode: BookingMode };
 };
 
-export type InvoiceDto = Serialized<InvoiceListItem>;
+export type InvoiceDto = InvoiceListItem;
 
-export type ReceiptDto = Serialized<ReceiptListItem>;
+export type ReceiptDto = ReceiptListItem;
 
 /** GET /api/orders row and GET /api/orders/[slug]. */
-export type OrderDto = Serialized<Order> & {
-  lines: Serialized<OrderLine>[];
+export type OrderDto = Order & {
+  lines: OrderLine[];
   customer: {
     id: string;
     name: string;
@@ -335,10 +321,10 @@ export type OrderDto = Serialized<Order> & {
 };
 
 /** GET /api/services/[slug]?date= — the owner's view of a day's slots. */
-export type ServiceSlotsDto = Serialized<ServiceDetail>;
+export type ServiceSlotsDto = ServiceDetail;
 
 /** A saved customer, as the edit and merge endpoints return one. */
-export type CustomerDto = Serialized<Customer>;
+export type CustomerDto = Customer;
 
 /** GET /api/customers row. */
 export type CustomerListItem = {

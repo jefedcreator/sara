@@ -152,11 +152,11 @@ export const GET = withMiddleware<ReceiptQueryValidatorSchema>(
       const include = receiptListInclude;
 
       if (payload.all) {
-        const data = (await db.receipt.findMany({
+        const data = await db.receipt.findMany({
           where,
           include,
           orderBy,
-        })) as unknown as ReceiptListItem[];
+        });
 
         const response: PaginatedApiResponse<ReceiptListItem[]> = {
           status: 200,
@@ -183,7 +183,7 @@ export const GET = withMiddleware<ReceiptQueryValidatorSchema>(
           skip,
           orderBy,
           include,
-        }) as unknown as Promise<ReceiptListItem[]>,
+        }),
       ]);
 
       const response: PaginatedApiResponse<ReceiptListItem[]> = {

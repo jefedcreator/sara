@@ -51,7 +51,7 @@ export const GET = withMiddleware<unknown, OrderQueryValidatorSchema>(
       const response: PaginatedApiResponse<OrderDto[]> = {
         status: 200,
         message: "Orders retrieved successfully",
-        data: data as unknown as OrderDto[],
+        data,
         total,
         page,
         size,

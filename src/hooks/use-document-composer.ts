@@ -108,8 +108,8 @@ export function useDocumentComposer(kind: DocumentKind, currency: string) {
     };
 
     if (editing) {
-      if (kind === "invoice") {
-        const inv = editing as InvoiceDto;
+      if (kind === "invoice" && "invoiceNumber" in editing) {
+        const inv = editing;
         const willBeSent = inv.status === "DRAFT" ? !draft : true;
         updateInvoice.mutate(
           {
@@ -128,8 +128,8 @@ export function useDocumentComposer(kind: DocumentKind, currency: string) {
             onSuccess: () => setOpen(false),
           },
         );
-      } else {
-        const rcp = editing as ReceiptDto;
+      } else if (kind === "receipt" && "receiptNumber" in editing) {
+        const rcp = editing;
         updateReceipt.mutate(
           {
             slug: rcp.slug,

@@ -104,13 +104,13 @@ export function documentToFormValues(
   doc: InvoiceDto | ReceiptDto,
   kind: "invoice" | "receipt",
 ): DocumentFormSchema {
-  const isInvoice = kind === "invoice";
-  const inv = isInvoice ? (doc as InvoiceDto) : null;
-  const rcp = !isInvoice ? (doc as ReceiptDto) : null;
+  const isInvoice = kind === "invoice" && "invoiceNumber" in doc;
+  const inv = isInvoice ? doc : null;
+  const rcp = "receiptNumber" in doc ? doc : null;
 
-  const name = isInvoice ? inv!.clientName : (rcp!.name ?? "");
-  const email = isInvoice ? (inv!.clientEmail ?? "") : (rcp!.email ?? "");
-  const phone = isInvoice ? (inv!.clientPhone ?? "") : (rcp!.phone ?? "");
+  const name = inv ? inv.clientName : (rcp?.name ?? "");
+  const email = inv ? (inv.clientEmail ?? "") : (rcp?.email ?? "");
+  const phone = inv ? (inv.clientPhone ?? "") : (rcp?.phone ?? "");
 
   const hasLines = doc.lines && doc.lines.length > 0;
   const mode = hasLines ? "services" : "amount";
@@ -136,7 +136,7 @@ export function documentToFormValues(
     dueAt = new Date(inv.dueAt).toISOString().split("T")[0] ?? "";
   }
 
-  const paymentMethod = !isInvoice && rcp?.paymentMethod === "BANK_TRANSFER"
+  const paymentMethod = rcp?.paymentMethod === "BANK_TRANSFER"
     ? "BANK_TRANSFER"
     : "CASH";
 

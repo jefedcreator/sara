@@ -12,6 +12,15 @@ Instructions for all coding agents working in this repository.
 - Break down every task into a todo list before starting work.
 - If a task's todo list has more than one item, commit the work to git with an appropriate commit message upon completion of the task.
 
+## Response data types
+
+- Never typecast response data. What a service returns is what the route sends and what the client receives, with the same type — `Decimal` stays a `Decimal`, `Date` stays a `Date`.
+- No `as`, `as unknown as`, or `satisfies` on response data in route handlers (`data: product`, never `data: product as ProductDto`). No `Serialized<T>` / `JSON.parse(JSON.stringify(...))` reshaping of service results in `src/server/*` or `src/app/api/*`.
+- DTOs in `src/types/index.ts` are aliases or extensions of the service/Prisma types. If a route does not typecheck without a cast, fix the type or the service instead.
+- Narrow unions with `in` (`"invoiceNumber" in doc`), not a cast. Format with helpers that accept both shapes (`formatMoney`, `formatDate`, `formatSlotTime`, `bookingSpan`, ...).
+- Test fixtures use the real types: `new Prisma.Decimal("25000")`, `new Date(...)`.
+- Details: FRONTEND_PATTERNS_GUIDE.md §12.
+
 ## Design language
 
 - All UI (app and marketing) follows `DESIGN.md`, derived from `landing/v1/impeccable` (Clean Minimal SaaS). Read it before building or changing any screen.

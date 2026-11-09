@@ -17,13 +17,13 @@ interface BookingRowProps {
   onCancel: () => void;
 }
 
-function dayLabel(iso: string) {
+function dayLabel(value: string | Date) {
   return new Intl.DateTimeFormat("en-GB", {
     weekday: "short",
     day: "numeric",
     month: "short",
     timeZone: "UTC",
-  }).format(new Date(iso));
+  }).format(typeof value === "string" ? new Date(value) : value);
 }
 
 /** One booking: when, what, who, and the next thing that can happen to it. */
@@ -46,7 +46,7 @@ export function BookingRow({
         <p className="text-accent-ink text-[17px] font-semibold">
           {booking.service.bookingMode === "SLOT"
             ? formatSlotTime(booking.startTime)
-            : bookingSpan({ bookingMode: booking.service.bookingMode, startTime: booking.startTime, endTime: booking.endTime, units: booking.units })}
+            : bookingSpan({ bookingMode: booking.service.bookingMode, startTime: booking.startTime.toISOString(), endTime: booking.endTime.toISOString(), units: booking.units })}
         </p>
         <p className="text-muted text-sm">{dayLabel(booking.startTime)}</p>
       </div>

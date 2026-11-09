@@ -11,8 +11,11 @@ import type { BookingMode } from "@prisma/client";
 const APP_TIME_ZONE = "Africa/Lagos";
 
 /** "NGN 25,000" — the UI form of money (DESIGN.md, Tabular Money Rule). */
-export function formatMoney(amount: number | string, currency: string) {
-  const value = typeof amount === "string" ? Number(amount) : amount;
+export function formatMoney(
+  amount: number | string | { toString(): string },
+  currency: string,
+) {
+  const value = typeof amount === "number" ? amount : Number(amount.toString());
   const formatted = new Intl.NumberFormat("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
@@ -47,13 +50,13 @@ export function serviceLabel(service: {
 }
 
 /** ISO slot time → "13:00". */
-export function formatSlotTime(iso: string) {
+export function formatSlotTime(value: string | Date) {
   return new Intl.DateTimeFormat("en-GB", {
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
     timeZone: "UTC",
-  }).format(new Date(iso));
+  }).format(typeof value === "string" ? new Date(value) : value);
 }
 
 /** Today's calendar date in Lagos as YYYY-MM-DD. */
@@ -94,8 +97,8 @@ export function formatLongDate(isoDate: string) {
 }
 
 /** ISO slot time → "Mon 28 Sep at 13:00". */
-export function formatSlotMoment(iso: string) {
-  const date = new Date(iso);
+export function formatSlotMoment(value: string | Date) {
+  const date = typeof value === "string" ? new Date(value) : value;
   let day = new Intl.DateTimeFormat("en-GB", {
     weekday: "short",
     day: "numeric",
@@ -104,7 +107,7 @@ export function formatSlotMoment(iso: string) {
   }).format(date);
   // Normalize "Sept" to "Sep" for consistency across environments
   day = day.replace("Sept", "Sep");
-  return `${day} at ${formatSlotTime(iso)}`;
+  return `${day} at ${formatSlotTime(date)}`;
 }
 
 /** The 0..6 (Sunday-first) weekday names used by business hours. */
@@ -123,8 +126,8 @@ export const WEEKDAYS = [
 /** A booking's times, as the wire carries them. */
 export type BookingTimes = {
   bookingMode: BookingMode;
-  startTime: string;
-  endTime: string;
+  startTime: string | Date;
+  endTime: string | Date;
   units: number;
 };
 
@@ -140,20 +143,20 @@ export function unitCount(mode: BookingMode, n: number) {
 }
 
 /** ISO → "Fri 2 Oct" (wall-clock UTC). */
-export function shortDay(iso: string) {
+export function shortDay(value: string | Date) {
   const formatted = new Intl.DateTimeFormat("en-GB", {
     weekday: "short",
     day: "numeric",
     month: "short",
     timeZone: "UTC",
-  }).format(new Date(iso));
+  }).format(typeof value === "string" ? new Date(value) : value);
   // Normalize "Sept" to "Sep" for consistency across environments
   return formatted.replace("Sept", "Sep");
 }
 
 /** ISO → "2 Oct" (wall-clock UTC). */
-export function dayMonth(iso: string) {
-  const formatted = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(iso));
+export function dayMonth(value: string | Date) {
+  const formatted = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "UTC" }).format(typeof value === "string" ? new Date(value) : value);
   // Normalize "Sept" to "Sep" for consistency across environments
   return formatted.replace("Sept", "Sep");
 }
@@ -176,9 +179,11 @@ export function bookingWhen(b: BookingTimes) {
 /** A compact "when" for lists and subject lines: "2–5 Oct · 3 nights", "30 Sep–2 Oct · 2 nights". */
 export function bookingSpan(b: BookingTimes) {
   if (b.bookingMode === "SLOT") return formatSlotMoment(b.startTime);
-  const sameMonth = b.startTime.slice(0, 7) === b.endTime.slice(0, 7);
-  const from = sameMonth ? String(new Date(b.startTime).getUTCDate()) : dayMonth(b.startTime);
-  return `${from}–${dayMonth(b.endTime)} · ${unitCount(b.bookingMode, b.units)}`;
+  const start = b.startTime instanceof Date ? b.startTime : new Date(b.startTime);
+  const end = b.endTime instanceof Date ? b.endTime : new Date(b.endTime);
+  const sameMonth = start.getUTCFullYear() === end.getUTCFullYear() && start.getUTCMonth() === end.getUTCMonth();
+  const from = sameMonth ? String(start.getUTCDate()) : dayMonth(start);
+  return `${from}–${dayMonth(end)} · ${unitCount(b.bookingMode, b.units)}`;
 }
 
 /** What happens at a time in today's list. */

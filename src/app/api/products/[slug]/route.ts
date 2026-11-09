@@ -57,7 +57,7 @@ export const GET = withMiddleware<unknown>(
       const response: ApiResponse<ProductDto> = {
         status: 200,
         message: "Product retrieved successfully",
-        data: product as unknown as ProductDto,
+        data: product,
       };
 
       return NextResponse.json(response);
@@ -131,7 +131,7 @@ export const PUT = withMiddleware<UpdateProductValidatorSchema>(
       const response: ApiResponse<ProductDto> = {
         status: 200,
         message: "Product updated successfully",
-        data: product as unknown as ProductDto,
+        data: product,
       };
 
       return NextResponse.json(response);

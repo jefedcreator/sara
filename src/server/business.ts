@@ -1,19 +1,8 @@
 import type { Business } from "@prisma/client";
 import { cache } from "react";
-import type {
-  BusinessClosureDto,
-  BusinessHoursDto,
-  BusinessProfileDto,
-  ProductDto,
-  ServiceDto,
-} from "@/types";
+import type { BusinessProfileDto } from "@/types";
 
 import { db } from "@/server/db";
-
-/** JSON round trip: the exact shape the API sends (Decimals and Dates as strings). */
-function serialize<T>(value: T) {
-  return JSON.parse(JSON.stringify(value)) as unknown;
-}
 
 /**
  * The business as the client may see it. Bank details, the Paystack code and
@@ -50,7 +39,7 @@ export const getServices = cache(async (businessId: string) => {
     where: { businessId },
     orderBy: { createdAt: "desc" },
   });
-  return serialize(services) as ServiceDto[];
+  return services;
 });
 
 export const getProducts = cache(async (businessId: string) => {
@@ -64,7 +53,7 @@ export const getProducts = cache(async (businessId: string) => {
       },
     },
   });
-  return serialize(products) as ProductDto[];
+  return products;
 });
 
 export const getBusinessHours = cache(async (businessId: string) => {
@@ -72,7 +61,7 @@ export const getBusinessHours = cache(async (businessId: string) => {
     where: { businessId },
     orderBy: { dayOfWeek: "asc" },
   });
-  return serialize(days) as BusinessHoursDto[];
+  return days;
 });
 
 export const getClosures = cache(async (businessId: string) => {
@@ -80,5 +69,5 @@ export const getClosures = cache(async (businessId: string) => {
     where: { businessId },
     orderBy: { date: "asc" },
   });
-  return serialize(closures) as BusinessClosureDto[];
+  return closures;
 });

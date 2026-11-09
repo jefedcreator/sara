@@ -67,14 +67,14 @@ export function formatClock(iso: string) {
 }
 
 /** A real instant (createdAt, dueAt) as a Lagos date: "29 Sep 2026". */
-export function formatDate(iso: string) {
+export function formatDate(value: string | Date) {
   return new Intl.DateTimeFormat("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
     timeZone: "Africa/Lagos",
   })
-    .format(new Date(iso))
+    .format(typeof value === "string" ? new Date(value) : value)
     .replace("Sept", "Sep"); // as utils/format.ts does: some ICU versions write "Sept"
 }
 

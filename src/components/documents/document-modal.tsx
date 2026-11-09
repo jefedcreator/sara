@@ -723,7 +723,8 @@ export function DocumentModal({
                 <div className="grid gap-2.5 sm:flex sm:flex-row-reverse">
                   {editing ? (
                     kind === "invoice" &&
-                    (editing as InvoiceDto).status === "DRAFT" ? (
+                    "invoiceNumber" in editing &&
+                    editing.status === "DRAFT" ? (
                       <>
                         <Button
                           type="button"
